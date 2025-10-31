@@ -1,0 +1,63 @@
+{% load static %}
+
+<div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300" 
+     data-product data-product-id="{{ product.id }}" data-price="{{ product.price }}" data-category="{{ product.category.slug }}" data-name="{{ product.name }}">
+    
+    <!-- Product Image -->
+    <div class="relative">
+        <a href="{% url 'products:product_detail' slug=product.slug %}">
+            {% if product.image %}
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-64 object-cover">
+            {% else %}
+                <div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                    <span class="text-6xl">📦</span>
+                </div>
+            {% endif %}
+        </a>
+        
+        <!-- Wishlist Button -->
+        {% if user.is_authenticated %}
+        <form method="POST" action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" class="absolute top-2 right-2">
+            {% csrf_token %}
+            <button type="submit" data-wishlist-toggle data-product-id="{{ product.id }}" 
+                    class="bg-white p-2 rounded-full shadow-md hover:bg-red-50 transition">
+                🤍
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    
+    <!-- Product Info -->
+    <div class="p-4">
+        <a href="{% url 'products:product_detail' slug=product.slug %}">
+            <h3 class="text-lg font-semibold text-gray-800 hover:text-blue-600 transition mb-2">
+                {{ product.name }}
+            </h3>
+        </a>
+        
+        <p class="text-gray-600 text-sm mb-3 line-clamp-2">
+            {{ product.description|truncatewords:15 }}
+        </p>
+        
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-2xl font-bold text-blue-600">${{ product.price }}</span>
+            {% if product.stock > 0 %}
+                <span class="text-sm text-green-600">In Stock</span>
+            {% else %}
+                <span class="text-sm text-red-600">Out of Stock</span>
+            {% endif %}
+        </div>
+        
+        <!-- Add to Cart Form -->
+        <form method="POST" action="{% url 'cart:add_to_cart' product_id=product.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="quantity" value="1">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <button type="submit" data-add-to-cart data-product-id="{{ product.id }}" 
+                    class="btn btn-primary w-full {% if product.stock <= 0 %}opacity-50 cursor-not-allowed{% endif %}"
+                    {% if product.stock <= 0 %}disabled{% endif %}>
+                🛒 Add to Cart
+            </button>
+        </form>
+    </div>
+</div>
