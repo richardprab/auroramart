@@ -1,14 +1,14 @@
 # Django
-*/migrations/*
+*/migrations/
 !*/migrations/__init__.py
 *.pyc
 __pycache__/
 db.sqlite3
 .env
 media/
-static/
+staticfiles/
+/static/root/
 
-# Virtual Environment
 venv/
 env/
 

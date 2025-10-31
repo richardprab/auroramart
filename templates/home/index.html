@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Home - AuroraMart{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section bg-gradient-to-r from-blue-500 to-purple-600 text-white py-20">
+    <div class="container mx-auto px-4 text-center">
+        <h1 class="text-5xl font-bold mb-4" data-animate="fadeInUp">Welcome to AuroraMart</h1>
+        <p class="text-xl mb-8" data-animate="fadeInUp" data-delay="200">Your one-stop shop for everything you need</p>
+        <a href="{% url 'products:product_list' %}" class="btn btn-primary btn-lg" data-animate="fadeInUp"
+            data-delay="400">
+            Shop Now
+        </a>
+    </div>
+</section>
+
+<!-- Featured Categories -->
+<section class="py-16 bg-gray-50">
+    <div class="container mx-auto px-4">
+        <h2 class="text-3xl font-bold text-center mb-12">Shop by Category</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% if categories %}
+            {% for category in categories %}
+            <a href="{% url 'products:category_list' slug=category.slug %}" class="category-card"
+                data-animate="fadeInUp">
+                {% if category.image %}
+                <img src="{{ category.image.url }}" alt="{{ category.name }}"
+                    class="w-full h-48 object-cover rounded-t-lg">
+                {% else %}
+                <div
+                    class="w-full h-48 bg-gradient-to-br from-blue-400 to-purple-500 rounded-t-lg flex items-center justify-center">
+                    <span class="text-6xl">📦</span>
+                </div>
+                {% endif %}
+                <div class="p-4">
+                    <h3 class="text-xl font-semibold">{{ category.name }}</h3>
+                    <p class="text-gray-600 text-sm">{{ category.product_set.count }} products</p>
+                </div>
+            </a>
+            {% endfor %}
+            {% else %}
+            <!-- Default categories if none exist -->
+            <a href="{% url 'products:product_list' %}" class="category-card" data-animate="fadeInUp">
+                <div
+                    class="w-full h-48 bg-gradient-to-br from-blue-400 to-purple-500 rounded-t-lg flex items-center justify-center">
+                    <span class="text-6xl">👕</span>
+                </div>
+                <div class="p-4">
+                    <h3 class="text-xl font-semibold">Fashion</h3>
+                    <p class="text-gray-600 text-sm">Explore all products</p>
+                </div>
+            </a>
+            <a href="{% url 'products:product_list' %}" class="category-card" data-animate="fadeInUp" data-delay="100">
+                <div
+                    class="w-full h-48 bg-gradient-to-br from-green-400 to-teal-500 rounded-t-lg flex items-center justify-center">
+                    <span class="text-6xl">💻</span>
+                </div>
+                <div class="p-4">
+                    <h3 class="text-xl font-semibold">Electronics</h3>
+                    <p class="text-gray-600 text-sm">Explore all products</p>
+                </div>
+            </a>
+            <a href="{% url 'products:product_list' %}" class="category-card" data-animate="fadeInUp" data-delay="200">
+                <div
+                    class="w-full h-48 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-t-lg flex items-center justify-center">
+                    <span class="text-6xl">🏠</span>
+                </div>
+                <div class="p-4">
+                    <h3 class="text-xl font-semibold">Home & Garden</h3>
+                    <p class="text-gray-600 text-sm">Explore all products</p>
+                </div>
+            </a>
+            <a href="{% url 'products:product_list' %}" class="category-card" data-animate="fadeInUp" data-delay="300">
+                <div
+                    class="w-full h-48 bg-gradient-to-br from-pink-400 to-red-500 rounded-t-lg flex items-center justify-center">
+                    <span class="text-6xl">⚽</span>
+                </div>
+                <div class="p-4">
+                    <h3 class="text-xl font-semibold">Sports</h3>
+                    <p class="text-gray-600 text-sm">Explore all products</p>
+                </div>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Featured Products -->
+<section class="py-16">
+    <div class="container mx-auto px-4">
+        <div class="flex items-center justify-between mb-12">
+            <h2 class="text-3xl font-bold">Featured Products</h2>
+            <a href="{% url 'products:product_list' %}" class="text-blue-600 hover:text-blue-800 font-semibold">
+                View All →
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% if featured_products %}
+            {% for product in featured_products %}
+            {% include 'products/product_card.html' with product=product %}
+            {% endfor %}
+            {% else %}
+            <div class="col-span-full text-center py-12">
+                <p class="text-xl text-gray-600 mb-6">No products available yet</p>
+                <a href="{% url 'products:product_list' %}" class="btn btn-primary">Browse Products</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-16 bg-gray-50">
+    <div class="container mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="text-center p-6" data-animate="fadeInUp">
+                <div class="text-5xl mb-4">🚚</div>
+                <h3 class="text-xl font-bold mb-2">Free Shipping</h3>
+                <p class="text-gray-600">On orders over $50</p>
+            </div>
+            <div class="text-center p-6" data-animate="fadeInUp" data-delay="100">
+                <div class="text-5xl mb-4">🔒</div>
+                <h3 class="text-xl font-bold mb-2">Secure Payment</h3>
+                <p class="text-gray-600">100% secure transactions</p>
+            </div>
+            <div class="text-center p-6" data-animate="fadeInUp" data-delay="200">
+                <div class="text-5xl mb-4">🎁</div>
+                <h3 class="text-xl font-bold mb-2">Special Offers</h3>
+                <p class="text-gray-600">Regular deals and discounts</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Newsletter -->
+<section class="py-16 bg-blue-600 text-white">
+    <div class="container mx-auto px-4 text-center">
+        <h2 class="text-3xl font-bold mb-4">Subscribe to Our Newsletter</h2>
+        <p class="text-xl mb-8">Get the latest updates on new products and special offers</p>
+        <form class="max-w-md mx-auto flex gap-4" method="POST" action="#">
+            {% csrf_token %}
+            <input type="email" name="email" placeholder="Your email address"
+                class="flex-1 px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-white">
+            <button type="submit"
+                class="btn btn-secondary px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition">
+                Subscribe
+            </button>
+        </form>
+    </div>
+</section>
+{% endblock %}
