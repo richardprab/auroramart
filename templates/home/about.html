@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}About Us - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12">
+    <!-- Header -->
+    <div class="text-center mb-12">
+        <h1 class="text-5xl font-bold mb-4">About AuroraMart</h1>
+        <p class="text-xl text-gray-600">Your trusted online shopping destination since 2025</p>
+    </div>
+
+    <!-- Mission -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 class="text-3xl font-bold mb-4">Our Mission</h2>
+        <p class="text-lg text-gray-700 leading-relaxed">
+            At AuroraMart, we're dedicated to providing our customers with the best online shopping experience.
+            We believe that shopping should be easy, enjoyable, and accessible to everyone. Our mission is to
+            bring quality products at competitive prices, delivered right to your doorstep.
+        </p>
+    </div>
+
+    <!-- Values -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div class="bg-white rounded-lg shadow-md p-6 text-center">
+            <div class="text-6xl mb-4">💯</div>
+            <h3 class="text-xl font-bold mb-3">Quality First</h3>
+            <p class="text-gray-600">We carefully select each product to ensure it meets our high standards.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6 text-center">
+            <div class="text-6xl mb-4">🤝</div>
+            <h3 class="text-xl font-bold mb-3">Customer Focused</h3>
+            <p class="text-gray-600">Your satisfaction is our top priority. We're here to help 24/7.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6 text-center">
+            <div class="text-6xl mb-4">🌍</div>
+            <h3 class="text-xl font-bold mb-3">Global Reach</h3>
+            <p class="text-gray-600">Shipping worldwide with fast and reliable delivery services.</p>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg p-8 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div>
+                <div class="text-4xl font-bold mb-2">10K+</div>
+                <div class="text-gray-200">Products</div>
+            </div>
+            <div>
+                <div class="text-4xl font-bold mb-2">50K+</div>
+                <div class="text-gray-200">Happy Customers</div>
+            </div>
+            <div>
+                <div class="text-4xl font-bold mb-2">100+</div>
+                <div class="text-gray-200">Brands</div>
+            </div>
+            <div>
+                <div class="text-4xl font-bold mb-2">24/7</div>
+                <div class="text-gray-200">Support</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team (Optional) -->
+    <div class="text-center">
+        <h2 class="text-3xl font-bold mb-8">Our Team</h2>
+        <p class="text-lg text-gray-600 mb-8">
+            We're a passionate team of professionals dedicated to making your shopping experience exceptional.
+        </p>
+        <a href="{% url 'home:contact' %}"
+            class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700">
+            Get in Touch
+        </a>
+    </div>
+</div>
+{% endblock %}
