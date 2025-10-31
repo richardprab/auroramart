@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Shopping Cart - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-bold mb-8">Shopping Cart</h1>
+
+    {% if cart_items %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Cart Items -->
+        <div class="lg:col-span-2">
+            {% for item in cart_items %}
+            <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+                <div class="flex gap-4">
+                    <!-- Product Image -->
+                    <div class="w-24 h-24 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
+                        {% if item.product.images.first %}
+                        <img src="{{ item.product.images.first.image.url }}" alt="{{ item.product.name }}"
+                            class="max-h-full max-w-full object-contain">
+                        {% else %}
+                        <span class="text-4xl">📦</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Product Info -->
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-lg mb-2">
+                            <a href="{% url 'products:product_detail' item.product.slug %}" class="hover:text-blue-600">
+                                {{ item.product.name }}
+                            </a>
+                        </h3>
+                        <p class="text-gray-600 text-sm mb-2">{{ item.product.category.name }}</p>
+                        <p class="text-xl font-bold text-gray-900">${{ item.product.price }}</p>
+                    </div>
+
+                    <!-- Quantity & Actions -->
+                    <div class="flex flex-col items-end justify-between">
+                        <!-- Quantity -->
+                        <form action="{% url 'cart:update_cart' item.id %}" method="post"
+                            class="flex items-center gap-2">
+                            {% csrf_token %}
+                            <button type="submit" name="quantity" value="{{ item.quantity|add:'-1' }}"
+                                class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300">-</button>
+                            <input type="number" name="quantity" value="{{ item.quantity }}"
+                                class="w-16 text-center border border-gray-300 rounded" min="1"
+                                max="{{ item.product.stock }}">
+                            <button type="submit" name="quantity" value="{{ item.quantity|add:'1' }}"
+                                class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300">+</button>
+                        </form>
+
+                        <!-- Subtotal & Remove -->
+                        <div class="text-right">
+                            <p class="text-lg font-bold mb-2">${{ item.get_subtotal }}</p>
+                            <form action="{% url 'cart:remove_from_cart' item.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="text-red-600 hover:underline text-sm">Remove</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Clear Cart -->
+            <div class="text-right">
+                <a href="{% url 'cart:clear_cart' %}" class="text-red-600 hover:underline">Clear Cart</a>
+            </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md p-6 sticky top-24">
+                <h2 class="text-2xl font-bold mb-6">Order Summary</h2>
+
+                <div class="space-y-3 mb-6">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Subtotal</span>
+                        <span class="font-semibold">${{ total }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Tax (10%)</span>
+                        <span class="font-semibold">${{ total|multiply:0.1|floatformat:2 }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Shipping</span>
+                        <span class="font-semibold">$10.00</span>
+                    </div>
+                    <div class="border-t pt-3 flex justify-between text-xl">
+                        <span class="font-bold">Total</span>
+                        <span class="font-bold">${{ total|add:total|multiply:0.1|add:10|floatformat:2 }}</span>
+                    </div>
+                </div>
+
+                <a href="{% url 'orders:checkout' %}"
+                    class="block w-full bg-blue-600 text-white text-center px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 mb-3">
+                    Proceed to Checkout
+                </a>
+
+                <a href="{% url 'products:product_list' %}"
+                    class="block w-full text-center text-blue-600 hover:underline">
+                    Continue Shopping
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty Cart -->
+    <div class="text-center py-12">
+        <div class="text-9xl mb-4">🛒</div>
+        <h2 class="text-2xl font-bold mb-4">Your cart is empty</h2>
+        <p class="text-gray-600 mb-6">Add some products to get started!</p>
+        <a href="{% url 'products:product_list' %}"
+            class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700">
+            Shop Now
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add custom template filter for multiply -->
+{% load custom_filters %}
+{% endblock %}

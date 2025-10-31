@@ -1,0 +1,276 @@
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+import re
+
+User = get_user_model()
+
+
+class CustomUserCreationForm(UserCreationForm):
+    """Custom user registration form with enhanced validation"""
+
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "your@email.com",
+                "autocomplete": "email",
+            }
+        ),
+        help_text="Required. Enter a valid email address.",
+        error_messages={
+            "required": "Email address is required.",
+            "invalid": "Please enter a valid email address.",
+        },
+    )
+
+    first_name = forms.CharField(
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "First name (optional)",
+                "autocomplete": "given-name",
+            }
+        ),
+    )
+
+    last_name = forms.CharField(
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Last name (optional)",
+                "autocomplete": "family-name",
+            }
+        ),
+    )
+
+    class Meta:
+        model = User
+        fields = (
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "password1",
+            "password2",
+        )
+        widgets = {
+            "username": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Choose a username",
+                    "autocomplete": "username",
+                }
+            ),
+        }
+        error_messages = {
+            "username": {
+                "required": "Username is required.",
+                "unique": "This username is already taken.",
+            }
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Add form-control class and attributes to password fields
+        self.fields["password1"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "placeholder": "Create a strong password",
+                "autocomplete": "new-password",
+            }
+        )
+
+        self.fields["password2"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "placeholder": "Re-enter your password",
+                "autocomplete": "new-password",
+            }
+        )
+
+        # Customize username field
+        self.fields["username"].help_text = (
+            "150 characters or fewer. Letters, digits and @/./+/-/_ only."
+        )
+        self.fields["username"].error_messages = {
+            "required": "Username is required.",
+            "unique": "This username is already taken.",
+            "invalid": "Username can only contain letters, numbers, and @/./+/-/_ characters.",
+        }
+
+        # Customize password fields
+        self.fields["password1"].help_text = (
+            "Your password must contain at least 8 characters, "
+            "cannot be entirely numeric, and cannot be too common."
+        )
+        self.fields["password1"].error_messages = {
+            "required": "Password is required.",
+        }
+
+        self.fields["password2"].help_text = (
+            "Enter the same password as before, for verification."
+        )
+        self.fields["password2"].error_messages = {
+            "required": "Please confirm your password.",
+        }
+
+    def clean_username(self):
+        """Validate username"""
+        username = self.cleaned_data.get("username")
+
+        if not username:
+            raise ValidationError("Username is required.")
+
+        # Check length
+        if len(username) < 3:
+            raise ValidationError("Username must be at least 3 characters long.")
+
+        if len(username) > 150:
+            raise ValidationError("Username cannot be more than 150 characters.")
+
+        # Check for valid characters
+        if not re.match(r"^[\w.@+-]+$", username):
+            raise ValidationError(
+                "Username can only contain letters, numbers, and @/./+/-/_ characters."
+            )
+
+        # Check if username already exists
+        if User.objects.filter(username__iexact=username).exists():
+            raise ValidationError(
+                "This username is already taken. Please choose another."
+            )
+
+        return username
+
+    def clean_email(self):
+        """Validate email"""
+        email = self.cleaned_data.get("email")
+
+        if not email:
+            raise ValidationError("Email address is required.")
+
+        # Check if email already exists
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError(
+                "This email address is already registered. Please use another or try logging in."
+            )
+
+        # Validate email format
+        email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(email_regex, email):
+            raise ValidationError("Please enter a valid email address.")
+
+        return email.lower()
+
+    def clean_password1(self):
+        """Validate password strength"""
+        password = self.cleaned_data.get("password1")
+
+        if not password:
+            raise ValidationError("Password is required.")
+
+        # Check length
+        if len(password) < 8:
+            raise ValidationError("Password must be at least 8 characters long.")
+
+        # Check if entirely numeric
+        if password.isdigit():
+            raise ValidationError("Password cannot be entirely numeric.")
+
+        # Check for at least one letter
+        if not re.search(r"[a-zA-Z]", password):
+            raise ValidationError("Password must contain at least one letter.")
+
+        # Check for common passwords
+        common_passwords = [
+            "password",
+            "12345678",
+            "qwerty",
+            "abc123",
+            "password123",
+            "11111111",
+            "00000000",
+        ]
+        if password.lower() in common_passwords:
+            raise ValidationError(
+                "This password is too common. Please choose a stronger password."
+            )
+
+        # Check against username
+        username = self.cleaned_data.get("username", "")
+        if username and username.lower() in password.lower():
+            raise ValidationError("Password cannot contain your username.")
+
+        return password
+
+    def clean_password2(self):
+        """Validate password confirmation"""
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+
+        if not password2:
+            raise ValidationError("Please confirm your password.")
+
+        if password1 and password2 and password1 != password2:
+            raise ValidationError("The two password fields must match.")
+
+        return password2
+
+    def clean_first_name(self):
+        """Validate first name"""
+        first_name = self.cleaned_data.get("first_name", "")
+
+        if first_name:
+            # Remove extra spaces
+            first_name = first_name.strip()
+
+            # Check length
+            if len(first_name) > 150:
+                raise ValidationError("First name cannot be more than 150 characters.")
+
+            # Check for valid characters (letters, spaces, hyphens, apostrophes)
+            if not re.match(r"^[a-zA-Z\s\-']+$", first_name):
+                raise ValidationError(
+                    "First name can only contain letters, spaces, hyphens, and apostrophes."
+                )
+
+        return first_name
+
+    def clean_last_name(self):
+        """Validate last name"""
+        last_name = self.cleaned_data.get("last_name", "")
+
+        if last_name:
+            # Remove extra spaces
+            last_name = last_name.strip()
+
+            # Check length
+            if len(last_name) > 150:
+                raise ValidationError("Last name cannot be more than 150 characters.")
+
+            # Check for valid characters (letters, spaces, hyphens, apostrophes)
+            if not re.match(r"^[a-zA-Z\s\-']+$", last_name):
+                raise ValidationError(
+                    "Last name can only contain letters, spaces, hyphens, and apostrophes."
+                )
+
+        return last_name
+
+    def save(self, commit=True):
+        """Save the user with email"""
+        user = super().save(commit=False)
+        user.email = self.cleaned_data["email"].lower()
+        user.first_name = self.cleaned_data.get("first_name", "").strip()
+        user.last_name = self.cleaned_data.get("last_name", "").strip()
+
+        if commit:
+            user.save()
+        return user
