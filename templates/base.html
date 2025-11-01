@@ -66,16 +66,21 @@
                         <span
                             class="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
                             id="notification-count">
-                            0
+                            3
                         </span>
                     </a>
 
                     <!-- Cart -->
-                    <a href="{% url 'cart:cart_detail' %}" class="text-gray-700 hover:text-blue-600 relative">
-                        <i data-lucide="shopping-cart" class="w-6 h-6"></i>
-                        <span
-                            class="absolute -top-1 -right-2 bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                            id="cart-count">
+                    <a href="{% url 'cart:cart_detail' %}"
+                        class="relative p-2 text-gray-600 hover:text-gray-800 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        <span id="cart-count"
+                            class="absolute -top-0.5 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center hidden">
                             0
                         </span>
                     </a>
@@ -272,7 +277,7 @@
     <script src="{% static 'js/core.js' %}"></script>
     <script src="{% static 'js/navbar.js' %}"></script>
     <script src="{% static 'js/utils.js' %}"></script>
-
+    <script src="{% static 'js/cart.js' %}"></script>
     <!-- Page-specific JavaScript -->
     {% block extra_js %}{% endblock %}
 </body>
