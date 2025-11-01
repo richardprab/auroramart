@@ -1,0 +1,110 @@
+/* ========================================
+   RESPONSIVE - Media queries for all devices
+   ======================================== */
+
+/* === MOBILE FIRST === */
+
+/* Small devices (landscape phones, 576px and up) */
+@media (min-width: 576px) {
+    .container {
+        max-width: 540px;
+    }
+}
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+    .container {
+        max-width: 720px;
+    }
+
+    .grid-md-2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .grid-md-3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Large devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+    .container {
+        max-width: 960px;
+    }
+
+    .grid-lg-3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .grid-lg-4 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Extra large devices (large desktops, 1200px and up) */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1140px;
+    }
+}
+
+/* === MOBILE SPECIFIC === */
+@media (max-width: 767px) {
+    h1 {
+        font-size: 2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    h3 {
+        font-size: 1.25rem;
+    }
+
+    .section {
+        padding: 2rem 0;
+    }
+
+    .product-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .cart-item {
+        flex-direction: column;
+    }
+
+    .cart-item-image {
+        width: 100%;
+        height: 200px;
+    }
+
+    .modal-content {
+        margin: 1rem;
+        max-width: calc(100% - 2rem);
+    }
+
+    .navbar-nav {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* === PRINT === */
+@media print {
+
+    .no-print,
+    .navbar,
+    .footer,
+    .btn {
+        display: none !important;
+    }
+
+    body {
+        font-size: 12pt;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+}
