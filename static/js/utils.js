@@ -162,11 +162,9 @@ function getToastContainer() {
 function showToast(message, type = 'success', duration = 5000, title = null) {
     const container = getToastContainer();
 
-    // Create toast element
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
 
-    // Icon based on type
     const icons = {
         success: '✓',
         error: '✕',
@@ -174,7 +172,6 @@ function showToast(message, type = 'success', duration = 5000, title = null) {
         warning: '⚠'
     };
 
-    // Default titles
     const titles = {
         success: 'Success',
         error: 'Error',
@@ -185,7 +182,6 @@ function showToast(message, type = 'success', duration = 5000, title = null) {
     const icon = icons[type] || icons.success;
     const toastTitle = title || titles[type];
 
-    // Build toast HTML
     toast.innerHTML = `
         <div class="toast-icon">${icon}</div>
         <div class="toast-content">
@@ -196,21 +192,17 @@ function showToast(message, type = 'success', duration = 5000, title = null) {
         <div class="toast-progress"></div>
     `;
 
-    // Add to container
     container.appendChild(toast);
 
-    // Show toast with animation
     setTimeout(() => {
         toast.classList.add('show');
     }, 10);
 
-    // Close button functionality
     const closeBtn = toast.querySelector('.toast-close');
     closeBtn.addEventListener('click', () => {
         removeToast(toast);
     });
 
-    // Auto remove after duration
     if (duration > 0) {
         setTimeout(() => {
             removeToast(toast);
@@ -220,9 +212,6 @@ function showToast(message, type = 'success', duration = 5000, title = null) {
     return toast;
 }
 
-/**
- * Remove a toast with animation
- */
 function removeToast(toast) {
     toast.classList.remove('show');
     toast.classList.add('hide');
@@ -234,9 +223,6 @@ function removeToast(toast) {
     }, 300);
 }
 
-/**
- * Convenience methods for different toast types
- */
 window.toast = {
     success: (message, duration, title) => showToast(message, 'success', duration, title),
     error: (message, duration, title) => showToast(message, 'error', duration, title),
