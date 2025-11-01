@@ -30,6 +30,7 @@ migrations:
 	python manage.py makemigrations products
 	python manage.py makemigrations cart
 	python manage.py makemigrations orders
+	python manage.py makemigrations notifications
 	python manage.py makemigrations home
 	@echo "✅ Migrations created successfully!"
 

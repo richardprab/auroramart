@@ -6,6 +6,7 @@ from products.models import Product, ProductVariant
 # Note: We use string references ("products.Category", "products.Product")
 # to prevent circular import errors, which is a Django best practice.
 
+
 class User(AbstractUser):
     """
     Custom User model extending Django's AbstractUser.
@@ -13,6 +14,7 @@ class User(AbstractUser):
     This model serves as the central point for all user-related data,
     including demographics, preferences, and app-specific settings.
     """
+
     # --- Demographic Fields (for personalization) ---
     age_range = models.CharField(max_length=50, null=True, blank=True)
     gender = models.CharField(max_length=50, null=True, blank=True)
@@ -20,19 +22,25 @@ class User(AbstractUser):
     income_range = models.CharField(max_length=100, null=True, blank=True)
 
     # --- Core Account Fields ---
-    role = models.CharField(max_length=50, default="customer", help_text="User role (e.g., customer, admin).")
-    email = models.EmailField(unique=True, help_text="Required. Used for login and communication.")
+    role = models.CharField(
+        max_length=50,
+        default="customer",
+        help_text="User role (e.g., customer, admin).",
+    )
+    email = models.EmailField(
+        unique=True, help_text="Required. Used for login and communication."
+    )
     first_name = models.CharField(max_length=150, blank=False)
     last_name = models.CharField(max_length=150, blank=False)
 
     # --- User Preferences ---
     preferred_category = models.ForeignKey(
         "products.Category",
-        on_delete=models.SET_NULL, # Keep user if category is deleted
+        on_delete=models.SET_NULL,  # Keep user if category is deleted
         null=True,
         blank=True,
         related_name="preferred_by_users",
-        help_text="User's preferred category for personalization."
+        help_text="User's preferred category for personalization.",
     )
 
     # --- Optional Profile Fields ---
@@ -42,12 +50,10 @@ class User(AbstractUser):
 
     # --- Notification & Marketing Toggles (from ERD) ---
     allow_marketing_emails = models.BooleanField(
-        default=False,
-        help_text="User has opted-in to marketing communications."
+        default=False, help_text="User has opted-in to marketing communications."
     )
     allow_sale_notifications = models.BooleanField(
-        default=False,
-        help_text="User has opted-in to sale/stock alerts."
+        default=False, help_text="User has opted-in to sale/stock alerts."
     )
 
     # --- Timestamps ---
@@ -70,33 +76,46 @@ class User(AbstractUser):
         """Returns the user's first name."""
         return self.first_name
 
+
 class Address(models.Model):
     """
     Stores a shipping or billing address for a user.
     A user can have multiple addresses.
     """
+
     ADDRESS_TYPES = [
         ("shipping", "Shipping"),
         ("billing", "Billing"),
     ]
 
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, # Best practice: links to User model in settings
-        on_delete=models.CASCADE, # If user is deleted, delete their addresses
-        related_name="addresses"
+        settings.AUTH_USER_MODEL,  # Best practice: links to User model in settings
+        on_delete=models.CASCADE,  # If user is deleted, delete their addresses
+        related_name="addresses",
     )
-    address_type = models.CharField(max_length=10, choices=ADDRESS_TYPES, default='shipping')
-    full_name = models.CharField(max_length=200, help_text="Full name of the recipient.")
+    address_type = models.CharField(
+        max_length=10, choices=ADDRESS_TYPES, default="shipping"
+    )
+    full_name = models.CharField(
+        max_length=200, help_text="Full name of the recipient."
+    )
     phone = models.CharField(max_length=20)
-    address_line1 = models.CharField(max_length=255, help_text="Street address, P.O. box, etc.")
-    address_line2 = models.CharField(max_length=255, blank=True, null=True, help_text="Apartment, suite, unit, etc. (Optional)")
+    address_line1 = models.CharField(
+        max_length=255, help_text="Street address, P.O. box, etc."
+    )
+    address_line2 = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Apartment, suite, unit, etc. (Optional)",
+    )
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100, help_text="State, province, or region.")
     zip_code = models.CharField(max_length=20, help_text="Postal code.")
     country = models.CharField(max_length=100, default="USA")
     is_default = models.BooleanField(
         default=False,
-        help_text="Is this the default address for its type (shipping/billing)?"
+        help_text="Is this the default address for its type (shipping/billing)?",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -118,13 +137,27 @@ class Address(models.Model):
             ).exclude(pk=self.pk).update(is_default=False)
         super().save(*args, **kwargs)
 
+
 class Wishlist(models.Model):
     """
     Links a User to a ProductVariant they have "wishlisted".
     """
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="wishlists")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True, related_name="wishlists")
-    product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, null=True, blank=True, related_name="wishlist_variants")
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="wishlists",
+    )
+    product_variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="wishlist_variants",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -137,25 +170,35 @@ class Wishlist(models.Model):
 
     class Meta:
         db_table = "wishlist"
-        unique_together = ("user", "product_variant") # User can only wishlist a variant once
+        unique_together = (
+            "user",
+            "product_variant",
+        )  # User can only wishlist a variant once
         ordering = ["-created_at"]
+
 
 class SaleSubscription(models.Model):
     """
     Tracks a user's request to be notified when a specific
     ProductVariant goes on sale.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sale_subscriptions")
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="sale_subscriptions"
+    )
     product_variant = models.ForeignKey(
         "products.ProductVariant",
         on_delete=models.CASCADE,
         related_name="sale_subscriptions",
-        help_text="The specific variant the user is watching."
+        help_text="The specific variant the user is watching.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'product_variant') # User can only subscribe once per variant
+        unique_together = (
+            "user",
+            "product_variant",
+        )  # User can only subscribe once per variant
 
     def __str__(self):
         try:
@@ -163,53 +206,59 @@ class SaleSubscription(models.Model):
         except Exception:
             return f"SaleSubscription item {self.id}"
 
+
 class BrowsingHistory(models.Model):
     """
     Logs products a user has viewed.
     Used for the "Personalized Recommendations" feature.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="browsing_history")
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="browsing_history"
+    )
     product = models.ForeignKey(
         "products.Product",
         on_delete=models.CASCADE,
         related_name="viewed_by",
-        help_text="The parent product the user viewed."
+        help_text="The parent product the user viewed.",
     )
     viewed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-viewed_at'] # Show most recent views first
+        ordering = ["-viewed_at"]  # Show most recent views first
+
 
 class ChatConversation(models.Model):
     """
     Represents a single conversation thread between a user and an admin,
     usually regarding a specific product.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_conversations")
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="chat_conversations"
+    )
     product = models.ForeignKey(
         "products.Product",
         on_delete=models.CASCADE,
         related_name="chat_conversations",
-        help_text="The product this chat is about."
+        help_text="The product this chat is about.",
     )
     admin = models.ForeignKey(
         User,
-        on_delete=models.SET_NULL, # Keep chat history if admin account is deleted
+        on_delete=models.SET_NULL,  # Keep chat history if admin account is deleted
         null=True,
         blank=True,
         related_name="admin_chats",
-        limit_choices_to={'is_staff': True}, # Ensures only staff can be assigned
-        help_text="The admin/staff member handling this chat."
+        limit_choices_to={"is_staff": True},  # Ensures only staff can be assigned
+        help_text="The admin/staff member handling this chat.",
     )
-    
+
     # --- Unread Flags (for notifications) ---
     user_has_unread = models.BooleanField(
-        default=False,
-        help_text="True if the user has unread messages in this thread."
+        default=False, help_text="True if the user has unread messages in this thread."
     )
     admin_has_unread = models.BooleanField(
-        default=False,
-        help_text="True if an admin has unread messages in this thread."
+        default=False, help_text="True if an admin has unread messages in this thread."
     )
     # ---------------------------------------
 
@@ -221,58 +270,26 @@ class ChatConversation(models.Model):
         except Exception:
             return f"Chat conversation {self.id}"
 
+
 class ChatMessage(models.Model):
     """
     An individual message within a ChatConversation.
     """
-    conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name="messages")
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
+
+    conversation = models.ForeignKey(
+        ChatConversation, on_delete=models.CASCADE, related_name="messages"
+    )
+    sender = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="sent_messages"
+    )
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['created_at'] # Show messages in chronological order
+        ordering = ["created_at"]
 
     def __str__(self):
         try:
             return f"Message from {self.sender.username}"
         except Exception:
             return f"Chat message {self.id}"
-
-class Notification(models.Model):
-    """
-    A single, dismissible notification for a user.
-    Used for proactive alerts (e.g., stock, sale, message).
-    """
-    NOTIFICATION_TYPE_CHOICES = [
-        ('platform', 'Platform'),  # General site announcements
-        ('sale', 'Sale'),          # A subscribed item is on sale
-        ('stock', 'Stock'),        # A subscribed item is back in stock
-        ('message', 'New Message'),# New chat message
-        ('order', 'Order Status'), # Order update
-    ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
-    message = models.CharField(max_length=255, help_text="The notification text.")
-    link = models.URLField(
-        max_length=1024,
-        null=True,
-        blank=True,
-        help_text="A URL to redirect to on-click (e.g., to the product page)."
-    )
-    notification_type = models.CharField(
-        max_length=10,
-        choices=NOTIFICATION_TYPE_CHOICES,
-        default='platform'
-    )
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-created_at'] # Show newest notifications first
-
-    def __str__(self):
-        try:
-            return f"Notification for {self.user.username}: {self.message[:30]}..."
-        except Exception:
-            return f"Notification {self.id}"
-
