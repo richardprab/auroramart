@@ -9,70 +9,63 @@
     <div class="container mx-auto px-4 text-center">
         <h1 class="text-5xl font-bold mb-4">Welcome to AuroraMart</h1>
         <p class="text-xl mb-8">Your one-stop shop for everything you need</p>
-        <a href="{% url 'products:product_list' %}" class="btn btn-primary btn-lg">Shop Now</a>
     </div>
 </section>
 
-<!-- Featured Categories (Placeholders only) -->
+<!-- Categories Section -->
 <section class="py-16 bg-gray-50">
     <div class="container mx-auto px-4">
-        <h2 class="text-3xl font-bold text-center mb-12">Shop by Category</h2>
+        <div class="text-center mb-12">
+            <h2 class="section-title text-4xl font-bold mb-4">Shop by Category</h2>
+            <p class="text-gray-600 text-lg">Browse our curated collections</p>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- Placeholder: Fashion -->
-            <a href="{% url 'products:product_list' %}"
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {% for category in categories %}
+            <a href="{% url 'products:product_list' %}?category={{ category.slug }}"
                 class="category-card reveal group relative bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 will-change-transform overflow-hidden">
+                {% if category.slug == 'electronics' %}
                 <div class="w-full h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                    <i data-lucide="shirt" class="w-24 h-24 text-white"></i>
-                </div>
-                <div class="p-4">
-                    <h3 class="text-xl font-semibold mb-1 group-hover:text-blue-600 transition-colors">Fashion</h3>
-                    <p class="text-gray-600 text-sm">Explore all products</p>
-                </div>
-            </a>
-
-            <!-- Placeholder: Electronics -->
-            <a href="{% url 'products:product_list' %}"
-                class="category-card reveal group relative bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 will-change-transform overflow-hidden">
-                <div class="w-full h-48 bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center">
                     <i data-lucide="laptop" class="w-24 h-24 text-white"></i>
                 </div>
-                <div class="p-4">
-                    <h3 class="text-xl font-semibold mb-1 group-hover:text-blue-600 transition-colors">Electronics</h3>
-                    <p class="text-gray-600 text-sm">Explore all products</p>
+                {% elif category.slug == 'fashion' %}
+                <div class="w-full h-48 bg-gradient-to-br from-pink-400 to-red-500 flex items-center justify-center">
+                    <i data-lucide="shirt" class="w-24 h-24 text-white"></i>
                 </div>
-            </a>
-
-            <!-- Placeholder: Home & Garden -->
-            <a href="{% url 'products:product_list' %}"
-                class="category-card reveal group relative bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 will-change-transform overflow-hidden">
+                {% elif category.slug == 'home-garden' %}
                 <div
                     class="w-full h-48 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
                     <i data-lucide="home" class="w-24 h-24 text-white"></i>
                 </div>
-                <div class="p-4">
-                    <h3 class="text-xl font-semibold mb-1 group-hover:text-blue-600 transition-colors">Home & Garden
-                    </h3>
-                    <p class="text-gray-600 text-sm">Explore all products</p>
-                </div>
-            </a>
-
-            <!-- Placeholder: Sports -->
-            <a href="{% url 'products:product_list' %}"
-                class="category-card reveal group relative bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 will-change-transform overflow-hidden">
-                <div class="w-full h-48 bg-gradient-to-br from-pink-400 to-red-500 flex items-center justify-center">
+                {% elif category.slug == 'sports' %}
+                <div class="w-full h-48 bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center">
                     <i data-lucide="dumbbell" class="w-24 h-24 text-white"></i>
                 </div>
+                {% else %}
+                <div class="w-full h-48 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center">
+                    <i data-lucide="box" class="w-24 h-24 text-white"></i>
+                </div>
+                {% endif %}
                 <div class="p-4">
-                    <h3 class="text-xl font-semibold mb-1 group-hover:text-blue-600 transition-colors">Sports</h3>
-                    <p class="text-gray-600 text-sm">Explore all products</p>
+                    <h3 class="text-xl font-semibold mb-1 group-hover:text-blue-600 transition-colors">
+                        {{ category.name }}
+                    </h3>
+                    <p class="text-gray-600 text-sm">
+                        {{ category.product_count }} product{{ category.product_count|pluralize }}
+                    </p>
                 </div>
             </a>
+            {% empty %}
+            <!-- Fallback if no categories exist -->
+            <div class="col-span-4 text-center py-12">
+                <p class="text-gray-500">No categories available yet.</p>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </section>
 
-<!-- Featured Products -->
+<!-- Featured Products Section -->
 <section class="py-16">
     <div class="container mx-auto px-4">
         <div class="flex items-center justify-between mb-12">

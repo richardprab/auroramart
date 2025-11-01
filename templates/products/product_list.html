@@ -1,47 +1,276 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Products{% endblock %}
+{% block title %}Products - AuroraMart{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-semibold mb-6">Products</h1>
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Filters Sidebar -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md p-6 sticky top-24">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Filters</h2>
+                    <a href="{% url 'products:product_list' %}" class="text-sm text-blue-600 hover:underline">Clear All</a>
+                </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {% for product in page_obj.object_list %}
-        {% include "products/product_card.html" with product=product %}
-        {% empty %}
-        <p>No products found.</p>
-        {% endfor %}
+                <form method="get" action="{% url 'products:product_list' %}" id="filter-form">
+                    <!-- Keep existing query and sort -->
+                    {% if query %}
+                    <input type="hidden" name="q" value="{{ query }}">
+                    {% endif %}
+                    <input type="hidden" name="sort" value="{{ sort_by }}">
+                    {% if selected_category %}
+                    <input type="hidden" name="category" value="{{ selected_category.slug }}">
+                    {% endif %}
+
+                    <!-- Price Range -->
+                    <div class="mb-6">
+                        <h3 class="font-semibold mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="1" x2="12" y2="23"></line>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                            Price Range
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="flex gap-2">
+                                <input type="number" name="min_price" value="{{ min_price }}" 
+                                    placeholder="Min" min="0" step="0.01"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <input type="number" name="max_price" value="{{ max_price }}" 
+                                    placeholder="Max" min="0" step="0.01"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            {% if price_range.min_price and price_range.max_price %}
+                            <p class="text-xs text-gray-500">
+                                Range: ${{ price_range.min_price|floatformat:2 }} - ${{ price_range.max_price|floatformat:2 }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Brand Filter -->
+                    {% if available_brands %}
+                    <div class="mb-6">
+                        <h3 class="font-semibold mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                            </svg>
+                            Brand
+                        </h3>
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            {% for brand in available_brands %}
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
+                                <input type="checkbox" name="brand" value="{{ brand }}" 
+                                    {% if brand in selected_brands %}checked{% endif %}
+                                    class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                                <span class="ml-2 text-sm">{{ brand }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Color Filter -->
+                    {% if available_colors %}
+                    <div class="mb-6">
+                        <h3 class="font-semibold mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 2a10 10 0 0 0 0 20"></path>
+                            </svg>
+                            Color
+                        </h3>
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            {% for color in available_colors %}
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
+                                <input type="checkbox" name="color" value="{{ color }}" 
+                                    {% if color in selected_colors %}checked{% endif %}
+                                    class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                                <span class="ml-2 text-sm">{{ color }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Size Filter -->
+                    {% if available_sizes %}
+                    <div class="mb-6">
+                        <h3 class="font-semibold mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="9" y1="21" x2="9" y2="9"></line>
+                            </svg>
+                            Size
+                        </h3>
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            {% for size in available_sizes %}
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
+                                <input type="checkbox" name="size" value="{{ size }}" 
+                                    {% if size in selected_sizes %}checked{% endif %}
+                                    class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                                <span class="ml-2 text-sm">{{ size }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Apply Filters Button -->
+                    <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+                        Apply Filters
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="lg:col-span-3">
+            <!-- Header with sort and results count -->
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">
+                        {% if selected_category %}
+                            {{ selected_category.name }}
+                        {% elif query %}
+                            Search Results for "{{ query }}"
+                        {% else %}
+                            All Products
+                        {% endif %}
+                    </h1>
+                    <p class="text-gray-600">{{ page_obj.paginator.count }} product{{ page_obj.paginator.count|pluralize }} found</p>
+                </div>
+
+                <!-- Sort Dropdown -->
+                <form method="get" action="" class="inline-block">
+                    {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+                    {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category.slug }}">{% endif %}
+                    {% for brand in selected_brands %}<input type="hidden" name="brand" value="{{ brand }}">{% endfor %}
+                    {% for color in selected_colors %}<input type="hidden" name="color" value="{{ color }}">{% endfor %}
+                    {% for size in selected_sizes %}<input type="hidden" name="size" value="{{ size }}">{% endfor %}
+                    {% if min_price %}<input type="hidden" name="min_price" value="{{ min_price }}">{% endif %}
+                    {% if max_price %}<input type="hidden" name="max_price" value="{{ max_price }}">{% endif %}
+                    
+                    <select name="sort" onchange="this.form.submit()" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="featured" {% if sort_by == 'featured' %}selected{% endif %}>Featured</option>
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
+                        <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name: A-Z</option>
+                    </select>
+                </form>
+            </div>
+
+            <!-- Active Filters Display -->
+            {% if selected_brands or selected_colors or selected_sizes or min_price or max_price %}
+            <div class="mb-6 flex flex-wrap gap-2">
+                <span class="text-sm font-semibold">Active Filters:</span>
+                {% for brand in selected_brands %}
+                <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                    Brand: {{ brand }}
+                    <a href="?{{ query_string }}&brand={{ brand }}" class="hover:text-blue-900">×</a>
+                </span>
+                {% endfor %}
+                {% for color in selected_colors %}
+                <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                    Color: {{ color }}
+                    <a href="?{{ query_string }}&color={{ color }}" class="hover:text-green-900">×</a>
+                </span>
+                {% endfor %}
+                {% for size in selected_sizes %}
+                <span class="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+                    Size: {{ size }}
+                    <a href="?{{ query_string }}&size={{ size }}" class="hover:text-purple-900">×</a>
+                </span>
+                {% endfor %}
+                {% if min_price or max_price %}
+                <span class="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm">
+                    Price: ${{ min_price|default:"0" }} - ${{ max_price|default:"∞" }}
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Products Grid -->
+            {% if page_obj %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                {% for product in page_obj %}
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition group">
+                    <a href="{% url 'products:product_detail' product.slug %}">
+                        <div class="relative h-64 bg-gray-100">
+                            {% if product.images.first %}
+                            <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}"
+                                class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            {% else %}
+                            <div class="flex items-center justify-center h-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-20 h-20 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                </svg>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="p-4">
+                            <p class="text-sm text-gray-500 mb-1">{{ product.category.name }}</p>
+                            <h3 class="font-semibold text-lg mb-2 line-clamp-2">{{ product.name }}</h3>
+                            {% if product.brand %}
+                            <p class="text-xs text-gray-600 mb-2">{{ product.brand }}</p>
+                            {% endif %}
+                            <div class="flex justify-between items-center">
+                                <span class="text-2xl font-bold text-gray-900">
+                                    ${{ product.variants.first.price|floatformat:2 }}
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="flex justify-center items-center gap-2 mt-8">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}&{{ query_string }}"
+                    class="w-10 h-10 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </a>
+                {% endif %}
+
+                <span class="px-4 py-2 text-gray-700">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&{{ query_string }}"
+                    class="w-10 h-10 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-12">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-24 h-24 mx-auto text-gray-400 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <h2 class="text-2xl font-bold mb-2">No products found</h2>
+                <p class="text-gray-600 mb-4">Try adjusting your filters or search term</p>
+                <a href="{% url 'products:product_list' %}" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    Clear Filters
+                </a>
+            </div>
+            {% endif %}
+        </div>
     </div>
-
-    <!-- Pagination -->
-    {% if page_obj.has_other_pages %}
-    <div class="flex justify-center items-center gap-2 mt-8">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}&{{ query_string }}"
-            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-        </a>
-        {% endif %}
-
-        <span class="px-4 py-2 text-gray-700">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-        </span>
-
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&{{ query_string }}"
-            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-        </a>
-        {% endif %}
-    </div>
-    {% endif %}
 </div>
 {% endblock %}
