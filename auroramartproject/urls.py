@@ -14,7 +14,7 @@ urlpatterns = [
     path("products/", include("products.urls")),
     path("cart/", include("cart.urls")),
     path("orders/", include("orders.urls")),
-    path("notifications/", include("notifications.urls")),  # Add this
+    path("notifications/", include("notifications.urls")),
 ]
 
 # Serve static and media files during development
