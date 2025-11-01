@@ -289,6 +289,56 @@ footer .social-links a {
     font-size: 1.25rem;
 }
 
+/* Animations for category cards (NEW) */
+@keyframes am-fade-up {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 14px, 0) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+/* Start slightly offset; JS-less reveal on load */
+.am-animate-in {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+    animation: am-fade-up .6s cubic-bezier(.22, 1, .36, 1) .05s both;
+}
+
+.category-card:nth-child(1) {
+    animation-delay: .05s;
+}
+
+.category-card:nth-child(2) {
+    animation-delay: .12s;
+}
+
+.category-card:nth-child(3) {
+    animation-delay: .19s;
+}
+
+.category-card:nth-child(4) {
+    animation-delay: .26s;
+}
+
+.category-card:nth-child(5) {
+    animation-delay: .33s;
+}
+
+.category-card:nth-child(6) {
+    animation-delay: .40s;
+}
+
+/* Hover polish */
+.category-card {
+    will-change: transform, box-shadow, filter;
+    transition-property: transform, box-shadow, filter;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     nav .search-bar {
