@@ -16,14 +16,32 @@
     </div>
 
     <!-- Pagination -->
-    <div class="mt-8 flex items-center justify-center gap-2">
+    {% if page_obj.has_other_pages %}
+    <div class="flex justify-center items-center gap-2 mt-8">
         {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary">Previous</a>
+        <a href="?page={{ page_obj.previous_page_number }}&{{ query_string }}"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
         {% endif %}
-        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+        <span class="px-4 py-2 text-gray-700">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+
         {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary">Next</a>
+        <a href="?page={{ page_obj.next_page_number }}&{{ query_string }}"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}

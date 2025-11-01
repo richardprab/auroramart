@@ -13,18 +13,21 @@ const CartModule = {
 
     // Update cart count badge
     updateCartCount() {
-        const badge = document.querySelector('.cart-badge');
-        if (!badge) return;
-
-        // Get cart count from localStorage or API
-        const count = this.getCartCount();
-        badge.textContent = count;
-
-        if (count > 0) {
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+        fetch('/cart/count/')
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.getElementById('cart-count');
+                if (badge) {
+                    badge.textContent = data.count || 0;
+                    // Show/hide badge based on count
+                    if (data.count > 0) {
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            })
+            .catch(error => console.error('Error fetching cart count:', error));
     },
 
     // Get cart count
@@ -280,3 +283,19 @@ const CartModule = {
 
 // Export
 window.CartModule = CartModule;
+
+// Update cart count on page load
+document.addEventListener('DOMContentLoaded', () => {
+    CartModule.updateCartCount();
+});
+
+// Listen for "Add to Cart" button clicks
+document.addEventListener('click', function (e) {
+    const addToCartBtn = e.target.closest('[data-add-to-cart]');
+    if (addToCartBtn) {
+        // Wait a moment for the form to submit, then update count
+        setTimeout(() => {
+            CartModule.updateCartCount();
+        }, 500);
+    }
+});
