@@ -1,64 +1,88 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Wishlist
-
+from .models import (
+    User, Address, Wishlist, SaleSubscription,
+    BrowsingHistory, ChatConversation, ChatMessage, Notification
+)
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    """Custom User admin"""
-
-    list_display = (
-        "username",
-        "email",
-        "first_name",
-        "last_name",
-        "is_staff",
-        "is_active",
-        "date_joined",
-    )
-    list_filter = ("is_staff", "is_active", "date_joined")
-    search_fields = ("username", "email", "first_name", "last_name")
-    ordering = ("-date_joined",)
-
-    fieldsets = (
-        (None, {"fields": ("username", "password")}),
-        ("Personal info", {"fields": ("first_name", "last_name", "email")}),
-        (
-            "Permissions",
-            {
-                "fields": (
-                    "is_active",
-                    "is_staff",
-                    "is_superuser",
-                    "groups",
-                    "user_permissions",
-                )
-            },
-        ),
-        ("Important dates", {"fields": ("last_login", "date_joined")}),
+    """
+    Customizes the User display in the admin panel.
+    """
+    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_staff')
+    list_filter = ('role', 'is_staff', 'is_active')
+    search_fields = ('username', 'email', 'first_name', 'last_name')
+    fieldsets = BaseUserAdmin.fieldsets + (
+        ('Account Details', {
+            'fields': (
+                'role', 'age_range', 'gender', 'employment', 'income_range',
+                'preferred_category', 'phone', 'date_of_birth', 'avatar'
+            ),
+        }),
+        ('Notification Toggles', {
+            'fields': ('allow_marketing_emails', 'allow_sale_notifications'),
+        }),
     )
 
-    add_fieldsets = (
-        (
-            None,
-            {
-                "classes": ("wide",),
-                "fields": ("username", "email", "password1", "password2"),
-            },
-        ),
-    )
-
+@admin.register(Address)
+class AddressAdmin(admin.ModelAdmin):
+    """
+    Customizes the Address display in the admin panel.
+    """
+    list_display = ('user', 'full_name', 'address_type', 'city', 'state', 'is_default')
+    list_filter = ('address_type', 'is_default', 'country')
+    search_fields = ('user__username', 'full_name', 'city', 'state', 'zip_code')
 
 @admin.register(Wishlist)
 class WishlistAdmin(admin.ModelAdmin):
-    """Wishlist admin"""
+    """
+    Customizes the Wishlist display in the admin panel.
+    """
+    list_display = ('user', 'product_variant', 'created_at')
+    search_fields = ('user__username', 'product_variant__sku')
 
-    list_display = ("user", "product", "created_at")
-    list_filter = ("created_at",)
-    search_fields = ("user__username", "user__email", "product__name")
-    ordering = ("-created_at",)
-    date_hierarchy = "created_at"
+@admin.register(SaleSubscription)
+class SaleSubscriptionAdmin(admin.ModelAdmin):
+    """
+    Customizes the SaleSubscription display in the admin panel.
+    """
+    list_display = ('user', 'product_variant', 'created_at')
+    search_fields = ('user__username', 'product_variant__sku')
 
-    readonly_fields = ("created_at",)
+@admin.register(BrowsingHistory)
+class BrowsingHistoryAdmin(admin.ModelAdmin):
+    """
+    Customizes the BrowsingHistory display in the admin panel.
+    """
+    list_display = ('user', 'product', 'viewed_at')
+    search_fields = ('user__username', 'product__name')
+    list_filter = ('viewed_at',)
 
-    autocomplete_fields = ["user", "product"]
+class ChatMessageInline(admin.TabularInline):
+    """
+    Allows editing ChatMessages directly within the ChatConversation admin page.
+    """
+    model = ChatMessage
+    extra = 0 # Don't show extra empty forms
+    readonly_fields = ('sender', 'content', 'created_at')
+
+@admin.register(ChatConversation)
+class ChatConversationAdmin(admin.ModelAdmin):
+    """
+    Customizes the ChatConversation display in the admin panel.
+    """
+    list_display = ('user', 'product', 'admin', 'user_has_unread', 'admin_has_unread', 'created_at')
+    list_filter = ('user_has_unread', 'admin_has_unread')
+    search_fields = ('user__username', 'product__name', 'admin__username')
+    inlines = [ChatMessageInline]
+    readonly_fields = ('created_at',)
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    """
+    Customizes the Notification display in the admin panel.
+    """
+    list_display = ('user', 'message', 'notification_type', 'is_read', 'created_at')
+    list_filter = ('notification_type', 'is_read')
+    search_fields = ('user__username', 'message')
