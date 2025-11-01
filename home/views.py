@@ -5,11 +5,12 @@ from products.models import Product, Category
 def index(request):
     """Home page view"""
     featured_products = Product.objects.filter(is_active=True)[:8]
-    categories = Category.objects.all()[:8]  # Add this line
+    categories = Category.objects.all()[:8]
 
     context = {
         "featured_products": featured_products,
-        "categories": categories,  # Add this line
+        "categories": categories,
+        "title": "AuroraMart - Your Premium Shopping Destination",
     }
     return render(request, "home/index.html", context)
 

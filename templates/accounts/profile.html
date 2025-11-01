@@ -3,134 +3,228 @@
 
 {% block title %}My Profile - AuroraMart{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-4xl font-bold mb-8">My Profile</h1>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Sidebar Navigation -->
-        <div class="lg:col-span-1">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <!-- Profile Avatar -->
-                <div class="text-center mb-6">
-                    <div
-                        class="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-4xl">
-                        {% if user.avatar %}
-                        <img src="{{ user.avatar.url }}" alt="{{ user.username }}"
-                            class="w-24 h-24 rounded-full object-cover">
-                        {% else %}
-                        👤
-                        {% endif %}
-                    </div>
-                    <h2 class="text-xl font-bold">{{ user.get_full_name|default:user.username }}</h2>
-                    <p class="text-gray-600">{{ user.email }}</p>
+    <div class="max-w-6xl mx-auto">
+        <!-- Profile Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center space-x-6">
+                <div
+                    class="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+                    {{ user.first_name.0|upper }}{{ user.last_name.0|upper }}
                 </div>
-
-                <!-- Navigation Menu -->
-                <nav class="space-y-2">
+                <div class="flex-1">
+                    <h1 class="text-3xl font-bold text-gray-800">{{ user.get_full_name }}</h1>
+                    <p class="text-gray-600">@{{ user.username }}</p>
+                    <p class="text-gray-500">{{ user.email }}</p>
+                </div>
+                <div>
                     <a href="{% url 'accounts:profile' %}"
-                        class="block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium">
-                        👤 Profile Info
+                        class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        Edit Profile
                     </a>
-                    <a href="{% url 'orders:order_list' %}" class="block px-4 py-2 hover:bg-gray-50 rounded-lg">
-                        📦 My Orders
-                    </a>
-                    <a href="{% url 'accounts:wishlist_view' %}" class="block px-4 py-2 hover:bg-gray-50 rounded-lg">
-                        ❤️ Wishlist
-                    </a>
-                    <a href="#" class="block px-4 py-2 hover:bg-gray-50 rounded-lg">
-                        📍 Addresses
-                    </a>
-                    <a href="#" class="block px-4 py-2 hover:bg-gray-50 rounded-lg">
-                        🔒 Change Password
-                    </a>
-                    <a href="{% url 'accounts:logout' %}"
-                        class="block px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg">
-                        🚪 Logout
-                    </a>
-                </nav>
+                </div>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="lg:col-span-2">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- Orders Card -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Orders</p>
+                        <p class="text-3xl font-bold text-blue-600">{{ total_orders|default:0 }}</p>
+                    </div>
+                    <div class="bg-blue-100 rounded-full p-3">
+                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <a href="{% url 'orders:order_list' %}" class="text-blue-600 text-sm mt-2 inline-block hover:underline">
+                    View all orders →
+                </a>
+            </div>
+
+            <!-- Wishlist Card -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Wishlist Items</p>
+                        <p class="text-3xl font-bold text-purple-600">{{ wishlist_count|default:0 }}</p>
+                    </div>
+                    <div class="bg-purple-100 rounded-full p-3">
+                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z">
+                            </path>
+                        </svg>
+                    </div>
+                </div>
+                <a href="{% url 'accounts:wishlist' %}"
+                    class="text-purple-600 text-sm mt-2 inline-block hover:underline">
+                    View wishlist →
+                </a>
+            </div>
+
+            <!-- Account Age Card -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Member Since</p>
+                        <p class="text-xl font-bold text-green-600">{{ user.date_joined|date:"M Y" }}</p>
+                    </div>
+                    <div class="bg-green-100 rounded-full p-3">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-gray-600 text-sm mt-2">
+                    {{ user.date_joined|timesince }} ago
+                </p>
+            </div>
+        </div>
+
+        <!-- Account Information -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Personal Information -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Personal Information</h2>
-                    <button class="text-blue-600 hover:underline">Edit</button>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    Personal Information
+                </h2>
+                <div class="space-y-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">First Name</label>
-                        <p class="text-lg">{{ user.first_name|default:"Not set" }}</p>
+                        <label class="text-sm text-gray-500">Full Name</label>
+                        <p class="text-gray-800 font-medium">{{ user.get_full_name }}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Last Name</label>
-                        <p class="text-lg">{{ user.last_name|default:"Not set" }}</p>
+                        <label class="text-sm text-gray-500">Username</label>
+                        <p class="text-gray-800 font-medium">@{{ user.username }}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Email</label>
-                        <p class="text-lg">{{ user.email }}</p>
+                        <label class="text-sm text-gray-500">Email</label>
+                        <p class="text-gray-800 font-medium">{{ user.email }}</p>
                     </div>
+                    {% if user.phone %}
                     <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Phone</label>
-                        <p class="text-lg">{{ user.phone|default:"Not set" }}</p>
+                        <label class="text-sm text-gray-500">Phone</label>
+                        <p class="text-gray-800 font-medium">{{ user.phone }}</p>
                     </div>
+                    {% endif %}
+                    {% if user.date_of_birth %}
                     <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Date of Birth</label>
-                        <p class="text-lg">{{ user.date_of_birth|date:"M d, Y"|default:"Not set" }}</p>
+                        <label class="text-sm text-gray-500">Date of Birth</label>
+                        <p class="text-gray-800 font-medium">{{ user.date_of_birth|date:"F d, Y" }}</p>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Gender</label>
-                        <p class="text-lg">{{ user.gender|default:"Not set" }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Additional Information -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-2xl font-bold mb-6">Additional Information</h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Age Range</label>
-                        <p class="text-lg">{{ user.age_range|default:"Not set" }}</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Employment</label>
-                        <p class="text-lg">{{ user.employment|default:"Not set" }}</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Income Range</label>
-                        <p class="text-lg">{{ user.income_range|default:"Not set" }}</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Preferred Category</label>
-                        <p class="text-lg">{{ user.preferred_category.name|default:"Not set" }}</p>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
 
-            <!-- Account Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white rounded-lg shadow-md p-6 text-center">
-                    <div class="text-4xl mb-2">📦</div>
-                    <p class="text-3xl font-bold text-blue-600">{{ orders_count }}</p>
-                    <p class="text-gray-600">Total Orders</p>
-                </div>
-                <div class="bg-white rounded-lg shadow-md p-6 text-center">
-                    <div class="text-4xl mb-2">❤️</div>
-                    <p class="text-3xl font-bold text-red-600">{{ wishlist_count }}</p>
-                    <p class="text-gray-600">Wishlist Items</p>
-                </div>
-                <div class="bg-white rounded-lg shadow-md p-6 text-center">
-                    <div class="text-4xl mb-2">⭐</div>
-                    <p class="text-3xl font-bold text-yellow-600">{{ reviews_count }}</p>
-                    <p class="text-gray-600">Reviews Written</p>
+            <!-- Account Settings -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Account Settings
+                </h2>
+                <div class="space-y-3">
+                    <a href="{% url 'accounts:profile' %}"
+                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                        <span class="text-gray-700">Edit Profile</span>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </a>
+                    <a href="#"
+                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                        <span class="text-gray-700">Change Password</span>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </a>
+                    <a href="#"
+                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                        <span class="text-gray-700">Manage Addresses</span>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </a>
+                    <a href="{% url 'accounts:wishlist' %}"
+                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                        <span class="text-gray-700">My Wishlist</span>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </a>
                 </div>
             </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Recent Activity
+            </h2>
+            {% if recent_orders %}
+            <div class="space-y-3">
+                {% for order in recent_orders %}
+                <div
+                    class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-800">Order #{{ order.id }}</p>
+                        <p class="text-sm text-gray-500">{{ order.created_at|date:"F d, Y" }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-blue-600">${{ order.total_amount }}</p>
+                        <span class="text-xs px-2 py-1 rounded-full 
+                            {% if order.status == 'delivered' %}bg-green-100 text-green-800
+                            {% elif order.status == 'shipped' %}bg-blue-100 text-blue-800
+                            {% elif order.status == 'processing' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ order.status|title }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                </svg>
+                <p class="text-gray-500 mb-4">No recent orders</p>
+                <a href="{% url 'products:product_list' %}"
+                    class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    Start Shopping
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

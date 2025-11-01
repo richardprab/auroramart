@@ -18,7 +18,7 @@
             </p>
         </div>
 
-        <!-- Display error messages -->
+        <!-- Display error messages (form errors only) -->
         {% if form.errors %}
         <div class="alert alert-error">
             {% if form.non_field_errors %}
@@ -31,13 +31,16 @@
         </div>
         {% endif %}
 
-        <!-- Display success messages -->
+        <!-- Success messages will be shown as toasts -->
         {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message }}
+        <div style="display: none;">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} toast-message" data-message="{{ message }}"
+                data-type="{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
         {% endif %}
 
         <form method="POST" class="auth-form" novalidate>
@@ -93,21 +96,6 @@
             {% endif %}
         </form>
 
-        <!-- Optional: Social Login -->
-        <!-- 
-        <div class="social-login">
-            <p>Or continue with</p>
-            <div class="social-buttons">
-                <button type="button" class="btn-social">
-                    <span>G</span> Google
-                </button>
-                <button type="button" class="btn-social">
-                    <span>f</span> Facebook
-                </button>
-            </div>
-        </div>
-        -->
-
         <div class="auth-footer">
             <p>
                 By signing in, you agree to our
@@ -124,6 +112,24 @@
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.querySelector('.auth-form');
         const inputs = form.querySelectorAll('.form-control');
+
+        const toastMessages = document.querySelectorAll('.toast-message');
+        toastMessages.forEach(el => {
+            const message = el.dataset.message;
+            const type = el.dataset.type || 'success';
+
+            // Map Django message tags to toast types
+            const typeMap = {
+                'success': 'success',
+                'error': 'error',
+                'warning': 'warning',
+                'info': 'info'
+            };
+
+            if (message) {
+                window.toast[typeMap[type] || 'info'](message, 5000);
+            }
+        });
 
         // Real-time validation
         inputs.forEach(input => {
@@ -153,6 +159,7 @@
         form.addEventListener('submit', function () {
             const submitBtn = this.querySelector('.btn-submit');
             submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing in...';
             form.classList.add('loading');
         });
     });
