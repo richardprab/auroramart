@@ -65,8 +65,9 @@
 
                     <!-- User Menu -->
                     {% if user.is_authenticated %}
-                    <div class="relative group">
-                        <button class="text-gray-700 hover:text-blue-600 font-medium flex items-center">
+                    <div class="relative" id="profile-dropdown-wrapper">
+                        <button id="user-menu-button" type="button"
+                            class="text-gray-700 hover:text-blue-600 font-medium flex items-center focus:outline-none">
                             👤 {{ user.username }}
                             <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -75,22 +76,23 @@
                         </button>
 
                         <!-- Dropdown -->
-                        <div
-                            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 hidden group-hover:block">
+                        <div id="user-menu"
+                            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 hidden z-50">
                             <a href="{% url 'accounts:profile' %}"
-                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50">
+                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50 transition-all duration-200">
                                 Profile
                             </a>
                             <a href="{% url 'orders:order_list' %}"
-                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50">
+                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50 transition-all duration-200">
                                 My Orders
                             </a>
                             <a href="{% url 'accounts:wishlist' %}"
-                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50">
+                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50 transition-all duration-200">
                                 Wishlist
                             </a>
                             <hr class="my-2">
-                            <a href="{% url 'accounts:logout' %}" class="block px-4 py-2 text-red-600 hover:bg-red-50">
+                            <a href="{% url 'accounts:logout' %}?next={{ request.path }}"
+                                class="block px-4 py-2 text-red-600 hover:bg-red-50 transition-all duration-200">
                                 Logout
                             </a>
                         </div>
@@ -194,6 +196,7 @@
     <!-- Core JavaScript - Load once at the bottom -->
     <script src="{% static 'js/core.js' %}"></script>
     <script src="{% static 'js/navbar.js' %}"></script>
+    <script src="{% static 'js/utils.js' %}"></script>
 
     <!-- Page-specific JavaScript -->
     {% block extra_js %}{% endblock %}

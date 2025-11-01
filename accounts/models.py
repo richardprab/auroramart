@@ -12,6 +12,8 @@ class User(AbstractUser):
     income_range = models.CharField(max_length=100, null=True, blank=True)
     role = models.CharField(max_length=50, default="customer")
     email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=150, blank=False)
+    last_name = models.CharField(max_length=150, blank=False)
 
     # Reference Category from products app
     preferred_category = models.ForeignKey(
@@ -36,6 +38,14 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    def get_full_name(self):
+        """Return the first_name plus the last_name, with a space in between."""
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def get_short_name(self):
+        """Return the short name for the user."""
+        return self.first_name
 
 
 class Address(models.Model):

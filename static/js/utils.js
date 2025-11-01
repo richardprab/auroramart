@@ -138,5 +138,144 @@ const Utils = {
     }
 };
 
+// Toast Notification System
+
+// Create toast container if it doesn't exist
+function getToastContainer() {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    return container;
+}
+
+/**
+ * Show a toast notification
+ * @param {string} message - The message to display
+ * @param {string} type - Type of toast: 'success', 'error', 'info', 'warning'
+ * @param {number} duration - Duration in milliseconds (default: 5000)
+ * @param {string} title - Optional title for the toast
+ */
+function showToast(message, type = 'success', duration = 5000, title = null) {
+    const container = getToastContainer();
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    // Icon based on type
+    const icons = {
+        success: '✓',
+        error: '✕',
+        info: 'ℹ',
+        warning: '⚠'
+    };
+
+    // Default titles
+    const titles = {
+        success: 'Success',
+        error: 'Error',
+        info: 'Info',
+        warning: 'Warning'
+    };
+
+    const icon = icons[type] || icons.success;
+    const toastTitle = title || titles[type];
+
+    // Build toast HTML
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-content">
+            <div class="toast-title">${toastTitle}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <div class="toast-close">✕</div>
+        <div class="toast-progress"></div>
+    `;
+
+    // Add to container
+    container.appendChild(toast);
+
+    // Show toast with animation
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+
+    // Close button functionality
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        removeToast(toast);
+    });
+
+    // Auto remove after duration
+    if (duration > 0) {
+        setTimeout(() => {
+            removeToast(toast);
+        }, duration);
+    }
+
+    return toast;
+}
+
+/**
+ * Remove a toast with animation
+ */
+function removeToast(toast) {
+    toast.classList.remove('show');
+    toast.classList.add('hide');
+
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 300);
+}
+
+/**
+ * Convenience methods for different toast types
+ */
+window.toast = {
+    success: (message, duration, title) => showToast(message, 'success', duration, title),
+    error: (message, duration, title) => showToast(message, 'error', duration, title),
+    info: (message, duration, title) => showToast(message, 'info', duration, title),
+    warning: (message, duration, title) => showToast(message, 'warning', duration, title)
+};
+
+/**
+ * Show Django messages as toasts on page load
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    // Check for Django messages in the page
+    const messageElements = document.querySelectorAll('.alert:not(.toast)');
+
+    messageElements.forEach(element => {
+        const message = element.textContent.trim();
+        let type = 'info';
+
+        // Determine type from class
+        if (element.classList.contains('alert-success') || element.classList.contains('success')) {
+            type = 'success';
+        } else if (element.classList.contains('alert-error') || element.classList.contains('error')) {
+            type = 'error';
+        } else if (element.classList.contains('alert-warning') || element.classList.contains('warning')) {
+            type = 'warning';
+        }
+
+        // Show toast
+        showToast(message, type);
+
+        // Hide the original message
+        element.style.display = 'none';
+    });
+});
+
 // Export
 window.Utils = Utils;
+
+// Export for use in other scripts
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { showToast, toast };
+}
