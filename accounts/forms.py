@@ -27,27 +27,35 @@ class CustomUserCreationForm(UserCreationForm):
     )
 
     first_name = forms.CharField(
-        required=False,
+        required=True,  # Changed to required
         max_length=150,
         widget=forms.TextInput(
             attrs={
                 "class": "form-control",
-                "placeholder": "First name (optional)",
+                "placeholder": "Enter your first name",
                 "autocomplete": "given-name",
             }
         ),
+        help_text="Required. Enter your first name.",
+        error_messages={
+            "required": "First name is required.",
+        },
     )
 
     last_name = forms.CharField(
-        required=False,
+        required=True,  # Changed to required
         max_length=150,
         widget=forms.TextInput(
             attrs={
                 "class": "form-control",
-                "placeholder": "Last name (optional)",
+                "placeholder": "Enter your last name",
                 "autocomplete": "family-name",
             }
         ),
+        help_text="Required. Enter your last name.",
+        error_messages={
+            "required": "Last name is required.",
+        },
     )
 
     class Meta:
@@ -170,6 +178,58 @@ class CustomUserCreationForm(UserCreationForm):
 
         return email.lower()
 
+    def clean_first_name(self):
+        """Validate first name"""
+        first_name = self.cleaned_data.get("first_name", "")
+
+        if not first_name:
+            raise ValidationError("First name is required.")
+
+        # Remove extra spaces
+        first_name = first_name.strip()
+
+        # Check minimum length
+        if len(first_name) < 2:
+            raise ValidationError("First name must be at least 2 characters long.")
+
+        # Check length
+        if len(first_name) > 150:
+            raise ValidationError("First name cannot be more than 150 characters.")
+
+        # Check for valid characters (letters, spaces, hyphens, apostrophes)
+        if not re.match(r"^[a-zA-Z\s\-']+$", first_name):
+            raise ValidationError(
+                "First name can only contain letters, spaces, hyphens, and apostrophes."
+            )
+
+        return first_name.strip()
+
+    def clean_last_name(self):
+        """Validate last name"""
+        last_name = self.cleaned_data.get("last_name", "")
+
+        if not last_name:
+            raise ValidationError("Last name is required.")
+
+        # Remove extra spaces
+        last_name = last_name.strip()
+
+        # Check minimum length
+        if len(last_name) < 2:
+            raise ValidationError("Last name must be at least 2 characters long.")
+
+        # Check length
+        if len(last_name) > 150:
+            raise ValidationError("Last name cannot be more than 150 characters.")
+
+        # Check for valid characters (letters, spaces, hyphens, apostrophes)
+        if not re.match(r"^[a-zA-Z\s\-']+$", last_name):
+            raise ValidationError(
+                "Last name can only contain letters, spaces, hyphens, and apostrophes."
+            )
+
+        return last_name.strip()
+
     def clean_password1(self):
         """Validate password strength"""
         password = self.cleaned_data.get("password1")
@@ -224,52 +284,12 @@ class CustomUserCreationForm(UserCreationForm):
 
         return password2
 
-    def clean_first_name(self):
-        """Validate first name"""
-        first_name = self.cleaned_data.get("first_name", "")
-
-        if first_name:
-            # Remove extra spaces
-            first_name = first_name.strip()
-
-            # Check length
-            if len(first_name) > 150:
-                raise ValidationError("First name cannot be more than 150 characters.")
-
-            # Check for valid characters (letters, spaces, hyphens, apostrophes)
-            if not re.match(r"^[a-zA-Z\s\-']+$", first_name):
-                raise ValidationError(
-                    "First name can only contain letters, spaces, hyphens, and apostrophes."
-                )
-
-        return first_name
-
-    def clean_last_name(self):
-        """Validate last name"""
-        last_name = self.cleaned_data.get("last_name", "")
-
-        if last_name:
-            # Remove extra spaces
-            last_name = last_name.strip()
-
-            # Check length
-            if len(last_name) > 150:
-                raise ValidationError("Last name cannot be more than 150 characters.")
-
-            # Check for valid characters (letters, spaces, hyphens, apostrophes)
-            if not re.match(r"^[a-zA-Z\s\-']+$", last_name):
-                raise ValidationError(
-                    "Last name can only contain letters, spaces, hyphens, and apostrophes."
-                )
-
-        return last_name
-
     def save(self, commit=True):
-        """Save the user with email"""
+        """Save the user with email and names"""
         user = super().save(commit=False)
         user.email = self.cleaned_data["email"].lower()
-        user.first_name = self.cleaned_data.get("first_name", "").strip()
-        user.last_name = self.cleaned_data.get("last_name", "").strip()
+        user.first_name = self.cleaned_data["first_name"].strip()
+        user.last_name = self.cleaned_data["last_name"].strip()
 
         if commit:
             user.save()

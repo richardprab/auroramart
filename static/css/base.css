@@ -195,45 +195,44 @@ nav .cart-count {
     justify-content: center;
 }
 
-nav .user-menu {
-    position: relative;
+/* Add proper dropdown styles instead */
+#user-menu {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform-origin: top right;
 }
 
-nav .dropdown {
-    position: absolute;
-    right: 0;
-    margin-top: 0.5rem;
-    width: 192px;
-    background: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    padding: 0.5rem 0;
-    display: none;
+#user-menu.hidden {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    pointer-events: none;
 }
 
-nav .user-menu:hover .dropdown {
-    display: block;
+#user-menu:not(.hidden) {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+    animation: dropdownFadeIn 0.2s ease;
 }
 
-nav .dropdown a {
-    display: block;
-    padding: 0.5rem 1rem;
-    color: #374151;
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
-nav .dropdown a:hover {
-    background: #f3f4f6;
+/* Dropdown hover effects */
+#user-menu a {
+    transition: all 0.2s ease;
 }
 
-nav .btn-primary {
-    background: #2563eb;
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-}
-
-nav .btn-primary:hover {
-    background: #1d4ed8;
+#user-menu a:hover {
+    transform: translateX(4px);
 }
 
 /* Footer Styles */
