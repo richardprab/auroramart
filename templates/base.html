@@ -10,6 +10,15 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'images/logo_without_text.svg' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'images/logo_without_text.svg' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/logo_without_text.svg' %}">
+
+    <!-- CSS -->
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link rel="stylesheet" href="{% static 'css/layout.css' %}">
     <link rel="stylesheet" href="{% static 'css/components.css' %}">
@@ -25,11 +34,12 @@
     <!-- Navigation Bar -->
     <nav class="bg-white shadow-lg sticky top-0 z-50">
         <div class="container mx-auto px-4">
-            <div class="flex items-center justify-between h-16">
+            <div class="flex items-center justify-between h-20">
                 <!-- Logo -->
                 <div class="flex items-center">
-                    <a href="{% url 'home:index' %}" class="text-2xl font-bold text-blue-600 hover:text-blue-700">
-                        🛒 AuroraMart
+                    <a href="{% url 'home:index' %}"
+                        class="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+                        <img src="{% static 'images/logo.png' %}" alt="AuroraMart" class="h-20 w-auto">
                     </a>
                 </div>
 
@@ -38,72 +48,93 @@
                     <form method="GET" action="{% url 'products:product_list' %}" class="w-full">
                         <div class="relative">
                             <input type="text" name="q" placeholder="Search products..."
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i data-lucide="search" class="absolute left-3 top-2.5 w-5 h-5 text-gray-400"></i>
                             <button type="submit" class="absolute right-2 top-2 text-gray-500 hover:text-blue-600">
-                                🔍
+                                <i data-lucide="arrow-right" class="w-5 h-5"></i>
                             </button>
                         </div>
                     </form>
                 </div>
 
-                <!-- Navigation Links -->
+                <!-- Navigation Icons -->
                 <div class="flex items-center space-x-6">
-                    <!-- Products -->
-                    <a href="{% url 'products:product_list' %}" class="text-gray-700 hover:text-blue-600 font-medium">
-                        Products
+                    <!-- Notifications -->
+                    <a href="{% if user.is_authenticated %}{% url 'notifications:notification_list' %}{% else %}{% url 'accounts:login' %}?next={% url 'notifications:notification_list' %}{% endif %}"
+                        class="text-gray-700 hover:text-blue-600 relative">
+                        <i data-lucide="bell" class="w-6 h-6"></i>
+                        <span
+                            class="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                            id="notification-count">
+                            3
+                        </span>
                     </a>
 
                     <!-- Cart -->
-                    <a href="{% url 'cart:cart_detail' %}" class="text-gray-700 hover:text-blue-600 relative">
-                        <span class="text-2xl">🛒</span>
-                        <span
-                            class="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                            id="cart-count">
+                    <a href="{% url 'cart:cart_detail' %}"
+                        class="relative p-2 text-gray-600 hover:text-gray-800 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        <span id="cart-count"
+                            class="absolute -top-0.5 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center hidden">
                             0
                         </span>
                     </a>
 
-                    <!-- User Menu -->
                     {% if user.is_authenticated %}
+                    <!-- Wishlist -->
+                    <a href="{% url 'accounts:wishlist' %}" class="text-gray-700 hover:text-blue-600 relative">
+                        <i data-lucide="heart" class="w-6 h-6"></i>
+                        <span
+                            class="absolute -top-1 -right-2 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                            id="wishlist-count">
+                            0
+                        </span>
+                    </a>
+
+                    <!-- User Profile Menu -->
                     <div class="relative" id="profile-dropdown-wrapper">
                         <button id="user-menu-button" type="button"
-                            class="text-gray-700 hover:text-blue-600 font-medium flex items-center focus:outline-none">
-                            👤 {{ user.username }}
-                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 9l-7 7-7-7"></path>
-                            </svg>
+                            class="text-gray-700 hover:text-blue-600 font-medium flex items-center gap-2 focus:outline-none">
+                            <i data-lucide="user" class="w-6 h-6"></i>
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
                         </button>
 
                         <!-- Dropdown -->
                         <div id="user-menu"
                             class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 hidden z-50">
+                            <div class="px-4 py-2 border-b border-gray-200">
+                                <p class="text-sm font-semibold text-gray-900">{{ user.username }}</p>
+                                <p class="text-xs text-gray-500">{{ user.email }}</p>
+                            </div>
                             <a href="{% url 'accounts:profile' %}"
-                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50 transition-all duration-200">
+                                class="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-blue-50 transition-all duration-200">
+                                <i data-lucide="user-circle" class="w-4 h-4"></i>
                                 Profile
                             </a>
                             <a href="{% url 'orders:order_list' %}"
-                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50 transition-all duration-200">
+                                class="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-blue-50 transition-all duration-200">
+                                <i data-lucide="shopping-bag" class="w-4 h-4"></i>
                                 My Orders
-                            </a>
-                            <a href="{% url 'accounts:wishlist' %}"
-                                class="block px-4 py-2 text-gray-700 hover:bg-blue-50 transition-all duration-200">
-                                Wishlist
                             </a>
                             <hr class="my-2">
                             <a href="{% url 'accounts:logout' %}?next={{ request.path }}"
-                                class="block px-4 py-2 text-red-600 hover:bg-red-50 transition-all duration-200">
+                                class="flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 transition-all duration-200">
+                                <i data-lucide="log-out" class="w-4 h-4"></i>
                                 Logout
                             </a>
                         </div>
                     </div>
                     {% else %}
-                    <a href="{% url 'accounts:login' %}" class="text-gray-700 hover:text-blue-600 font-medium">
+                    <!-- Login Button (Not Authenticated) -->
+                    <a href="{% url 'accounts:login' %}"
+                        class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                        <i data-lucide="log-in" class="w-5 h-5"></i>
                         Login
-                    </a>
-                    <a href="{% url 'accounts:register' %}"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                        Sign Up
                     </a>
                     {% endif %}
                 </div>
@@ -114,10 +145,8 @@
                 <form method="GET" action="{% url 'products:product_list' %}" class="w-full">
                     <div class="relative">
                         <input type="text" name="q" placeholder="Search products..."
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button type="submit" class="absolute right-2 top-2 text-gray-500">
-                            🔍
-                        </button>
+                            class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 w-5 h-5 text-gray-400"></i>
                     </div>
                 </form>
             </div>
@@ -129,21 +158,31 @@
         {% block content %}{% endblock %}
     </main>
 
+    {% block newsletter %}{% endblock %}
+
     <!-- Footer -->
     <footer class="bg-gray-800 text-white mt-16">
         <div class="container mx-auto px-4 py-12">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <!-- About -->
                 <div>
-                    <h3 class="text-xl font-bold mb-4">🛒 AuroraMart</h3>
-                    <p class="text-gray-400 text-sm">
+                    <h3 class="text-xl font-bold mb-4">AuroraMart</h3>
+                    <p class="text-gray-400 text-sm mb-4">
                         Your trusted online marketplace for quality products at great prices.
                     </p>
-                    <div class="mt-4 flex space-x-4">
-                        <a href="#" class="text-gray-400 hover:text-white">📘</a>
-                        <a href="#" class="text-gray-400 hover:text-white">🐦</a>
-                        <a href="#" class="text-gray-400 hover:text-white">📷</a>
-                        <a href="#" class="text-gray-400 hover:text-white">💼</a>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i data-lucide="facebook" class="w-5 h-5"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i data-lucide="twitter" class="w-5 h-5"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i data-lucide="instagram" class="w-5 h-5"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i data-lucide="linkedin" class="w-5 h-5"></i>
+                        </a>
                     </div>
                 </div>
 
@@ -151,11 +190,26 @@
                 <div>
                     <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
                     <ul class="space-y-2">
-                        <li><a href="{% url 'home:index' %}" class="text-gray-400 hover:text-white">Home</a></li>
+                        <li><a href="{% url 'home:index' %}"
+                                class="text-gray-400 hover:text-white flex items-center gap-2">
+                                <i data-lucide="home" class="w-4 h-4"></i>
+                                Home
+                            </a></li>
                         <li><a href="{% url 'products:product_list' %}"
-                                class="text-gray-400 hover:text-white">Products</a></li>
-                        <li><a href="{% url 'home:about' %}" class="text-gray-400 hover:text-white">About Us</a></li>
-                        <li><a href="{% url 'home:contact' %}" class="text-gray-400 hover:text-white">Contact</a></li>
+                                class="text-gray-400 hover:text-white flex items-center gap-2">
+                                <i data-lucide="package" class="w-4 h-4"></i>
+                                Products
+                            </a></li>
+                        <li><a href="{% url 'home:about' %}"
+                                class="text-gray-400 hover:text-white flex items-center gap-2">
+                                <i data-lucide="info" class="w-4 h-4"></i>
+                                About Us
+                            </a></li>
+                        <li><a href="{% url 'home:contact' %}"
+                                class="text-gray-400 hover:text-white flex items-center gap-2">
+                                <i data-lucide="mail" class="w-4 h-4"></i>
+                                Contact
+                            </a></li>
                     </ul>
                 </div>
 
@@ -163,20 +217,41 @@
                 <div>
                     <h4 class="text-lg font-semibold mb-4">Customer Service</h4>
                     <ul class="space-y-2">
-                        <li><a href="#" class="text-gray-400 hover:text-white">Help Center</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white">Track Order</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white">Returns</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white">Shipping Info</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white flex items-center gap-2">
+                                <i data-lucide="help-circle" class="w-4 h-4"></i>
+                                Help Center
+                            </a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white flex items-center gap-2">
+                                <i data-lucide="truck" class="w-4 h-4"></i>
+                                Track Order
+                            </a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white flex items-center gap-2">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                Returns
+                            </a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white flex items-center gap-2">
+                                <i data-lucide="package-check" class="w-4 h-4"></i>
+                                Shipping Info
+                            </a></li>
                     </ul>
                 </div>
 
                 <!-- Contact Info -->
                 <div>
                     <h4 class="text-lg font-semibold mb-4">Contact Us</h4>
-                    <ul class="space-y-2 text-gray-400 text-sm">
-                        <li>📧 support@auroramart.com</li>
-                        <li>📞 1-800-AURORA</li>
-                        <li>📍 123 Commerce St, City, State 12345</li>
+                    <ul class="space-y-3 text-gray-400 text-sm">
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="mail" class="w-4 h-4"></i>
+                            support@auroramart.com
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="phone" class="w-4 h-4"></i>
+                            1-800-AURORA
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                            123 Commerce St, City, State 12345
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -193,11 +268,16 @@
         </div>
     </footer>
 
+    <script>
+        // Initialize icons
+        lucide.createIcons();
+    </script>
+
     <!-- Core JavaScript - Load once at the bottom -->
     <script src="{% static 'js/core.js' %}"></script>
     <script src="{% static 'js/navbar.js' %}"></script>
     <script src="{% static 'js/utils.js' %}"></script>
-
+    <script src="{% static 'js/cart.js' %}"></script>
     <!-- Page-specific JavaScript -->
     {% block extra_js %}{% endblock %}
 </body>

@@ -4,12 +4,29 @@
 {% block title %}Shopping Cart - AuroraMart{% endblock %}
 
 {% block content %}
+<style>
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+        height: 2rem;
+        line-height: 2rem;
+        width: 3rem;
+        padding: 0;
+        text-align: center;
+    }
+</style>
+
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-4xl font-bold mb-8">Shopping Cart</h1>
 
     {% if cart_items %}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Cart Items -->
         <div class="lg:col-span-2">
             {% for item in cart_items %}
             <div class="bg-white rounded-lg shadow-md p-6 mb-4">
@@ -20,7 +37,12 @@
                         <img src="{{ item.product.images.first.image.url }}" alt="{{ item.product.name }}"
                             class="max-h-full max-w-full object-contain">
                         {% else %}
-                        <span class="text-4xl">📦</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-gray-400" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                            </path>
+                        </svg>
                         {% endif %}
                     </div>
 
@@ -32,28 +54,41 @@
                             </a>
                         </h3>
                         <p class="text-gray-600 text-sm mb-2">{{ item.product.category.name }}</p>
-                        <p class="text-xl font-bold text-gray-900">${{ item.product.price }}</p>
+                        <p class="text-xl font-bold text-gray-900">${{ item.product_variant.price }}</p>
                     </div>
 
                     <!-- Quantity & Actions -->
                     <div class="flex flex-col items-end justify-between">
-                        <!-- Quantity -->
-                        <form action="{% url 'cart:update_cart' item.id %}" method="post"
-                            class="flex items-center gap-2">
+                        <!-- Quantity Controls -->
+                        <form action="{% url 'cart:update_cart' item.id %}" method="post" id="cart-form-{{ item.id }}">
                             {% csrf_token %}
-                            <button type="submit" name="quantity" value="{{ item.quantity|add:'-1' }}"
-                                class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300">-</button>
-                            <input type="number" name="quantity" value="{{ item.quantity }}"
-                                class="w-16 text-center border border-gray-300 rounded" min="1"
-                                max="{{ item.product.stock }}">
-                            <button type="submit" name="quantity" value="{{ item.quantity|add:'1' }}"
-                                class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300">+</button>
+                            <div class="flex items-center gap-2 mb-4">
+                                <!-- Decrease Button -->
+                                <button type="button" onclick="updateQuantity({{ item.id }}, -1)"
+                                    class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center font-bold">
+                                    -
+                                </button>
+
+                                <!-- Quantity Input -->
+                                <input type="number" name="quantity" id="quantity-{{ item.id }}"
+                                    value="{{ item.quantity }}" min="1" max="{{ item.product_variant.stock }}"
+                                    class="border border-gray-300 rounded font-semibold"
+                                    onchange="document.getElementById('cart-form-{{ item.id }}').submit()">
+
+                                <!-- Increase Button -->
+                                <button type="button" onclick="updateQuantity({{ item.id }}, 1)"
+                                    class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center font-bold">
+                                    +
+                                </button>
+                            </div>
                         </form>
 
                         <!-- Subtotal & Remove -->
                         <div class="text-right">
-                            <p class="text-lg font-bold mb-2">${{ item.get_subtotal }}</p>
-                            <form action="{% url 'cart:remove_from_cart' item.id %}" method="post">
+                            <p class="text-lg font-bold mb-2">
+                                ${{ item.line_total|floatformat:2 }}
+                            </p>
+                            <form action="{% url 'cart:remove_from_cart' item.id %}" method="post" class="inline">
                                 {% csrf_token %}
                                 <button type="submit" class="text-red-600 hover:underline text-sm">Remove</button>
                             </form>
@@ -65,7 +100,13 @@
 
             <!-- Clear Cart -->
             <div class="text-right">
-                <a href="{% url 'cart:clear_cart' %}" class="text-red-600 hover:underline">Clear Cart</a>
+                <form action="{% url 'cart:clear_cart' %}" method="post" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="text-red-600 hover:underline font-semibold"
+                        onclick="return confirm('Are you sure you want to clear your cart?')">
+                        Clear Cart
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -77,19 +118,19 @@
                 <div class="space-y-3 mb-6">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Subtotal</span>
-                        <span class="font-semibold">${{ total }}</span>
+                        <span class="font-semibold">${{ subtotal|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Tax (10%)</span>
-                        <span class="font-semibold">${{ total|multiply:0.1|floatformat:2 }}</span>
+                        <span class="font-semibold">${{ tax|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Shipping</span>
-                        <span class="font-semibold">$10.00</span>
+                        <span class="font-semibold">${{ shipping|floatformat:2 }}</span>
                     </div>
                     <div class="border-t pt-3 flex justify-between text-xl">
                         <span class="font-bold">Total</span>
-                        <span class="font-bold">${{ total|add:total|multiply:0.1|add:10|floatformat:2 }}</span>
+                        <span class="font-bold">${{ total|floatformat:2 }}</span>
                     </div>
                 </div>
 
@@ -97,7 +138,6 @@
                     class="block w-full bg-blue-600 text-white text-center px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 mb-3">
                     Proceed to Checkout
                 </a>
-
                 <a href="{% url 'products:product_list' %}"
                     class="block w-full text-center text-blue-600 hover:underline">
                     Continue Shopping
@@ -108,7 +148,12 @@
     {% else %}
     <!-- Empty Cart -->
     <div class="text-center py-12">
-        <div class="text-9xl mb-4">🛒</div>
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-32 h-32 mx-auto text-gray-400 mb-4" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
         <h2 class="text-2xl font-bold mb-4">Your cart is empty</h2>
         <p class="text-gray-600 mb-6">Add some products to get started!</p>
         <a href="{% url 'products:product_list' %}"
@@ -119,6 +164,18 @@
     {% endif %}
 </div>
 
-<!-- Add custom template filter for multiply -->
-{% load custom_filters %}
+<script>
+    function updateQuantity(itemId, change) {
+        const input = document.getElementById('quantity-' + itemId);
+        const currentValue = parseInt(input.value);
+        const newValue = currentValue + change;
+        const max = parseInt(input.max);
+        const min = parseInt(input.min);
+
+        if (newValue >= min && newValue <= max) {
+            input.value = newValue;
+            document.getElementById('cart-form-' + itemId).submit();
+        }
+    }
+</script>
 {% endblock %}

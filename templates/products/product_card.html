@@ -1,63 +1,147 @@
 {% load static %}
 
-<div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300" 
-     data-product data-product-id="{{ product.id }}" data-price="{{ product.price }}" data-category="{{ product.category.slug }}" data-name="{{ product.name }}">
-    
+{% with first_variant=product.variants.first primary_image=product.images.first %}
+<div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 relative flex flex-col h-full"
+    data-product data-product-id="{{ product.id }}" data-price="{{ first_variant.price|default:'0' }}"
+    data-category="{{ product.category.slug }}" data-name="{{ product.name }}">
+
     <!-- Product Image -->
-    <div class="relative">
+    <div class="relative shrink-0">
         <a href="{% url 'products:product_detail' slug=product.slug %}">
-            {% if product.image %}
-                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-64 object-cover">
+            {% if primary_image %}
+            <img src="{{ primary_image.image.url }}" alt="{{ primary_image.alt_text|default:product.name }}"
+                class="w-full h-64 object-cover">
             {% else %}
-                <div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                    <span class="text-6xl">📦</span>
-                </div>
+            <div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                <i data-lucide="package" class="w-16 h-16 text-gray-400"></i>
+            </div>
             {% endif %}
         </a>
-        
-        <!-- Wishlist Button -->
+
+        <!-- Banner Ribbons -->
+        {% if product.is_bestseller %}
+        <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
+            <div
+                class="absolute top-6 -left-8 w-40 bg-yellow-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
+                BESTSELLER
+            </div>
+        </div>
+        {% elif product.is_trending %}
+        <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
+            <div
+                class="absolute top-6 -left-8 w-40 bg-red-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
+                TRENDING
+            </div>
+        </div>
+        {% elif first_variant.compare_price and first_variant.compare_price > first_variant.price %}
+        <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
+            <div
+                class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
+                SALE
+            </div>
+        </div>
+        {% endif %}
+
         {% if user.is_authenticated %}
-        <form method="POST" action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" class="absolute top-2 right-2">
+        <form method="POST" action="{% url 'accounts:add_to_wishlist' product_id=product.id %}"
+            class="absolute top-2 right-2 z-20">
             {% csrf_token %}
-            <button type="submit" data-wishlist-toggle data-product-id="{{ product.id }}" 
-                    class="bg-white p-2 rounded-full shadow-md hover:bg-red-50 transition">
-                🤍
+            <button type="submit" class="bg-white p-2 rounded-full shadow-md hover:bg-red-50 transition">
+                <i data-lucide="heart" class="w-5 h-5 text-gray-600 hover:text-red-500"></i>
             </button>
         </form>
         {% endif %}
     </div>
-    
+
     <!-- Product Info -->
-    <div class="p-4">
+    <div class="p-4 flex flex-col grow">
         <a href="{% url 'products:product_detail' slug=product.slug %}">
             <h3 class="text-lg font-semibold text-gray-800 hover:text-blue-600 transition mb-2">
                 {{ product.name }}
             </h3>
         </a>
-        
+
         <p class="text-gray-600 text-sm mb-3 line-clamp-2">
             {{ product.description|truncatewords:15 }}
         </p>
-        
-        <div class="flex items-center justify-between mb-3">
-            <span class="text-2xl font-bold text-blue-600">${{ product.price }}</span>
-            {% if product.stock > 0 %}
-                <span class="text-sm text-green-600">In Stock</span>
+
+        <!-- Rating with Stars -->
+        {% if product.review_count > 0 %}
+        <div class="flex items-center gap-1 mb-3">
+            <div class="flex text-yellow-400">
+                {% with rating=product.rating|floatformat:0|add:0 %}
+                {% for i in "12345" %}
+                {% if forloop.counter <= rating %} <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 fill-current"
+                    viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    {% else %}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    {% endif %}
+                    {% endfor %}
+                    {% endwith %}
+            </div>
+            <span class="text-sm text-gray-600">({{ product.review_count }})</span>
+        </div>
+        {% endif %}
+
+        <!-- Bottom section anchored to card bottom -->
+        <div class="mt-auto">
+            {% if first_variant %}
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    {% if first_variant.compare_price and first_variant.compare_price > first_variant.price %}
+                    <span class="text-sm text-gray-500 line-through">${{ first_variant.compare_price }}</span>
+                    {% endif %}
+                    <span class="text-2xl font-bold text-blue-600">${{ first_variant.price }}</span>
+                </div>
+                {% if first_variant.stock and first_variant.stock > 0 %}
+                <span class="text-sm text-green-600 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    In Stock
+                </span>
+                {% else %}
+                <span class="text-sm text-red-600 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    Out of Stock
+                </span>
+                {% endif %}
+            </div>
+
+            <form method="POST" action="{% url 'cart:add_to_cart' product_id=product.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <input type="hidden" name="variant_id" value="{{ first_variant.id }}">
+                <button type="submit"
+                    class="btn btn-primary w-full flex items-center justify-center gap-2 {% if not first_variant.stock %}opacity-50 cursor-not-allowed{% endif %}"
+                    {% if not first_variant.stock %}disabled{% endif %}>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="21" r="1"></circle>
+                        <circle cx="20" cy="21" r="1"></circle>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                    </svg>
+                    Add to Cart
+                </button>
+            </form>
             {% else %}
-                <span class="text-sm text-red-600">Out of Stock</span>
+            <p class="text-sm text-gray-500 text-center py-2">No variants available</p>
             {% endif %}
         </div>
-        
-        <!-- Add to Cart Form -->
-        <form method="POST" action="{% url 'cart:add_to_cart' product_id=product.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="quantity" value="1">
-            <input type="hidden" name="product_id" value="{{ product.id }}">
-            <button type="submit" data-add-to-cart data-product-id="{{ product.id }}" 
-                    class="btn btn-primary w-full {% if product.stock <= 0 %}opacity-50 cursor-not-allowed{% endif %}"
-                    {% if product.stock <= 0 %}disabled{% endif %}>
-                🛒 Add to Cart
-            </button>
-        </form>
     </div>
 </div>
+{% endwith %}
