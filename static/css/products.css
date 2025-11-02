@@ -245,3 +245,13 @@
     height: 1.25rem;
     cursor: pointer;
 }
+
+.products-breadcrumb {
+    position: static !important;
+    top: auto !important;
+    z-index: auto !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+}

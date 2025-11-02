@@ -1,74 +1,46 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Products - AuroraMart{% endblock %}
+{% block title %}Products{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <!-- Page Header -->
-    <div class="mb-8">
-        <h1 class="text-4xl font-bold mb-4">All Products</h1>
-        <p class="text-gray-600">Discover our amazing collection</p>
-    </div>
+    <h1 class="text-2xl font-semibold mb-6">Products</h1>
 
-    <!-- Filters & Sort -->
-    <div class="flex flex-wrap gap-4 mb-8">
-        <div class="flex-1">
-            <select
-                class="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">All Categories</option>
-                {% for category in categories %}
-                <option value="{{ category.slug }}">{{ category.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div>
-            <select
-                class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Sort By</option>
-                <option value="price_low">Price: Low to High</option>
-                <option value="price_high">Price: High to Low</option>
-                <option value="rating">Rating</option>
-                <option value="newest">Newest</option>
-            </select>
-        </div>
-    </div>
-
-    <!-- Products Grid -->
-    {% if page_obj %}
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
-        {% for product in page_obj %}
-        {% include 'products/product_card.html' %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {% for product in page_obj.object_list %}
+        {% include "products/product_card.html" with product=product %}
+        {% empty %}
+        <p>No products found.</p>
         {% endfor %}
     </div>
 
     <!-- Pagination -->
     {% if page_obj.has_other_pages %}
-    <div class="flex justify-center space-x-2">
+    <div class="flex justify-center items-center gap-2 mt-8">
         {% if page_obj.has_previous %}
-        <a href="?page=1" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">First</a>
-        <a href="?page={{ page_obj.previous_page_number }}"
-            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Previous</a>
+        <a href="?page={{ page_obj.previous_page_number }}&{{ query_string }}"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
         {% endif %}
 
-        <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">
+        <span class="px-4 py-2 text-gray-700">
             Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
         </span>
 
         {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}"
-            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Next</a>
-        <a href="?page={{ page_obj.paginator.num_pages }}"
-            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Last</a>
+        <a href="?page={{ page_obj.next_page_number }}&{{ query_string }}"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
         {% endif %}
-    </div>
-    {% endif %}
-    {% else %}
-    <div class="text-center py-12">
-        <p class="text-2xl text-gray-500">No products found</p>
-        <a href="{% url 'products:product_list' %}" class="text-blue-600 hover:underline mt-4 inline-block">View all
-            products</a>
     </div>
     {% endif %}
 </div>

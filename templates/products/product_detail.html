@@ -6,7 +6,7 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <!-- Breadcrumb -->
-    <nav class="text-sm mb-6">
+    <nav class="text-sm mb-6 products-breadcrumb">
         <a href="{% url 'home:index' %}" class="text-blue-600 hover:underline">Home</a>
         <span class="mx-2">/</span>
         <a href="{% url 'products:product_list' %}" class="text-blue-600 hover:underline">Products</a>
@@ -14,15 +14,21 @@
         <span class="text-gray-600">{{ product.name }}</span>
     </nav>
 
+    {% with first_variant=product.variants.first primary_image=product.images.first %}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         <!-- Product Images -->
         <div>
             <div class="bg-gray-100 rounded-lg mb-4 h-96 flex items-center justify-center">
-                {% if product.images.first %}
-                <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}"
+                {% if primary_image %}
+                <img src="{{ primary_image.image.url }}" alt="{{ product.name }}"
                     class="max-h-full max-w-full object-contain">
                 {% else %}
-                <span class="text-9xl">📦</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-32 h-32 text-gray-400" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                    </path>
+                </svg>
                 {% endif %}
             </div>
 
@@ -45,14 +51,17 @@
             <!-- Badges -->
             <div class="flex gap-2 mb-4">
                 {% if product.is_trending %}
-                <span class="bg-red-100 text-red-600 text-xs px-3 py-1 rounded-full">🔥 Trending</span>
+                <span class="bg-red-100 text-red-600 text-xs px-3 py-1 rounded-full font-semibold">🔥 Trending</span>
                 {% endif %}
                 {% if product.is_bestseller %}
-                <span class="bg-yellow-100 text-yellow-600 text-xs px-3 py-1 rounded-full">⭐ Best Seller</span>
+                <span class="bg-yellow-100 text-yellow-600 text-xs px-3 py-1 rounded-full font-semibold">⭐ Best
+                    Seller</span>
                 {% endif %}
-                {% if product.discount > 0 %}
-                <span class="bg-green-100 text-green-600 text-xs px-3 py-1 rounded-full">-{{ product.discount }}%
-                    OFF</span>
+                {% if first_variant.compare_price and first_variant.compare_price > first_variant.price %}
+                {% widthratio first_variant.compare_price|add:0 first_variant.price|add:0 100 as discount_percent %}
+                <span class="bg-green-100 text-green-600 text-xs px-3 py-1 rounded-full font-semibold">
+                    -{{ 100|add:discount_percent|add:"-100" }}% OFF
+                </span>
                 {% endif %}
             </div>
 
@@ -60,136 +69,184 @@
 
             <!-- Rating -->
             <div class="flex items-center mb-4">
-                <div class="flex text-yellow-400 text-xl">
+                <div class="flex text-yellow-400">
+                    {% with rating=product.rating|floatformat:0|add:0 %}
                     {% for i in "12345" %}
-                    {% if forloop.counter <= product.rating %} ★ {% else %} ☆ {% endif %} {% endfor %} </div>
-                        <span class="text-gray-600 ml-2">({{ product.reviews_count }} reviews)</span>
-                </div>
-
-                <!-- Price -->
-                <div class="mb-6">
-                    <div class="flex items-baseline gap-3">
-                        <span class="text-4xl font-bold text-gray-900">${{ product.price }}</span>
-                        {% if product.original_price %}
-                        <span class="text-2xl text-gray-500 line-through">${{ product.original_price }}</span>
-                        <span class="text-green-600 font-semibold">Save {{ product.discount }}%</span>
+                    {% if forloop.counter <= rating %} <svg xmlns="http://www.w3.org/2000/svg"
+                        class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path
+                            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                        {% else %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
                         {% endif %}
-                    </div>
+                        {% endfor %}
+                        {% endwith %}
                 </div>
+                <span class="text-gray-600 ml-2">({{ product.review_count }} reviews)</span>
+            </div>
 
-                <!-- Stock Status -->
-                <div class="mb-6">
-                    {% if product.is_in_stock %}
-                    <span class="text-green-600 font-semibold">✓ In Stock ({{ product.stock }} available)</span>
-                    {% else %}
-                    <span class="text-red-600 font-semibold">✗ Out of Stock</span>
+            <!-- Price -->
+            {% if first_variant %}
+            <div class="mb-6">
+                <div class="flex items-baseline gap-3">
+                    <span class="text-4xl font-bold text-gray-900">${{ first_variant.price }}</span>
+                    {% if first_variant.compare_price and first_variant.compare_price > first_variant.price %}
+                    <span class="text-2xl text-gray-500 line-through">${{ first_variant.compare_price }}</span>
+                    <span class="text-green-600 font-semibold">Save {{ first_variant.discount_percentage }}%</span>
                     {% endif %}
-                </div>
-
-                <!-- Description -->
-                <div class="mb-6">
-                    <h3 class="font-semibold text-lg mb-2">Description</h3>
-                    <p class="text-gray-700">{{ product.description }}</p>
-                </div>
-
-                <!-- Category -->
-                <div class="mb-6">
-                    <span class="text-gray-600">Category: </span>
-                    <a href="{% url 'products:product_list' %}?category={{ product.category.slug }}"
-                        class="text-blue-600 hover:underline">
-                        {{ product.category.name }}
-                    </a>
-                </div>
-
-                <!-- Actions -->
-                <div class="flex gap-4">
-                    {% if product.is_in_stock %}
-                    <form action="{% url 'cart:add_to_cart' product.id %}" method="post" class="flex-1">
-                        {% csrf_token %}
-                        <button type="submit"
-                            class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                            🛒 Add to Cart
-                        </button>
-                    </form>
-                    {% else %}
-                    <button disabled
-                        class="flex-1 bg-gray-300 text-gray-600 px-6 py-3 rounded-lg font-semibold cursor-not-allowed">
-                        Out of Stock
-                    </button>
-                    {% endif %}
-
-                    {% if user.is_authenticated %}
-                    <form action="{% url 'accounts:add_to_wishlist' product.id %}" method="post">
-                        {% csrf_token %}
-                        <button type="submit"
-                            class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition">
-                            ❤️
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-
-                <!-- Product Details -->
-                <div class="mt-8 border-t pt-6">
-                    <h3 class="font-semibold text-lg mb-4">Product Details</h3>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">SKU:</span>
-                            <span class="font-medium">{{ product.sku|default:"N/A" }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Category:</span>
-                            <span class="font-medium">{{ product.category.name }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Stock:</span>
-                            <span class="font-medium">{{ product.stock }}</span>
-                        </div>
-                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Reviews Section -->
-        <div class="mb-12">
-            <h2 class="text-2xl font-bold mb-6">Customer Reviews</h2>
-
-            {% if reviews %}
-            <div class="space-y-4">
-                {% for review in reviews %}
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center">
-                            <span class="font-semibold mr-2">{{ review.user.username }}</span>
-                            <div class="flex text-yellow-400">
-                                {% for i in "12345" %}
-                                {% if forloop.counter <= review.rating %} ★ {% else %} ☆ {% endif %} {% endfor %} </div>
-                            </div>
-                            <span class="text-sm text-gray-500">{{ review.created_at|date:"M d, Y" }}</span>
-                        </div>
-                        <h4 class="font-semibold mb-2">{{ review.title }}</h4>
-                        <p class="text-gray-700">{{ review.comment }}</p>
-                        {% if review.is_verified_purchase %}
-                        <span class="text-xs text-green-600 mt-2 inline-block">✓ Verified Purchase</span>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
+            <!-- Stock Status -->
+            <div class="mb-6">
+                {% if first_variant.stock > 0 %}
+                <span class="text-green-600 font-semibold flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    In Stock ({{ first_variant.stock }} available)
+                </span>
                 {% else %}
-                <p class="text-gray-500">No reviews yet. Be the first to review this product!</p>
+                <span class="text-red-600 font-semibold flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    Out of Stock
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Description -->
+            <div class="mb-6">
+                <h3 class="font-semibold text-lg mb-2">Description</h3>
+                <p class="text-gray-700">{{ product.description }}</p>
+            </div>
+
+            <!-- Category -->
+            <div class="mb-6">
+                <span class="text-gray-600">Category: </span>
+                <a href="{% url 'products:product_list' %}?category={{ product.category.slug }}"
+                    class="text-blue-600 hover:underline">
+                    {{ product.category.name }}
+                </a>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-4">
+                {% if first_variant and first_variant.stock > 0 %}
+                <form action="{% url 'cart:add_to_cart' product_id=product.id %}" method="post" class="flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="variant_id" value="{{ first_variant.id }}">
+                    <input type="hidden" name="quantity" value="1">
+                    <button type="submit"
+                        class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        Add to Cart
+                    </button>
+                </form>
+                {% else %}
+                <button disabled
+                    class="flex-1 bg-gray-300 text-gray-600 px-6 py-3 rounded-lg font-semibold cursor-not-allowed">
+                    Out of Stock
+                </button>
+                {% endif %}
+
+                {% if user.is_authenticated %}
+                <form action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit"
+                        class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+                            </path>
+                        </svg>
+                    </button>
+                </form>
                 {% endif %}
             </div>
 
-            <!-- Related Products -->
-            {% if related_products %}
-            <div>
-                <h2 class="text-2xl font-bold mb-6">Related Products</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {% for product in related_products %}
-                    {% include 'products/product_card.html' %}
-                    {% endfor %}
+            <!-- Product Details -->
+            <div class="mt-8 border-t pt-6">
+                <h3 class="font-semibold text-lg mb-4">Product Details</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">SKU:</span>
+                        <span class="font-medium">{{ product.sku|default:"N/A" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Category:</span>
+                        <span class="font-medium">{{ product.category.name }}</span>
+                    </div>
+                    {% if first_variant %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Stock:</span>
+                        <span class="font-medium">{{ first_variant.stock }}</span>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
+        </div>
+    </div>
+    {% endwith %}
+
+    <!-- Reviews Section -->
+    <div class="mb-12">
+        <h2 class="text-2xl font-bold mb-6">Customer Reviews</h2>
+
+        {% if reviews %}
+        <div class="space-y-4">
+            {% for review in reviews %}
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center">
+                        <span class="font-semibold mr-2">{{ review.user.username }}</span>
+                        <div class="flex text-yellow-400">
+                            {% for i in "12345" %}
+                            {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %} {% endfor %} </div>
+                        </div>
+                        <span class="text-sm text-gray-500">{{ review.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <h4 class="font-semibold mb-2">{{ review.title }}</h4>
+                    <p class="text-gray-700">{{ review.comment }}</p>
+                    {% if review.is_verified_purchase %}
+                    <span class="text-xs text-green-600 mt-2 inline-block">✓ Verified Purchase</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500">No reviews yet. Be the first to review this product!</p>
             {% endif %}
         </div>
-        {% endblock %}
+
+        <!-- Related Products -->
+        {% if related_products %}
+        <div>
+            <h2 class="text-2xl font-bold mb-6">Related Products</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {% for product in related_products %}
+                {% include 'products/product_card.html' %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endblock %}
