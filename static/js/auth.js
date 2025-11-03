@@ -1,0 +1,154 @@
+/* ========================================
+   JWT AUTH MODULE - Token management
+   ======================================== */
+
+const JWTAuth = {
+    // Token storage keys
+    ACCESS_TOKEN_KEY: 'access_token',
+    REFRESH_TOKEN_KEY: 'refresh_token',
+    
+    // Get access token
+    getAccessToken() {
+        return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    },
+    
+    // Get refresh token
+    getRefreshToken() {
+        return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+    },
+    
+    // Set tokens
+    setTokens(accessToken, refreshToken) {
+        localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
+        if (refreshToken) {
+            localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
+        }
+    },
+    
+    // Clear tokens (logout)
+    clearTokens() {
+        localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+        localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    },
+    
+    // Check if user is authenticated
+    isAuthenticated() {
+        return !!this.getAccessToken();
+    },
+    
+    // Refresh access token
+    async refreshAccessToken() {
+        const refreshToken = this.getRefreshToken();
+        if (!refreshToken) {
+            this.clearTokens();
+            return null;
+        }
+        
+        try {
+            const response = await fetch('/api/auth/token/refresh/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refresh: refreshToken })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.setTokens(data.access, data.refresh || refreshToken);
+                return data.access;
+            } else {
+                this.clearTokens();
+                return null;
+            }
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            this.clearTokens();
+            return null;
+        }
+    },
+    
+    // Get authorization headers
+    getAuthHeaders() {
+        const token = this.getAccessToken();
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    },
+    
+    // Authenticated fetch wrapper
+    async authFetch(url, options = {}) {
+        options.headers = {
+            ...options.headers,
+            ...this.getAuthHeaders(),
+        };
+        
+        let response = await fetch(url, options);
+        
+        // If unauthorized, try refreshing token
+        if (response.status === 401) {
+            const newToken = await this.refreshAccessToken();
+            if (newToken) {
+                options.headers['Authorization'] = `Bearer ${newToken}`;
+                response = await fetch(url, options);
+            }
+        }
+        
+        return response;
+    },
+    
+    // Login function with automatic cart merge
+    async login(username, password) {
+        try {
+            const response = await fetch('/api/auth/token/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Store tokens
+                this.setTokens(data.access, data.refresh);
+                
+                // Check if cart was merged
+                if (data.cart_merged) {
+                    console.log('Cart merged:', data.cart_merged.message);
+                    
+                    // Update cart count in UI if updateCartCount function exists
+                    if (typeof updateCartCount === 'function') {
+                        updateCartCount();
+                    }
+                }
+                
+                return {
+                    success: true,
+                    data: data
+                };
+            } else {
+                const errorData = await response.json();
+                return {
+                    success: false,
+                    error: errorData.detail || 'Login failed'
+                };
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            return {
+                success: false,
+                error: 'Network error occurred'
+            };
+        }
+    },
+    
+    // Logout function
+    logout() {
+        this.clearTokens();
+        // Redirect to login page or home
+        window.location.href = '/accounts/login/';
+    }
+};
+
+// Make globally available
+window.JWTAuth = JWTAuth;
