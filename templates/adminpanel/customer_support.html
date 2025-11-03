@@ -1,0 +1,269 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block title %}Customer Assistance{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .filter-tab {
+        padding: 10px 20px;
+        background: #f8f9fa;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s;
+        text-decoration: none;
+        color: #333;
+    }
+
+    .filter-tab:hover {
+        background: #e9ecef;
+    }
+
+    .filter-tab.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+    }
+
+    .messages-grid {
+        display: grid;
+        gap: 15px;
+    }
+
+    .message-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.3s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .message-card:hover {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 15px;
+    }
+
+    .message-customer {
+        flex: 1;
+    }
+
+    .message-customer h4 {
+        font-size: 16px;
+        color: #333;
+        margin-bottom: 8px;
+    }
+
+    .message-meta {
+        font-size: 13px;
+        color: #666;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .message-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .search-icon {
+        color: #667eea;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .search-icon:hover {
+        transform: scale(1.2);
+    }
+
+    .message-status {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-replied {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .message-type-badge {
+        padding: 4px 10px;
+        border-radius: 15px;
+        font-size: 11px;
+        background: #e9ecef;
+        color: #495057;
+    }
+
+    .message-type-product {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .message-subject {
+        font-size: 14px;
+        color: #333;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    .message-preview {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .message-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: #999;
+    }
+
+    .assigned-staff {
+        font-size: 12px;
+        color: #667eea;
+    }
+
+    .no-messages {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+
+    .no-messages-icon {
+        font-size: 60px;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h2>Customer Assistance</h2>
+    <p>Messages assigned to you</p>
+</div>
+
+<div class="content-body">
+    <div class="filter-tabs">
+        <a href="?status=all" class="filter-tab {% if filter_status == 'all' %}active{% endif %}">
+            All Messages
+        </a>
+        <a href="?status=pending" class="filter-tab {% if filter_status == 'pending' %}active{% endif %}">
+            Pending
+        </a>
+        <a href="?status=replied" class="filter-tab {% if filter_status == 'replied' %}active{% endif %}">
+            Replied
+        </a>
+    </div>
+
+    <div class="messages-grid">
+        {% for conv in conversations %}
+        <a href="{% url 'adminpanel:chat_conversation' conv.id %}" class="message-card">
+            <div class="message-header">
+                <div class="message-customer">
+                    <h4>{{ conv.user.get_full_name|default:conv.user.username }}</h4>
+                    <div class="message-meta">
+                        <div class="message-meta-item">
+                            <span>👤 Customer ID: {{ conv.user.username|upper }}</span>
+                            <a href="{% url 'adminpanel:order_management' %}?search={{ conv.user.username }}" 
+                               class="search-icon" 
+                               onclick="event.stopPropagation();" 
+                               title="Search Customer Orders">🔍</a>
+                        </div>
+                        <div class="message-meta-item">
+                            <span>📧 Email: {{ conv.user.email }}</span>
+                        </div>
+                        {% if conv.product %}
+                        <div class="message-meta-item">
+                            <span>📦 Product: {{ conv.product.slug|upper }}</span>
+                            <a href="{% url 'adminpanel:products' %}?search={{ conv.product.slug }}" 
+                               class="search-icon" 
+                               onclick="event.stopPropagation();" 
+                               title="View Product">🔍</a>
+                        </div>
+                        {% endif %}
+                        {% if conv.latest_order %}
+                        <div class="message-meta-item">
+                            <span>📋 Order: ORD{{ conv.latest_order.id }}</span>
+                            <a href="{% url 'adminpanel:order_management' %}?search=ORD{{ conv.latest_order.id }}" 
+                               class="search-icon" 
+                               onclick="event.stopPropagation();" 
+                               title="View Order">🔍</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="message-status">
+                    <span class="message-type-badge {% if conv.message_type == 'product_chat' %}message-type-product{% endif %}">
+                        {{ conv.get_message_type_display }}
+                    </span>
+                    <span class="status-badge status-{{ conv.status }}">
+                        {{ conv.get_status_display }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="message-subject">
+                <strong>Subject:</strong> {{ conv.subject }}
+            </div>
+
+            {% with conv.messages.first as first_message %}
+            {% if first_message %}
+            <div class="message-preview">
+                {{ first_message.content|truncatewords:20 }}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div class="message-footer">
+                <span>{{ conv.created_at|date:"M d, Y - h:i A" }}</span>
+                <span class="assigned-staff">👤 Assigned to: {{ conv.admin.username|upper }}</span>
+            </div>
+        </a>
+        {% empty %}
+        <div class="no-messages">
+            <div class="no-messages-icon">📭</div>
+            <p>No messages assigned to you</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

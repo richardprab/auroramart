@@ -1,10 +1,10 @@
 from django.db import models
-from products.models import ProductVariant # MODIFIED
-from accounts.models import Address # MODIFIED: App name is accounts
+from products.models import ProductVariant
+from accounts.models import Address
+from django.conf import settings
+from datetime import timedelta
+from django.utils import timezone
 import uuid
-from django.contrib.auth import get_user_model # IMPORTED AS REQUESTED
-
-User = get_user_model() # USED AS REQUESTED
 
 class Order(models.Model):
     """
@@ -23,26 +23,30 @@ class Order(models.Model):
         ("cancelled", "Cancelled"),   # Order was cancelled by user or admin
         ("refunded", "Refunded"),     # Order was refunded
     ]
-    PAYMENT_STATUS = [
-        ("pending", "Pending"),       # Awaiting payment
-        ("completed", "Completed"),   # Payment successful
-        ("failed", "Failed"),         # Payment failed
-        ("refunded", "Refunded"),     # Payment was refunded
+    
+    LOCATION_CHOICES = [
+        ('warehouse', 'Warehouse'),
+        ('in_transit_dc', 'In Transit to Distribution Center'),
+        ('at_dc', 'At Distribution Center'),
+        ('out_delivery', 'Out for Delivery'),
+        ('delivered', 'Delivered'),
     ]
+
+    order_number = models.CharField(
+        max_length=20, 
+        unique=True, 
+        blank=True,
+        help_text="Unique order number (auto-generated)"
+    )
 
     # Core Order Details
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE, # If user is deleted, delete their orders
         related_name="orders"
     )
-    order_number = models.CharField(
-        max_length=20,
-        unique=True,
-        editable=False,
-        help_text="Unique, human-readable order identifier."
-    )
-
+    address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True)
+    
     # Pricing Breakdown
     subtotal = models.DecimalField(
         max_digits=10, decimal_places=2,
@@ -70,56 +74,25 @@ class Order(models.Model):
         default="pending",
         help_text="The current fulfillment status of the order."
     )
-    payment_status = models.CharField(
-        max_length=20,
-        choices=PAYMENT_STATUS,
-        default="pending",
-        help_text="The current payment status of the order."
-    )
+
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # ADD THIS
+    payment_status = models.CharField(max_length=20, blank=True)  # Already exists based on earlier code
+
     payment_method = models.CharField(max_length=50, blank=True)
-
-    # --- Linked Address (Historical Reference) ---
-    # These link to the Address model at the time of purchase.
-    # We also store a snapshot (below) in case the user deletes the Address entry.
-    shipping_address_link = models.ForeignKey(
-        Address,
-        on_delete=models.SET_NULL, # Keep order history even if address is deleted
-        null=True,
-        blank=True,
-        related_name="shipping_orders",
-        help_text="Link to the user's Address book entry (if available)."
-    )
-    billing_address_link = models.ForeignKey(
-        Address,
-        on_delete=models.SET_NULL, # Keep order history even if address is deleted
-        null=True,
-        blank=True,
-        related_name="billing_orders",
-        help_text="Link to the user's billing address entry (if available)."
-    )
-    # ------------------------------------------
-
-    # --- Address Snapshot (Permanent Record) ---
-    # These fields store the *actual* address used for shipping,
-    # ensuring the order retains this info even if the user
-    # updates or deletes their Address book entry.
-    shipping_full_name = models.CharField(max_length=200, help_text="Snapshot of recipient's full name.")
-    shipping_email = models.EmailField(help_text="Snapshot of recipient's email.")
-    shipping_phone = models.CharField(max_length=20, help_text="Snapshot of recipient's phone.")
-    shipping_address = models.TextField(help_text="Snapshot of recipient's street address.")
-    shipping_city = models.CharField(max_length=100, help_text="Snapshot of recipient's city.")
-    shipping_state = models.CharField(max_length=100, help_text="Snapshot of recipient's state.")
-    shipping_zip = models.CharField(max_length=20, help_text="Snapshot of recipient's zip code.")
-    shipping_country = models.CharField(max_length=100, default="USA", help_text="Snapshot of recipient's country.")
-    # -------------------------------------------
-
-    # Tracking
+    current_location = models.CharField(max_length=50, choices=LOCATION_CHOICES, default='warehouse')
+    
+    # Contact information
+    contact_number = models.CharField(max_length=20, blank=True)
+    delivery_address = models.TextField(blank=True)
+    
+    # Delivery tracking
     tracking_number = models.CharField(
         max_length=100,
         blank=True,
         help_text="Shipping carrier's tracking number."
     )
-
+    expected_delivery_date = models.DateField(null=True, blank=True)
+    
     # Notes
     customer_notes = models.TextField(blank=True, help_text="Any notes the customer left during checkout.")
     admin_notes = models.TextField(blank=True, help_text="Internal notes for admins.")
@@ -144,6 +117,11 @@ class Order(models.Model):
         if not self.order_number:
             # Generates a random 8-char hex string
             self.order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
+        # Auto-generate expected delivery date if not set
+        if not self.expected_delivery_date and self.status in ['confirmed', 'processing']:
+            import random
+            days_to_deliver = random.randint(3, 7)
+            self.expected_delivery_date = timezone.now().date() + timedelta(days=days_to_deliver)
         super().save(*args, **kwargs)
 
 class OrderItem(models.Model):
@@ -161,7 +139,9 @@ class OrderItem(models.Model):
         max_digits=10, decimal_places=2,
         help_text="Price of the product *at the time of purchase*."
     )
-
+    
+    variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True)
+    
     def __str__(self):
         """
         Provides a human-readable representation of the order item.
@@ -173,9 +153,7 @@ class OrderItem(models.Model):
         except Exception:
             return f"Order item {self.id} (Product Variant missing)"
 
-    def get_subtotal(self):
-        """
-Async function to calculate the subtotal for this line item.
-        """
-        return self.price * self.quantity
+    @property
+    def subtotal(self):
+        return self.quantity * self.price
 
