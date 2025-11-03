@@ -209,41 +209,67 @@ def seed(reset: bool = False, per_category: int = 3, variants_per_product: int =
 
                 # Create variants with color, size, price, and stock
                 if product.variants.count() == 0:
-                    # Pick random colors and sizes for this product
-                    product_colors = RNG.sample(
-                        COLORS, min(variants_per_product, len(COLORS))
-                    )
-                    product_sizes = RNG.sample(
-                        SIZES, min(variants_per_product, len(SIZES))
-                    )
+                    # Check if this is a fashion category
+                    fashion_categories = ['Fashion', 'Men', 'Women', 'Kids']
+                    is_fashion = parent.name in fashion_categories
+                    
+                    if is_fashion:
+                        # Fashion products: multiple variants with colors and sizes
+                        product_colors = RNG.sample(
+                            COLORS, min(variants_per_product, len(COLORS))
+                        )
+                        product_sizes = RNG.sample(
+                            SIZES, min(variants_per_product, len(SIZES))
+                        )
 
-                    for v in range(variants_per_product):
+                        for v in range(variants_per_product):
+                            base_price = Decimal(RNG.randint(low, high))
+                            price = max(
+                                base_price + Decimal(RNG.randint(-20, 40)), Decimal("5.00")
+                            )
+                            compare = price + Decimal(RNG.choice([0, 10, 20, 50, 100]))
+
+                            color = product_colors[v % len(product_colors)]
+                            size = product_sizes[v % len(product_sizes)]
+                            sku_suffix = f"{color[:3].upper()}-{size}"
+
+                            variant_sku = unique_value(
+                                ProductVariant, "sku", f"{product.sku}-{sku_suffix}"
+                            )
+
+                            ProductVariant.objects.create(
+                                product=product,
+                                sku=variant_sku,
+                                color=color,
+                                size=size,
+                                price=price,
+                                compare_price=compare if compare > price else None,
+                                stock=RNG.randint(0, 80),
+                                is_active=True,
+                                is_default=(v == 0),
+                            )
+                            print(f"  → Created variant: {color} / {size} - ${price}")
+                    else:
+                        # Non-fashion products: single variant without color/size
                         base_price = Decimal(RNG.randint(low, high))
-                        price = max(
-                            base_price + Decimal(RNG.randint(-20, 40)), Decimal("5.00")
-                        )
-                        compare = price + Decimal(RNG.choice([0, 10, 20, 50, 100]))
-
-                        color = product_colors[v % len(product_colors)]
-                        size = product_sizes[v % len(product_sizes)]
-                        sku_suffix = f"{color[:3].upper()}-{size}"
-
+                        compare = base_price + Decimal(RNG.choice([0, 10, 20, 50, 100]))
+                        
                         variant_sku = unique_value(
-                            ProductVariant, "sku", f"{product.sku}-{sku_suffix}"
+                            ProductVariant, "sku", f"{product.sku}-STD"
                         )
-
+                        
                         ProductVariant.objects.create(
                             product=product,
                             sku=variant_sku,
-                            color=color,
-                            size=size,
-                            price=price,
-                            compare_price=compare if compare > price else None,
-                            stock=RNG.randint(0, 80),
+                            color="",  # No color for non-fashion
+                            size="",   # No size for non-fashion
+                            price=base_price,
+                            compare_price=compare if compare > base_price else None,
+                            stock=RNG.randint(5, 100),
                             is_active=True,
-                            is_default=(v == 0),  # First variant is default
+                            is_default=True,
                         )
-                        print(f"  → Created variant: {color} / {size} - ${price}")
+                        print(f"  → Created single variant: ${base_price}")
 
     print(
         f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
