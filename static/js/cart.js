@@ -114,13 +114,10 @@ const CartModule = {
 
                     // Update cart count
                     this.updateCartCount();
-                } else {
-                    AuroraMart.toast(data.message || 'Failed to add to cart', 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                AuroraMart.toast('Something went wrong', 'error');
             })
             .finally(() => {
                 // Restore button
@@ -203,13 +200,11 @@ const CartModule = {
                                     cartItem.remove();
                                     this.updateCartCount();
                                     this.updateCartTotal();
-                                    AuroraMart.toast('Item removed', 'info');
                                 }, 300);
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            AuroraMart.toast('Failed to remove item', 'error');
                         });
                 }
             });
@@ -237,12 +232,10 @@ const CartModule = {
                         if (data.success) {
                             this.updateCartTotal();
                             this.updateCartCount();
-                            AuroraMart.toast('Cart updated', 'success');
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        AuroraMart.toast('Failed to update quantity', 'error');
                     });
             }, 500));
         });
@@ -301,7 +294,6 @@ const CartModule = {
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        AuroraMart.toast('Failed to clear cart', 'error');
                     });
             }
         });

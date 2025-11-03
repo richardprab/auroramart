@@ -253,16 +253,66 @@
             let selectedColor = null;
             let selectedSize = null;
 
+            function updateAvailability() {
+                // Reset all strikethrough styles
+                document.querySelectorAll('.variant-size-btn').forEach(btn => {
+                    btn.classList.remove('opacity-50', 'line-through', 'cursor-not-allowed', 'pointer-events-none');
+                });
+
+                // Update sizes based on selected color (strikethrough unavailable sizes)
+                if (selectedColor) {
+                    document.querySelectorAll('.variant-size-btn').forEach(btn => {
+                        const size = btn.dataset.size;
+                        const variant = variants.find(v => v.size === size && v.color === selectedColor);
+                        
+                        if (!variant || variant.stock === 0) {
+                            btn.classList.add('opacity-50', 'line-through', 'cursor-not-allowed', 'pointer-events-none');
+                        }
+                    });
+                }
+            }
+
             // Color button handlers
             document.querySelectorAll('.variant-color-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
+                    const clickedColor = this.dataset.color;
+                    
                     // Remove active class from all color buttons
                     document.querySelectorAll('.variant-color-btn').forEach(b => {
                         b.classList.remove('border-blue-600', 'bg-blue-50');
                     });
                     // Add active class to clicked button
                     this.classList.add('border-blue-600', 'bg-blue-50');
-                    selectedColor = this.dataset.color;
+                    selectedColor = clickedColor;
+                    
+                    // Check if current size is available for this color
+                    if (selectedSize) {
+                        const variant = variants.find(v => v.color === clickedColor && v.size === selectedSize);
+                        if (!variant || variant.stock === 0) {
+                            // Current size not available, find first available size
+                            const availableVariant = variants.find(v => v.color === clickedColor && v.stock > 0);
+                            if (availableVariant) {
+                                // Deselect current size
+                                document.querySelectorAll('.variant-size-btn').forEach(b => {
+                                    b.classList.remove('border-blue-600', 'bg-blue-50');
+                                });
+                                // Select the available size
+                                const sizeBtn = document.querySelector(`.variant-size-btn[data-size="${availableVariant.size}"]`);
+                                if (sizeBtn) {
+                                    sizeBtn.classList.add('border-blue-600', 'bg-blue-50');
+                                    selectedSize = availableVariant.size;
+                                }
+                            } else {
+                                // No available sizes for this color, clear size selection
+                                document.querySelectorAll('.variant-size-btn').forEach(b => {
+                                    b.classList.remove('border-blue-600', 'bg-blue-50');
+                                });
+                                selectedSize = null;
+                            }
+                        }
+                    }
+                    
+                    updateAvailability();
                     updateVariant();
                 });
             });
@@ -270,13 +320,17 @@
             // Size button handlers
             document.querySelectorAll('.variant-size-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
+                    const clickedSize = this.dataset.size;
+                    
                     // Remove active class from all size buttons
                     document.querySelectorAll('.variant-size-btn').forEach(b => {
                         b.classList.remove('border-blue-600', 'bg-blue-50');
                     });
                     // Add active class to clicked button
                     this.classList.add('border-blue-600', 'bg-blue-50');
-                    selectedSize = this.dataset.size;
+                    selectedSize = clickedSize;
+                    
+                    updateAvailability();
                     updateVariant();
                 });
             });
@@ -376,11 +430,28 @@
                 variantIdInput.value = matchingVariant.id;
             }
 
-            // Select first color and size by default if available
-            const firstColorBtn = document.querySelector('.variant-color-btn');
-            const firstSizeBtn = document.querySelector('.variant-size-btn');
-            if (firstColorBtn) firstColorBtn.click();
-            if (firstSizeBtn) firstSizeBtn.click();
+            // Auto-select the variant that matches the displayed price on page load
+            const displayedPrice = parseFloat(document.getElementById('current-price').textContent.replace('$', ''));
+            const firstVariantMatch = variants.find(v => Math.abs(v.price - displayedPrice) < 0.01);
+            
+            if (firstVariantMatch) {
+                // Find and click the color button
+                const colorBtn = document.querySelector(`.variant-color-btn[data-color="${firstVariantMatch.color}"]`);
+                if (colorBtn) {
+                    colorBtn.classList.add('border-blue-600', 'bg-blue-50');
+                    selectedColor = firstVariantMatch.color;
+                }
+                
+                // Find and click the size button
+                const sizeBtn = document.querySelector(`.variant-size-btn[data-size="${firstVariantMatch.size}"]`);
+                if (sizeBtn) {
+                    sizeBtn.classList.add('border-blue-600', 'bg-blue-50');
+                    selectedSize = firstVariantMatch.size;
+                }
+                
+                // Update availability after setting initial selection
+                updateAvailability();
+            }
         });
     </script>
     {% endif %}
