@@ -241,7 +241,7 @@
     <!-- ADD THIS SECTION -->
     {% if not request.GET.search %}
     <!-- Search Instructions -->
-    <div class="order-detail">
+    <div class="order-detail" id="searchInstructions">  <!-- ADD ID -->
         <div class="order-section" style="text-align: center; padding: 60px 20px;">
             <div style="font-size: 60px; margin-bottom: 20px;">🔍</div>
             <h3 style="color: #333;">Search for Products</h3>
@@ -273,13 +273,28 @@ document.getElementById('productSearchForm').addEventListener('submit', function
     editor.classList.add('active');
     editor.innerHTML = '<div class="loading">🔍 Searching for product...</div>';
 
-    fetch(`{% url 'adminpanel:search_product' %}?query=${encodeURIComponent(query)}`)
+    fetch(`{% url 'adminpanel:search_product' %}?query=${query}`)
         .then(response => response.json())
         .then(data => {
+            const productEditor = document.getElementById('productEditor');
+            const searchInstructions = document.getElementById('searchInstructions');  // ADD THIS
+            
             if (data.products && data.products.length > 0) {
+                // Hide instructions when results appear
+                if (searchInstructions) {
+                    searchInstructions.style.display = 'none';  // ADD THIS
+                }
+                
+                // Display the first product found
                 displayProduct(data.products[0]);
+                productEditor.style.display = 'block';
             } else {
-                editor.innerHTML = '<div class="error-message">❌ No product found with that code</div>';
+                // Show instructions again if no results
+                if (searchInstructions) {
+                    searchInstructions.style.display = 'block';  // ADD THIS
+                }
+                
+                productEditor.innerHTML = '<div class="no-results">No products found</div>';
             }
         })
         .catch(error => {
