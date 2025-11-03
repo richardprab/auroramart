@@ -1,7 +1,3 @@
-/* ========================================
-   CORE - Main initialization and utilities
-   ======================================== */
-
 const AuroraMart = {
     // Configuration
     config: {
@@ -12,7 +8,6 @@ const AuroraMart = {
 
     // Initialize all modules
     init() {
-        console.log('🛒 AuroraMart initialized');
 
         // Initialize modules when DOM is ready
         if (document.readyState === 'loading') {

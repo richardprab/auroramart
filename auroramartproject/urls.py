@@ -9,6 +9,9 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    
+    # API endpoints
+    path("api/", include("auroramartproject.api_urls")),
     path("", include("home.urls")),
     path("accounts/", include("accounts.urls")),
     path("adminpanel/", include("adminpanel.urls")),
@@ -16,6 +19,7 @@ urlpatterns = [
     path("cart/", include("cart.urls")),
     path("orders/", include("orders.urls")),
     path("notifications/", include("notifications.urls")),
+    path("chat/", include("chat.urls")),
 ]
 
 # Serve static and media files during development

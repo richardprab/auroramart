@@ -4,24 +4,6 @@
 {% block title %}Shopping Cart - AuroraMart{% endblock %}
 
 {% block content %}
-<style>
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-
-    input[type=number] {
-        -moz-appearance: textfield;
-        appearance: textfield;
-        height: 2rem;
-        line-height: 2rem;
-        width: 3rem;
-        padding: 0;
-        text-align: center;
-    }
-</style>
-
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-4xl font-bold mb-8">Shopping Cart</h1>
 
@@ -54,6 +36,23 @@
                             </a>
                         </h3>
                         <p class="text-gray-600 text-sm mb-2">{{ item.product.category.name }}</p>
+                        
+                        <!-- Variant Info -->
+                        {% if item.product_variant.color or item.product_variant.size %}
+                        <div class="flex gap-3 text-sm text-gray-600 mb-2">
+                            {% if item.product_variant.color %}
+                            <span class="bg-gray-100 px-2 py-1 rounded">
+                                <strong>Color:</strong> {{ item.product_variant.color }}
+                            </span>
+                            {% endif %}
+                            {% if item.product_variant.size %}
+                            <span class="bg-gray-100 px-2 py-1 rounded">
+                                <strong>Size:</strong> {{ item.product_variant.size }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
                         <p class="text-xl font-bold text-gray-900">${{ item.product_variant.price }}</p>
                     </div>
 
@@ -72,7 +71,7 @@
                                 <!-- Quantity Input -->
                                 <input type="number" name="quantity" id="quantity-{{ item.id }}"
                                     value="{{ item.quantity }}" min="1" max="{{ item.product_variant.stock }}"
-                                    class="border border-gray-300 rounded font-semibold"
+                                    class="border border-gray-300 rounded font-semibold w-12 h-8 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     onchange="document.getElementById('cart-form-{{ item.id }}').submit()">
 
                                 <!-- Increase Button -->
@@ -100,10 +99,10 @@
 
             <!-- Clear Cart -->
             <div class="text-right">
-                <form action="{% url 'cart:clear_cart' %}" method="post" class="inline">
+                <form action="{% url 'cart:clear_cart' %}" method="post" class="inline" id="clear-cart-form">
                     {% csrf_token %}
-                    <button type="submit" class="text-red-600 hover:underline font-semibold"
-                        onclick="return confirm('Are you sure you want to clear your cart?')">
+                    <button type="button" class="text-red-600 hover:underline font-semibold"
+                        onclick="showClearCartModal()">
                         Clear Cart
                     </button>
                 </form>
@@ -164,6 +163,49 @@
     {% endif %}
 </div>
 
+<!-- Custom Clear Cart Confirmation Modal -->
+<div id="clear-cart-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between p-6 border-b">
+            <h3 class="text-xl font-bold text-gray-900">Clear Cart</h3>
+            <button onclick="hideClearCartModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0">
+                    <i data-lucide="alert-circle" class="w-12 h-12 text-red-600"></i>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Are you sure?</h4>
+                    <p class="text-gray-600">
+                        This will remove all items from your cart. This action cannot be undone.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="flex gap-3 p-6 border-t bg-gray-50 rounded-b-lg">
+            <button onclick="hideClearCartModal()" 
+                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition">
+                Cancel
+            </button>
+            <button onclick="confirmClearCart()" 
+                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
+                Clear Cart
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     function updateQuantity(itemId, change) {
         const input = document.getElementById('quantity-' + itemId);
@@ -177,5 +219,43 @@
             document.getElementById('cart-form-' + itemId).submit();
         }
     }
+
+    function showClearCartModal() {
+        const modal = document.getElementById('clear-cart-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+        // Initialize Lucide icons in the modal
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    function hideClearCartModal() {
+        const modal = document.getElementById('clear-cart-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        // Restore body scroll
+        document.body.style.overflow = '';
+    }
+
+    function confirmClearCart() {
+        document.getElementById('clear-cart-form').submit();
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('clear-cart-modal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideClearCartModal();
+        }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideClearCartModal();
+        }
+    });
 </script>
 {% endblock %}

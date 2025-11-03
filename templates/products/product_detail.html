@@ -57,12 +57,6 @@
                 <span class="bg-yellow-100 text-yellow-600 text-xs px-3 py-1 rounded-full font-semibold">⭐ Best
                     Seller</span>
                 {% endif %}
-                {% if first_variant.compare_price and first_variant.compare_price > first_variant.price %}
-                {% widthratio first_variant.compare_price|add:0 first_variant.price|add:0 100 as discount_percent %}
-                <span class="bg-green-100 text-green-600 text-xs px-3 py-1 rounded-full font-semibold">
-                    -{{ 100|add:discount_percent|add:"-100" }}% OFF
-                </span>
-                {% endif %}
             </div>
 
             <h1 class="text-3xl font-bold mb-4">{{ product.name }}</h1>
@@ -92,29 +86,29 @@
 
             <!-- Price -->
             {% if first_variant %}
-            <div class="mb-6">
+            <div class="mb-6" id="price-section">
                 <div class="flex items-baseline gap-3">
-                    <span class="text-4xl font-bold text-gray-900">${{ first_variant.price }}</span>
+                    <span class="text-4xl font-bold text-gray-900" id="current-price">${{ first_variant.price }}</span>
                     {% if first_variant.compare_price and first_variant.compare_price > first_variant.price %}
-                    <span class="text-2xl text-gray-500 line-through">${{ first_variant.compare_price }}</span>
-                    <span class="text-green-600 font-semibold">Save {{ first_variant.discount_percentage }}%</span>
+                    <span class="text-2xl text-gray-500 line-through" id="original-price">${{ first_variant.compare_price }}</span>
+                    <span class="text-green-600 font-semibold" id="discount-badge">Save {{ first_variant.discount_percentage }}%</span>
                     {% endif %}
                 </div>
             </div>
 
             <!-- Stock Status -->
-            <div class="mb-6">
+            <div class="mb-6" id="stock-section">
                 {% if first_variant.stock > 0 %}
-                <span class="text-green-600 font-semibold flex items-center gap-2">
+                <span class="text-green-600 font-semibold flex items-center gap-2" id="stock-status">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2">
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                         <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
-                    In Stock ({{ first_variant.stock }} available)
+                    In Stock
                 </span>
                 {% else %}
-                <span class="text-red-600 font-semibold flex items-center gap-2">
+                <span class="text-red-600 font-semibold flex items-center gap-2" id="stock-status">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -142,16 +136,53 @@
                 </a>
             </div>
 
+            <!-- Variant Selector (Fashion Items Only) -->
+            {% if is_fashion_category and available_colors %}
+            <div class="mb-6 space-y-4">
+                <!-- Color Selector -->
+                {% if available_colors %}
+                <div>
+                    <h3 class="font-semibold mb-3">Color</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for color in available_colors %}
+                        <button type="button" 
+                            class="variant-color-btn px-4 py-2 border-2 rounded-lg transition hover:border-blue-600 focus:outline-none focus:border-blue-600"
+                            data-color="{{ color }}">
+                            {{ color }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Size Selector -->
+                {% if available_sizes %}
+                <div>
+                    <h3 class="font-semibold mb-3">Size</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for size in available_sizes %}
+                        <button type="button" 
+                            class="variant-size-btn px-4 py-2 border-2 rounded-lg transition hover:border-blue-600 focus:outline-none focus:border-blue-600"
+                            data-size="{{ size }}">
+                            {{ size }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             <!-- Actions -->
             <div class="flex gap-4">
                 {% if first_variant and first_variant.stock > 0 %}
-                <form action="{% url 'cart:add_to_cart' product_id=product.id %}" method="post" class="flex-1 ajax-add-to-cart">
+                <form action="{% url 'cart:add_to_cart' product_id=product.id %}" method="post" class="flex-1 ajax-add-to-cart" id="add-to-cart-form">
                     {% csrf_token %}
-                    <input type="hidden" name="variant_id" value="{{ first_variant.id }}">
+                    <input type="hidden" name="variant_id" value="{{ first_variant.id }}" id="selected-variant-id">
                     <input type="hidden" name="quantity" value="1">
                     <button type="submit"
                         class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
-                        data-add-to-cart data-product-id="{{ product.id }}">
+                        data-add-to-cart data-product-id="{{ product.id }}" id="add-to-cart-btn">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2">
                             <circle cx="9" cy="21" r="1"></circle>
@@ -163,7 +194,7 @@
                 </form>
                 {% else %}
                 <button disabled
-                    class="flex-1 bg-gray-300 text-gray-600 px-6 py-3 rounded-lg font-semibold cursor-not-allowed">
+                    class="flex-1 bg-gray-300 text-gray-600 px-6 py-3 rounded-lg font-semibold cursor-not-allowed" id="add-to-cart-btn">
                     Out of Stock
                 </button>
                 {% endif %}
@@ -183,62 +214,11 @@
                 </form>
                 {% endif %}
             </div>
-
-            <!-- Product Details -->
-            <div class="mt-8 border-t pt-6">
-                <h3 class="font-semibold text-lg mb-4">Product Details</h3>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">SKU:</span>
-                        <span class="font-medium">{{ product.sku|default:"N/A" }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Category:</span>
-                        <span class="font-medium">{{ product.category.name }}</span>
-                    </div>
-                    {% if first_variant %}
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Stock:</span>
-                        <span class="font-medium">{{ first_variant.stock }}</span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
         </div>
     </div>
     {% endwith %}
 
-    <!-- Reviews Section -->
-    <div class="mb-12">
-        <h2 class="text-2xl font-bold mb-6">Customer Reviews</h2>
-
-        {% if reviews %}
-        <div class="space-y-4">
-            {% for review in reviews %}
-            <div class="bg-white p-6 rounded-lg shadow">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center">
-                        <span class="font-semibold mr-2">{{ review.user.username }}</span>
-                        <div class="flex text-yellow-400">
-                            {% for i in "12345" %}
-                            {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %} {% endfor %} </div>
-                        </div>
-                        <span class="text-sm text-gray-500">{{ review.created_at|date:"M d, Y" }}</span>
-                    </div>
-                    <h4 class="font-semibold mb-2">{{ review.title }}</h4>
-                    <p class="text-gray-700">{{ review.comment }}</p>
-                    {% if review.is_verified_purchase %}
-                    <span class="text-xs text-green-600 mt-2 inline-block">✓ Verified Purchase</span>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="text-gray-500">No reviews yet. Be the first to review this product!</p>
-            {% endif %}
-        </div>
-
-        <!-- Related Products -->
+    <!-- Related Products -->
         {% if related_products %}
         <div>
             <h2 class="text-2xl font-bold mb-6">Related Products</h2>
@@ -250,4 +230,229 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- Variant Selection JavaScript -->
+    {% if is_fashion_category %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Store all variants data
+            const variants = [
+                {% for variant in product.variants.all %}
+                {
+                    id: {{ variant.id }},
+                    color: "{{ variant.color }}",
+                    size: "{{ variant.size }}",
+                    price: {{ variant.price }},
+                    comparePrice: {% if variant.compare_price %}{{ variant.compare_price }}{% else %}null{% endif %},
+                    stock: {{ variant.stock }},
+                    sku: "{{ variant.sku }}"
+                },
+                {% endfor %}
+            ];
+
+            let selectedColor = null;
+            let selectedSize = null;
+
+            function updateAvailability() {
+                // Reset all strikethrough styles
+                document.querySelectorAll('.variant-size-btn').forEach(btn => {
+                    btn.classList.remove('opacity-50', 'line-through', 'cursor-not-allowed', 'pointer-events-none');
+                });
+
+                // Update sizes based on selected color (strikethrough unavailable sizes)
+                if (selectedColor) {
+                    document.querySelectorAll('.variant-size-btn').forEach(btn => {
+                        const size = btn.dataset.size;
+                        const variant = variants.find(v => v.size === size && v.color === selectedColor);
+                        
+                        if (!variant || variant.stock === 0) {
+                            btn.classList.add('opacity-50', 'line-through', 'cursor-not-allowed', 'pointer-events-none');
+                        }
+                    });
+                }
+            }
+
+            // Color button handlers
+            document.querySelectorAll('.variant-color-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const clickedColor = this.dataset.color;
+                    
+                    // Remove active class from all color buttons
+                    document.querySelectorAll('.variant-color-btn').forEach(b => {
+                        b.classList.remove('border-blue-600', 'bg-blue-50');
+                    });
+                    // Add active class to clicked button
+                    this.classList.add('border-blue-600', 'bg-blue-50');
+                    selectedColor = clickedColor;
+                    
+                    // Check if current size is available for this color
+                    if (selectedSize) {
+                        const variant = variants.find(v => v.color === clickedColor && v.size === selectedSize);
+                        if (!variant || variant.stock === 0) {
+                            // Current size not available, find first available size
+                            const availableVariant = variants.find(v => v.color === clickedColor && v.stock > 0);
+                            if (availableVariant) {
+                                // Deselect current size
+                                document.querySelectorAll('.variant-size-btn').forEach(b => {
+                                    b.classList.remove('border-blue-600', 'bg-blue-50');
+                                });
+                                // Select the available size
+                                const sizeBtn = document.querySelector(`.variant-size-btn[data-size="${availableVariant.size}"]`);
+                                if (sizeBtn) {
+                                    sizeBtn.classList.add('border-blue-600', 'bg-blue-50');
+                                    selectedSize = availableVariant.size;
+                                }
+                            } else {
+                                // No available sizes for this color, clear size selection
+                                document.querySelectorAll('.variant-size-btn').forEach(b => {
+                                    b.classList.remove('border-blue-600', 'bg-blue-50');
+                                });
+                                selectedSize = null;
+                            }
+                        }
+                    }
+                    
+                    updateAvailability();
+                    updateVariant();
+                });
+            });
+
+            // Size button handlers
+            document.querySelectorAll('.variant-size-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const clickedSize = this.dataset.size;
+                    
+                    // Remove active class from all size buttons
+                    document.querySelectorAll('.variant-size-btn').forEach(b => {
+                        b.classList.remove('border-blue-600', 'bg-blue-50');
+                    });
+                    // Add active class to clicked button
+                    this.classList.add('border-blue-600', 'bg-blue-50');
+                    selectedSize = clickedSize;
+                    
+                    updateAvailability();
+                    updateVariant();
+                });
+            });
+
+            function updateVariant() {
+                // Check if both color and size are selected
+                if (!selectedColor || !selectedSize) {
+                    return;
+                }
+
+                // Find matching variant
+                const matchingVariant = variants.find(v => 
+                    v.color === selectedColor && v.size === selectedSize
+                );
+
+                if (!matchingVariant) {
+                    return;
+                }
+
+                // Update price
+                const currentPriceEl = document.getElementById('current-price');
+                const originalPriceEl = document.getElementById('original-price');
+                const discountBadgeEl = document.getElementById('discount-badge');
+                const priceSection = document.getElementById('price-section').querySelector('div');
+
+                currentPriceEl.textContent = '$' + matchingVariant.price.toFixed(2);
+
+                // Handle compare price (discount)
+                if (matchingVariant.comparePrice && matchingVariant.comparePrice > matchingVariant.price) {
+                    const discountPercent = Math.round((1 - matchingVariant.price / matchingVariant.comparePrice) * 100);
+                    
+                    if (!originalPriceEl) {
+                        // Create original price element if it doesn't exist
+                        const originalPrice = document.createElement('span');
+                        originalPrice.id = 'original-price';
+                        originalPrice.className = 'text-2xl text-gray-500 line-through';
+                        originalPrice.textContent = '$' + matchingVariant.comparePrice.toFixed(2);
+                        priceSection.appendChild(originalPrice);
+
+                        const discountBadge = document.createElement('span');
+                        discountBadge.id = 'discount-badge';
+                        discountBadge.className = 'text-green-600 font-semibold';
+                        discountBadge.textContent = 'Save ' + discountPercent + '%';
+                        priceSection.appendChild(discountBadge);
+                    } else {
+                        originalPriceEl.textContent = '$' + matchingVariant.comparePrice.toFixed(2);
+                        discountBadgeEl.textContent = 'Save ' + discountPercent + '%';
+                    }
+                } else {
+                    // Remove compare price if it exists
+                    if (originalPriceEl) originalPriceEl.remove();
+                    if (discountBadgeEl) discountBadgeEl.remove();
+                }
+
+                // Update stock
+                const stockStatus = document.getElementById('stock-status');
+                const addToCartBtn = document.getElementById('add-to-cart-btn');
+                const variantIdInput = document.getElementById('selected-variant-id');
+
+                if (matchingVariant.stock > 0) {
+                    stockStatus.className = 'text-green-600 font-semibold flex items-center gap-2';
+                    stockStatus.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        In Stock
+                    `;
+                    addToCartBtn.disabled = false;
+                    addToCartBtn.classList.remove('bg-gray-300', 'text-gray-600', 'cursor-not-allowed');
+                    addToCartBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    if (addToCartBtn.tagName === 'BUTTON' && addToCartBtn.type === 'submit') {
+                        addToCartBtn.querySelector('svg').style.display = 'inline';
+                        addToCartBtn.childNodes[addToCartBtn.childNodes.length - 1].textContent = ' Add to Cart';
+                    }
+                } else {
+                    stockStatus.className = 'text-red-600 font-semibold flex items-center gap-2';
+                    stockStatus.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        Out of Stock
+                    `;
+                    addToCartBtn.disabled = true;
+                    addToCartBtn.classList.add('bg-gray-300', 'text-gray-600', 'cursor-not-allowed');
+                    addToCartBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    if (addToCartBtn.tagName === 'BUTTON') {
+                        addToCartBtn.textContent = 'Out of Stock';
+                    }
+                }
+
+                // Update variant ID in form
+                variantIdInput.value = matchingVariant.id;
+            }
+
+            // Auto-select the variant that matches the displayed price on page load
+            const displayedPrice = parseFloat(document.getElementById('current-price').textContent.replace('$', ''));
+            const firstVariantMatch = variants.find(v => Math.abs(v.price - displayedPrice) < 0.01);
+            
+            if (firstVariantMatch) {
+                // Find and click the color button
+                const colorBtn = document.querySelector(`.variant-color-btn[data-color="${firstVariantMatch.color}"]`);
+                if (colorBtn) {
+                    colorBtn.classList.add('border-blue-600', 'bg-blue-50');
+                    selectedColor = firstVariantMatch.color;
+                }
+                
+                // Find and click the size button
+                const sizeBtn = document.querySelector(`.variant-size-btn[data-size="${firstVariantMatch.size}"]`);
+                if (sizeBtn) {
+                    sizeBtn.classList.add('border-blue-600', 'bg-blue-50');
+                    selectedSize = firstVariantMatch.size;
+                }
+                
+                // Update availability after setting initial selection
+                updateAvailability();
+            }
+        });
+    </script>
+    {% endif %}
     {% endblock %}

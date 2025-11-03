@@ -1,7 +1,3 @@
-/* ========================================
-   ANIMATIONS - UI animations and effects
-   ======================================== */
-
 const AnimationsModule = {
     init() {
         this.scrollAnimations();
