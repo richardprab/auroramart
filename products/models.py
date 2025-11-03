@@ -4,10 +4,6 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 
 
-# Models related to the product catalog, including categories, products,
-# variants, attributes, and images.
-
-
 class Category(models.Model):
     """
     Product category (from your existing snippet).
@@ -56,7 +52,12 @@ class Product(models.Model):
         Category, on_delete=models.CASCADE, related_name="products"
     )
     description = models.TextField()
-    size_guide = models.TextField(blank=True, null=True, help_text="NEW: From ERD")
+    size_guide = models.TextField(
+        blank=True, null=True, help_text="Size guide information"
+    )
+    brand = models.CharField(
+        max_length=100, blank=True, help_text="Product brand/manufacturer"
+    )
 
     # --- Denormalized Review Data (from your snippet) ---
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
@@ -71,11 +72,6 @@ class Product(models.Model):
     # --- Timestamps ---
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    # --- MOVED TO ProductVariant ---
-    # price
-    # compare_price
-    # stock
 
     class Meta:
         ordering = ["-created_at"]
@@ -128,16 +124,14 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to="products/")
     alt_text = models.CharField(max_length=200, blank=True)
     is_primary = models.BooleanField(default=False)
-    display_order = models.IntegerField(
-        default=0, name="order"
-    )  # Keep your field name 'order'
+    display_order = models.IntegerField(default=0, db_column="order")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["order", "-is_primary"]
+        ordering = ["display_order", "-is_primary"]
 
     def __str__(self):
-        return f"{self.product.name} - Image {self.order}"
+        return f"{self.product.name} - Image {self.display_order}"
 
 
 class Review(models.Model):
@@ -148,8 +142,9 @@ class Review(models.Model):
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="reviews"
     )
+    # Use settings.AUTH_USER_MODEL string reference instead of get_user_model()
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,  # Use settings.AUTH_USER_MODEL
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
     rating = models.IntegerField(
@@ -166,12 +161,12 @@ class Review(models.Model):
         unique_together = ("product", "user")
 
     def __str__(self):
-        return f"{self.product.name} - {self.user.username} ({self.rating}★)"
+        return f"{self.product.name} - {self.rating}★"
 
 
 class Attribute(models.Model):
     """
-    NEW: Model for product attributes (e.g., 'Color', 'Size').
+    Model for product attributes (e.g., 'Color', 'Size').
     """
 
     name = models.CharField(max_length=100, unique=True)
@@ -182,7 +177,7 @@ class Attribute(models.Model):
 
 class AttributeValue(models.Model):
     """
-    NEW: Model for attribute values (e.g., 'Red', 'Large').
+    Model for attribute values (e.g., 'Red', 'Large').
     """
 
     attribute = models.ForeignKey(
@@ -199,7 +194,7 @@ class AttributeValue(models.Model):
 
 class ProductVariant(models.Model):
     """
-    NEW: Model for product variants (e.g., 'Red, Large T-Shirt').
+    Model for product variants (e.g., 'Red, Large T-Shirt').
     This now holds Price, SKU, and Stock.
     """
 
@@ -207,29 +202,47 @@ class ProductVariant(models.Model):
         Product, on_delete=models.CASCADE, related_name="variants"
     )
     sku = models.CharField(max_length=100, unique=True)
+
+    color = models.CharField(
+        max_length=50, blank=True, help_text="Color option (e.g., Red, Blue)"
+    )
+    size = models.CharField(
+        max_length=50, blank=True, help_text="Size option (e.g., S, M, L, XL)"
+    )
+    material = models.CharField(
+        max_length=100, blank=True, help_text="Material (e.g., Cotton, Leather)"
+    )
+
     price = models.DecimalField(max_digits=10, decimal_places=2)
     compare_price = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
-    sale_end_date = models.DateTimeField(null=True, blank=True)
-    stock = models.IntegerField(default=0)
-    main_image = models.ForeignKey(
-        ProductImage,
-        on_delete=models.SET_NULL,
+    stock = models.PositiveIntegerField(default=0)
+    weight = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
         null=True,
         blank=True,
-        related_name="variant_main_image",
-        help_text="Main image for this specific variant.",
+        help_text="Weight in kg",
     )
-    attributes = models.ManyToManyField(
-        AttributeValue, through="ProductVariantAttribute"
-    )
+
     is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ["-is_default", "price"]
+        unique_together = [["product", "color", "size"]]
+
     def __str__(self):
-        return f"{self.product.name} ({self.sku})"
+        attrs = []
+        if self.color:
+            attrs.append(self.color)
+        if self.size:
+            attrs.append(self.size)
+        variant_name = f" ({', '.join(attrs)})" if attrs else ""
+        return f"{self.product.name}{variant_name} - {self.sku}"
 
     @property
     def is_on_sale(self):
@@ -244,7 +257,7 @@ class ProductVariant(models.Model):
 
 class ProductVariantAttribute(models.Model):
     """
-    NEW: Through table for Variant <-> AttributeValue.
+    Through table for Variant <-> AttributeValue.
     """
 
     variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
@@ -256,7 +269,7 @@ class ProductVariantAttribute(models.Model):
 
 class RelatedProduct(models.Model):
     """
-    NEW: Model for 'Frequently Bought Together' or 'Alternatives'.
+    Model for 'Frequently Bought Together' or 'Alternatives'.
     """
 
     RELATION_TYPE_CHOICES = [
@@ -273,3 +286,8 @@ class RelatedProduct(models.Model):
 
     class Meta:
         unique_together = ("from_product", "to_product", "relation_type")
+
+    def __str__(self):
+        return (
+            f"{self.from_product.name} → {self.to_product.name} ({self.relation_type})"
+        )
