@@ -67,11 +67,15 @@
 
             <!-- Add to Cart Button -->
             <div class="p-4 pt-0">
-                {% if product.is_in_stock %}
-                <form action="{% url 'cart:add_to_cart' product.id %}" method="post">
+                {% with first_variant=product.variants.first %}
+                {% if first_variant and first_variant.stock > 0 %}
+                <form action="{% url 'cart:add_to_cart' product.id %}" method="post" class="ajax-add-to-cart">
                     {% csrf_token %}
+                    <input type="hidden" name="variant_id" value="{{ first_variant.id }}">
+                    <input type="hidden" name="quantity" value="1">
                     <button type="submit"
-                        class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
+                        class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+                        data-add-to-cart data-product-id="{{ product.id }}">
                         🛒 Add to Cart
                     </button>
                 </form>
@@ -80,6 +84,7 @@
                     Out of Stock
                 </button>
                 {% endif %}
+                {% endwith %}
             </div>
         </div>
         {% endfor %}

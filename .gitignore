@@ -9,6 +9,7 @@ media/
 staticfiles/
 /staticfiles/
 /static/root/
+staticfiles
 
 venv/
 env/
