@@ -12,7 +12,6 @@ const AuroraMart = {
 
     // Initialize all modules
     init() {
-        console.log('🛒 AuroraMart initialized');
 
         // Initialize modules when DOM is ready
         if (document.readyState === 'loading') {

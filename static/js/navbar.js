@@ -105,29 +105,6 @@ const NavbarModule = {
         });
     },
 
-    // Search suggestions (placeholder for API integration)
-    searchSuggestions(query) {
-        console.log('Searching for:', query);
-        // TODO: Implement API call for suggestions
-        // Example:
-        // fetch(`/api/search?q=${query}`)
-        //     .then(res => res.json())
-        //     .then(data => this.displaySuggestions(data));
-    },
-
-    displaySuggestions(suggestions) {
-        // TODO: Display search suggestions dropdown
-        console.log('Suggestions:', suggestions);
-    },
-
-    hideSuggestions() {
-        const suggestionsBox = document.getElementById('search-suggestions');
-        if (suggestionsBox) {
-            suggestionsBox.remove();
-        }
-    },
-
-    // Sticky navbar on scroll
     stickyNav() {
         const navbar = document.querySelector('.navbar');
         if (!navbar) return;
@@ -165,8 +142,6 @@ window.NavbarModule = NavbarModule;
  */
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('🚀 Navbar script loaded');
-
     // Mobile menu toggle
     const mobileMenuButton = document.getElementById('mobile-menu-button');
     const mobileMenu = document.getElementById('mobile-menu');
@@ -178,32 +153,26 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Profile dropdown with hover delay
-    const profileWrapper = document.getElementById('profile-dropdown-wrapper');
     const profileButton = document.getElementById('user-menu-button');
     const profileDropdown = document.getElementById('user-menu');
     let hideTimeout;
-    const DROPDOWN_DELAY = 1000;
+    const DROPDOWN_DELAY = 300; // Reduced delay for better UX
 
     if (profileButton && profileDropdown) {
-        console.log('✅ Profile dropdown elements found');
-        console.log('📋 Dropdown delay:', DROPDOWN_DELAY + 'ms');
 
         // Function to show dropdown
         function showDropdown() {
             clearTimeout(hideTimeout);
             profileDropdown.classList.remove('hidden');
-            console.log('👁️ Dropdown shown');
         }
 
         // Function to hide dropdown
         function hideDropdown() {
             profileDropdown.classList.add('hidden');
-            console.log('🙈 Dropdown hidden');
         }
 
         // Function to hide dropdown with delay
         function hideDropdownDelayed() {
-            console.log('⏰ Starting hide delay (' + (DROPDOWN_DELAY / 1000) + 's)');
             clearTimeout(hideTimeout);
             hideTimeout = setTimeout(function () {
                 hideDropdown();
@@ -212,31 +181,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Show dropdown on hover over button
         profileButton.addEventListener('mouseenter', function () {
-            console.log('🖱️ Mouse entered profile button');
             showDropdown();
         });
 
         // Hide dropdown with delay when leaving button
-        profileButton.addEventListener('mouseleave', function () {
-            console.log('🖱️ Mouse left profile button');
-            hideDropdownDelayed();
+        profileButton.addEventListener('mouseleave', function (e) {
+            // Check if moving to dropdown
+            const rect = profileDropdown.getBoundingClientRect();
+            const isMovingToDropdown = e.clientY >= rect.top && e.clientY <= rect.bottom;
+            
+            if (!isMovingToDropdown) {
+                hideDropdownDelayed();
+            }
         });
 
         // Keep dropdown visible when hovering over it
         profileDropdown.addEventListener('mouseenter', function () {
-            console.log('🖱️ Mouse entered dropdown');
             showDropdown();
         });
 
         // Hide dropdown with delay when leaving dropdown
         profileDropdown.addEventListener('mouseleave', function () {
-            console.log('🖱️ Mouse left dropdown');
             hideDropdownDelayed();
         });
 
         // Toggle dropdown on click
         profileButton.addEventListener('click', function (e) {
-            console.log('👆 Profile button clicked');
             e.preventDefault();
             e.stopPropagation();
 
@@ -251,7 +221,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Close dropdown when clicking outside
         document.addEventListener('click', function (e) {
             if (profileWrapper && !profileWrapper.contains(e.target)) {
-                console.log('👆 Clicked outside - closing dropdown');
                 clearTimeout(hideTimeout);
                 hideDropdown();
             }
@@ -260,7 +229,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Close dropdown when pressing Escape key
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && !profileDropdown.classList.contains('hidden')) {
-                console.log('⌨️ Escape pressed - closing dropdown');
                 clearTimeout(hideTimeout);
                 hideDropdown();
             }

@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "orders",
     "adminpanel",
     "notifications",
+    "chat",
 ]
 
 MIDDLEWARE = [
