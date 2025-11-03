@@ -13,7 +13,16 @@ const CartModule = {
 
     // Update cart count badge
     updateCartCount() {
-        fetch('/cart/count/')
+        const url = '/api/cart/count/';
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (window.JWTAuth && window.JWTAuth.isAuthenticated()) {
+            Object.assign(headers, window.JWTAuth.getAuthHeaders());
+        }
+        
+        fetch(url, { headers })
             .then(response => response.json())
             .then(data => {
                 const badge = document.getElementById('cart-count');
@@ -62,20 +71,40 @@ const CartModule = {
     // Add to cart with animation
     addToCart(productId, button) {
         const form = button.closest('form');
-        const formData = new FormData(form);
+        const variantId = form.querySelector('[name="variant_id"]')?.value;
+        const quantity = form.querySelector('[name="quantity"]')?.value || 1;
 
         // Show loading state
         const originalText = button.innerHTML;
         button.innerHTML = '<span class="loading-spinner"></span>';
         button.disabled = true;
 
-        // Submit form via AJAX
-        fetch(form.action, {
+        // Prepare API request
+        const url = '/api/cart/add_item/';
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        
+        // Add JWT token if authenticated
+        if (window.JWTAuth && window.JWTAuth.isAuthenticated()) {
+            Object.assign(headers, window.JWTAuth.getAuthHeaders());
+        }
+        
+        // Get CSRF token for Django
+        const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]')?.value;
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+
+        // Submit to API
+        fetch(url, {
             method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            }
+            headers: headers,
+            body: JSON.stringify({
+                product_id: productId,
+                product_variant_id: variantId,
+                quantity: parseInt(quantity)
+            })
         })
             .then(response => response.json())
             .then(data => {

@@ -19,6 +19,84 @@ def get_or_create_cart(request):
     return cart
 
 
+def merge_session_cart_to_user(user, session_key):
+    """
+    Merge session cart into user's cart when user logs in.
+    
+    Args:
+        user: The authenticated user
+        session_key: The session key of the anonymous cart
+    
+    Returns:
+        dict: Summary of merge operation with counts
+    """
+    if not session_key:
+        return {'merged': 0, 'skipped': 0, 'message': 'No session cart to merge'}
+    
+    try:
+        # Get session cart
+        session_cart = Cart.objects.get(session_key=session_key, user__isnull=True)
+    except Cart.DoesNotExist:
+        return {'merged': 0, 'skipped': 0, 'message': 'No session cart found'}
+    
+    # Get or create user cart
+    user_cart, _ = Cart.objects.get_or_create(user=user)
+    
+    merged_count = 0
+    skipped_count = 0
+    
+    # Merge items from session cart to user cart
+    for session_item in session_cart.items.all():
+        if not session_item.product_variant:
+            skipped_count += 1
+            continue
+        
+        # Check if item already exists in user cart
+        try:
+            user_item = CartItem.objects.get(
+                cart=user_cart,
+                product_variant=session_item.product_variant
+            )
+            # Merge quantities (cap at available stock)
+            new_quantity = user_item.quantity + session_item.quantity
+            max_stock = session_item.product_variant.stock
+            
+            if new_quantity > max_stock:
+                user_item.quantity = max_stock
+                skipped_count += 1  # Partial merge
+            else:
+                user_item.quantity = new_quantity
+            
+            user_item.save()
+            merged_count += 1
+            
+        except CartItem.DoesNotExist:
+            # Item doesn't exist in user cart, transfer it
+            max_stock = session_item.product_variant.stock
+            
+            if session_item.quantity > max_stock:
+                session_item.quantity = max_stock
+                skipped_count += 1  # Partial merge
+            
+            # Create new item in user cart
+            CartItem.objects.create(
+                cart=user_cart,
+                product=session_item.product,
+                product_variant=session_item.product_variant,
+                quantity=session_item.quantity
+            )
+            merged_count += 1
+    
+    # Delete the session cart after merge
+    session_cart.delete()
+    
+    return {
+        'merged': merged_count,
+        'skipped': skipped_count,
+        'message': f'Merged {merged_count} items from session cart'
+    }
+
+
 def cart_detail(request):
     """Display cart contents"""
     cart = get_or_create_cart(request)
