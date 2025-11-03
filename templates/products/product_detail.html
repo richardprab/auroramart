@@ -145,12 +145,13 @@
             <!-- Actions -->
             <div class="flex gap-4">
                 {% if first_variant and first_variant.stock > 0 %}
-                <form action="{% url 'cart:add_to_cart' product_id=product.id %}" method="post" class="flex-1">
+                <form action="{% url 'cart:add_to_cart' product_id=product.id %}" method="post" class="flex-1 ajax-add-to-cart">
                     {% csrf_token %}
                     <input type="hidden" name="variant_id" value="{{ first_variant.id }}">
                     <input type="hidden" name="quantity" value="1">
                     <button type="submit"
-                        class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                        class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                        data-add-to-cart data-product-id="{{ product.id }}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2">
                             <circle cx="9" cy="21" r="1"></circle>

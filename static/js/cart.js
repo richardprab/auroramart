@@ -85,9 +85,6 @@ const CartModule = {
 
                     // Update cart count
                     this.updateCartCount();
-
-                    // Show success message
-                    AuroraMart.toast('Added to cart! 🛒', 'success');
                 } else {
                     AuroraMart.toast(data.message || 'Failed to add to cart', 'error');
                 }
@@ -106,7 +103,9 @@ const CartModule = {
     // Flying cart animation
     flyToCartAnimation(button) {
         const rect = button.getBoundingClientRect();
-        const cartIcon = document.querySelector('.cart-badge').closest('a');
+        const cartBadge = document.querySelector('#cart-count');
+
+        const cartIcon = cartBadge.closest('a');
         const cartRect = cartIcon.getBoundingClientRect();
 
         const flyingIcon = document.createElement('div');
@@ -136,11 +135,10 @@ const CartModule = {
             flyingIcon.remove();
 
             // Pulse cart badge
-            const badge = document.querySelector('.cart-badge');
-            if (badge) {
-                badge.style.animation = 'none';
+            if (cartBadge) {
+                cartBadge.style.animation = 'none';
                 setTimeout(() => {
-                    badge.style.animation = 'pulse 0.5s ease';
+                    cartBadge.style.animation = 'pulse 0.5s ease';
                 }, 10);
             }
         }, 1000);

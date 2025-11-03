@@ -59,7 +59,14 @@ def add_to_cart(request, product_id):
         variant_id = request.POST.get("variant_id")
         quantity = int(request.POST.get("quantity", 1))
 
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
         if not variant_id:
+            if is_ajax:
+                return JsonResponse({
+                    "success": False,
+                    "message": "Please select a product variant."
+                })
             messages.error(request, "Please select a product variant.")
             return redirect("products:product_detail", slug=product.slug)
 
@@ -67,6 +74,11 @@ def add_to_cart(request, product_id):
 
         # Check stock
         if variant.stock < quantity:
+            if is_ajax:
+                return JsonResponse({
+                    "success": False,
+                    "message": f"Only {variant.stock} items available in stock."
+                })
             messages.error(request, f"Only {variant.stock} items available in stock.")
             return redirect("products:product_detail", slug=product.slug)
 
@@ -84,6 +96,11 @@ def add_to_cart(request, product_id):
             # Update quantity if item exists
             new_quantity = cart_item.quantity + quantity
             if new_quantity > variant.stock:
+                if is_ajax:
+                    return JsonResponse({
+                        "success": False,
+                        "message": f"Cannot add more. Only {variant.stock} items available."
+                    })
                 messages.error(
                     request, f"Cannot add more. Only {variant.stock} items available."
                 )
@@ -91,6 +108,16 @@ def add_to_cart(request, product_id):
             cart_item.quantity = new_quantity
             cart_item.save()
 
+        # Return JSON for AJAX requests (stay on same page)
+        if is_ajax:
+            cart_count = cart.items.count()
+            return JsonResponse({
+                "success": True,
+                "message": f"{product.name} added to cart!",
+                "cart_count": cart_count
+            })
+
+        # Regular form submission (redirect to cart)
         messages.success(request, f"{product.name} added to cart!")
         return redirect("cart:cart_detail")
 
