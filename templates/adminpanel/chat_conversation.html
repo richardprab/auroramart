@@ -1,0 +1,259 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block title %}Chat - {{ conversation.subject }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .conversation-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .conversation-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+    }
+
+    .conversation-header h3 {
+        font-size: 22px;
+        margin-bottom: 15px;
+    }
+
+    .conversation-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        font-size: 14px;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .search-link {
+        color: white;
+        text-decoration: underline;
+        margin-left: 5px;
+        cursor: pointer;
+    }
+
+    .search-link:hover {
+        opacity: 0.8;
+    }
+
+    .messages-container {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .message-bubble {
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .message-bubble.customer {
+        align-items: flex-start;
+    }
+
+    .message-bubble.staff {
+        align-items: flex-end;
+    }
+
+    .message-sender {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .message-content {
+        background: white;
+        padding: 15px 20px;
+        border-radius: 12px;
+        max-width: 70%;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .message-bubble.staff .message-content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .message-time {
+        font-size: 11px;
+        color: #999;
+        margin-top: 5px;
+    }
+
+    .message-bubble.staff .message-time {
+        color: #ccc;
+    }
+
+    .reply-form {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        border: 2px solid #e0e0e0;
+    }
+
+    .reply-form h4 {
+        margin-bottom: 15px;
+        color: #333;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: 500;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .status-info {
+        display: inline-block;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-left: 10px;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-replied {
+        background: #d4edda;
+        color: #155724;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="conversation-container">
+    <a href="{% url 'adminpanel:customer_support' %}" class="back-to-chat">
+        ← Back to Messages
+    </a>
+
+    <div class="conversation-header">
+        <h3>
+            {{ conversation.subject }}
+            <span class="status-info status-{{ conversation.status }}">
+                {{ conversation.get_status_display }}
+            </span>
+        </h3>
+        <div class="conversation-info">
+            <div class="info-item">
+                <span>👤 Customer ID: {{ conversation.user.username|upper }}</span>
+                <a href="{% url 'adminpanel:order_management' %}?search={{ conversation.user.username }}" 
+                   class="search-link" title="Search Customer Orders">🔍</a>
+            </div>
+            <div class="info-item">
+                <span>📧 Email: {{ conversation.user.email }}</span>
+            </div>
+            {% if conversation.product %}
+            <div class="info-item">
+                <span>📦 Product: {{ conversation.product.slug|upper }}</span>
+                <a href="{% url 'adminpanel:products' %}?search={{ conversation.product.slug }}" 
+                   class="search-link" title="View Product">🔍</a>
+            </div>
+            {% endif %}
+            {% if latest_order %}
+            <div class="info-item">
+                <span>📋 Order: ORD{{ latest_order.id }}</span>
+                <a href="{% url 'adminpanel:order_management' %}?search=ORD{{ latest_order.id }}" 
+                   class="search-link" title="View Order">🔍</a>
+            </div>
+            {% endif %}
+            <div class="info-item">
+                <span>🏷️ Type: {{ conversation.get_message_type_display }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="messages-container">
+        {% for msg in messages %}
+        <div class="message-bubble {% if msg.sender.is_staff %}staff{% else %}customer{% endif %}">
+            <div class="message-sender">
+                {% if msg.sender.is_staff %}
+                    Staff: {{ msg.sender.username|upper }}
+                {% else %}
+                    {{ msg.sender.get_full_name|default:msg.sender.username }}
+                {% endif %}
+            </div>
+            <div class="message-content">
+                {{ msg.content|linebreaks }}
+            </div>
+            <div class="message-time">
+                {{ msg.created_at|date:"M d, Y - h:i A" }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="reply-form">
+        <h4>Reply to Customer</h4>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="message">Your Message:</label>
+                <textarea 
+                    name="message" 
+                    id="message" 
+                    class="form-control" 
+                    rows="5" 
+                    required
+                    placeholder="Type your reply here..."></textarea>
+            </div>
+            <button type="submit" class="btn-submit">Send Reply</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

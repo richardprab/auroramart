@@ -15,6 +15,12 @@ class User(AbstractUser):
     including demographics, preferences, and app-specific settings.
     """
 
+    ROLE_CHOICES = [
+        ('customer', 'Customer'),
+        ('staff', 'Staff'),
+        ('admin', 'Admin'),
+    ]
+    
     # --- Demographic Fields (for personalization) ---
     age_range = models.CharField(max_length=50, null=True, blank=True)
     gender = models.CharField(max_length=50, null=True, blank=True)
@@ -24,6 +30,7 @@ class User(AbstractUser):
     # --- Core Account Fields ---
     role = models.CharField(
         max_length=50,
+        choices=ROLE_CHOICES,
         default="customer",
         help_text="User role (e.g., customer, admin).",
     )
@@ -83,23 +90,13 @@ class Address(models.Model):
     A user can have multiple addresses.
     """
 
-    ADDRESS_TYPES = [
-        ("shipping", "Shipping"),
-        ("billing", "Billing"),
-    ]
-
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,  # Best practice: links to User model in settings
         on_delete=models.CASCADE,  # If user is deleted, delete their addresses
         related_name="addresses",
     )
-    address_type = models.CharField(
-        max_length=10, choices=ADDRESS_TYPES, default="shipping"
-    )
-    full_name = models.CharField(
-        max_length=200, help_text="Full name of the recipient."
-    )
-    phone = models.CharField(max_length=20)
+    full_name = models.CharField(max_length=255)
+    address_type = models.CharField(max_length=20)
     address_line1 = models.CharField(
         max_length=255, help_text="Street address, P.O. box, etc."
     )
@@ -111,8 +108,9 @@ class Address(models.Model):
     )
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100, help_text="State, province, or region.")
-    zip_code = models.CharField(max_length=20, help_text="Postal code.")
-    country = models.CharField(max_length=100, default="USA")
+    postal_code = models.CharField(max_length=20, help_text="Postal code.", default='000000')
+    zip_code = models.CharField(max_length=20)
+    country = models.CharField(max_length=100, default="Singapore")
     is_default = models.BooleanField(
         default=False,
         help_text="Is this the default address for its type (shipping/billing)?",
@@ -123,7 +121,7 @@ class Address(models.Model):
         verbose_name_plural = "Addresses"
 
     def __str__(self):
-        return f"{self.get_address_type_display()} Address for {self.user.username}"
+        return f"{self.full_name} - {self.address_line1}, {self.city}"
 
     def save(self, *args, **kwargs):
         """
@@ -143,38 +141,17 @@ class Wishlist(models.Model):
     Links a User to a ProductVariant they have "wishlisted".
     """
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="wishlists")
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="wishlists",
-    )
-    product_variant = models.ForeignKey(
-        ProductVariant,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="wishlist_variants",
-    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wishlist_items')
+    product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE,  null=True, blank=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        if self.product_variant:
-            return f"{self.user} - {self.product_variant}"
-        elif self.product:
-            return f"{self.user} - {self.product}"
-        else:
-            return f"{self.user} - Wishlist Item"
-
+    added_at = models.DateTimeField(auto_now_add=True)  # NEW FIELD
+    
     class Meta:
-        db_table = "wishlist"
-        unique_together = (
-            "user",
-            "product_variant",
-        )  # User can only wishlist a variant once
-        ordering = ["-created_at"]
+        unique_together = ('user', 'product_variant')
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.product_variant}"
 
 
 class SaleSubscription(models.Model):
@@ -183,28 +160,18 @@ class SaleSubscription(models.Model):
     ProductVariant goes on sale.
     """
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="sale_subscriptions"
-    )
-    product_variant = models.ForeignKey(
-        "products.ProductVariant",
-        on_delete=models.CASCADE,
-        related_name="sale_subscriptions",
-        help_text="The specific variant the user is watching.",
-    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sale_subscriptions')
+    product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
+    category = models.ForeignKey('products.Category', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    subscribed_at = models.DateTimeField(auto_now_add=True)  # NEW FIELD
+    is_active = models.BooleanField(default=True)
+    
     class Meta:
-        unique_together = (
-            "user",
-            "product_variant",
-        )  # User can only subscribe once per variant
-
+        unique_together = ('user', 'product_variant')
+    
     def __str__(self):
-        try:
-            return f"{self.user.username} subscribed to {self.product_variant.sku}"
-        except Exception:
-            return f"SaleSubscription item {self.id}"
+        return f"{self.user.username} - {self.product_variant}"
 
 
 class BrowsingHistory(models.Model):
@@ -213,19 +180,16 @@ class BrowsingHistory(models.Model):
     Used for the "Personalized Recommendations" feature.
     """
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="browsing_history"
-    )
-    product = models.ForeignKey(
-        "products.Product",
-        on_delete=models.CASCADE,
-        related_name="viewed_by",
-        help_text="The parent product the user viewed.",
-    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='browsing_history')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='browsing_history')
     viewed_at = models.DateTimeField(auto_now_add=True)
-
+    
     class Meta:
-        ordering = ["-viewed_at"]  # Show most recent views first
+        verbose_name_plural = 'Browsing Histories'
+        ordering = ['-viewed_at']
+
+    def __str__(self):
+        return f"{self.user.username} viewed {self.product.name}"
 
 
 class ChatConversation(models.Model):
@@ -234,41 +198,36 @@ class ChatConversation(models.Model):
     usually regarding a specific product.
     """
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="chat_conversations"
-    )
-    product = models.ForeignKey(
-        "products.Product",
-        on_delete=models.CASCADE,
-        related_name="chat_conversations",
-        help_text="The product this chat is about.",
-    )
-    admin = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,  # Keep chat history if admin account is deleted
-        null=True,
-        blank=True,
-        related_name="admin_chats",
-        limit_choices_to={"is_staff": True},  # Ensures only staff can be assigned
-        help_text="The admin/staff member handling this chat.",
-    )
-
-    # --- Unread Flags (for notifications) ---
-    user_has_unread = models.BooleanField(
-        default=False, help_text="True if the user has unread messages in this thread."
-    )
-    admin_has_unread = models.BooleanField(
-        default=False, help_text="True if an admin has unread messages in this thread."
-    )
-    # ---------------------------------------
-
+    MESSAGE_TYPE_CHOICES = [
+        ('contact_us', 'Contact Us'),
+        ('product_chat', 'Product Chat'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('replied', 'Replied'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations')
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='chats')
+    admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_chats')
+    
+    # NEW FIELDS
+    subject = models.CharField(max_length=200, default='General Inquiry')
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, default='contact_us')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    user_has_unread = models.BooleanField(default=False)
+    admin_has_unread = models.BooleanField(default=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-updated_at']
 
     def __str__(self):
-        try:
-            return f"Chat on {self.product.name} with {self.user.username}"
-        except Exception:
-            return f"Chat conversation {self.id}"
+        return f"{self.user.username} - {self.subject}"
 
 
 class ChatMessage(models.Model):
@@ -276,20 +235,13 @@ class ChatMessage(models.Model):
     An individual message within a ChatConversation.
     """
 
-    conversation = models.ForeignKey(
-        ChatConversation, on_delete=models.CASCADE, related_name="messages"
-    )
-    sender = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="sent_messages"
-    )
+    conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-
+    
     class Meta:
-        ordering = ["created_at"]
+        ordering = ['created_at']
 
     def __str__(self):
-        try:
-            return f"Message from {self.sender.username}"
-        except Exception:
-            return f"Chat message {self.id}"
+        return f"{self.sender.username}: {self.content[:50]}"

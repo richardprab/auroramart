@@ -1,0 +1,175 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-icon {
+        font-size: 40px;
+        margin-bottom: 10px;
+    }
+
+    .stat-label {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-bottom: 5px;
+    }
+
+    .stat-value {
+        font-size: 32px;
+        font-weight: bold;
+    }
+
+    .recent-orders {
+        margin-top: 30px;
+    }
+
+    .recent-orders h3 {
+        font-size: 20px;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .orders-table th {
+        background: #f8f9fa;
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .orders-table td {
+        padding: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .orders-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-confirmed {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-processing {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .status-shipped {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-delivered {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h2>Welcome back, {{ request.user.get_full_name|default:request.user.username }}!</h2>
+    <p>Here's an overview of your admin dashboard</p>
+</div>
+
+<div class="content-body">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📦</div>
+            <div class="stat-label">Total Products</div>
+            <div class="stat-value">{{ total_products }}</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-label">Pending Orders</div>
+            <div class="stat-value">{{ pending_orders }}</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">💬</div>
+            <div class="stat-label">Open Conversations</div>
+            <div class="stat-value">{{ open_conversations }}</div>
+        </div>
+    </div>
+
+    <div class="recent-orders">
+        <h3>Recent Orders</h3>
+        {% if recent_orders %}
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                    <td><strong>#{{ order.order_number }}</strong></td>
+                    <td>{{ order.user.username }}</td>
+                    <td>
+                        <span class="status-badge status-{{ order.status }}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ order.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-data">No recent orders</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

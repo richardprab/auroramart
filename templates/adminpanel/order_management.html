@@ -1,0 +1,573 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block title %}Order Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-section {
+        margin-bottom: 30px;
+    }
+
+    .search-form {
+        display: flex;
+        gap: 10px;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 12px 20px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 15px;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .btn-search {
+        padding: 12px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-search:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .order-detail {
+        background: #f8f9fa;
+        padding: 30px;
+        border-radius: 12px;
+        margin-top: 20px;
+    }
+
+    .order-section {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .order-section h3 {
+        font-size: 18px;
+        margin-bottom: 20px;
+        color: #333;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 10px;
+    }
+
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .order-id {
+        font-size: 24px;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .order-status-badge {
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-confirmed {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-processing {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .status-shipped {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-delivered {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-cancelled {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 15px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-control:disabled {
+        background: #f8f9fa;
+        cursor: not-allowed;
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .order-items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+    .order-items-table th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .order-items-table td {
+        padding: 12px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .variant-select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 13px;
+    }
+
+    .variant-select:disabled {
+        background: #f8f9fa;
+        cursor: not-allowed;
+    }
+
+    .tracking-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+    }
+
+    .tracking-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+        position: relative;
+    }
+
+    .tracking-step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+
+    .tracking-step::before {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.3);
+        z-index: 0;
+    }
+
+    .tracking-step:first-child::before {
+        left: 50%;
+    }
+
+    .tracking-step:last-child::before {
+        right: 50%;
+    }
+
+    .tracking-dot {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        margin: 0 auto 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .tracking-step.active .tracking-dot {
+        background: white;
+        color: #667eea;
+        font-weight: bold;
+    }
+
+    .tracking-label {
+        font-size: 12px;
+        opacity: 0.8;
+    }
+
+    .tracking-step.active .tracking-label {
+        opacity: 1;
+        font-weight: 600;
+    }
+
+    .btn-update {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 15px 40px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-top: 20px;
+    }
+
+    .btn-update:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+    }
+
+    .customer-orders-list {
+        margin-top: 20px;  /* ADD THIS */
+    }
+
+    .order-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+        display: block;  /* ADD THIS */
+        margin-bottom: 0;  /* ADD THIS - Remove default margin */
+    }
+
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        border-color: #667eea;
+    }
+
+    .order-card-header {
+        display: flex;
+        justify-content: space-between;  /* ADD THIS - pushes items to left and right */
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .editable-notice {
+        background: #fff3cd;
+        color: #856404;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        margin-bottom: 15px;
+    }
+
+    .readonly-notice {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h2>Order Management</h2>
+    <p>Search and manage customer orders</p>
+</div>
+
+<div class="content-body">
+    <div class="search-section">
+        <form class="search-form" method="get">
+            <input 
+                type="text" 
+                name="search" 
+                class="search-input" 
+                placeholder="Enter Order Number (e.g., ORD-A1B2C3D4) or Customer Username (e.g., testcustomer)..."
+                value="{{ search_query }}"
+            >
+            <button type="submit" class="btn-search">🔍 Search</button>
+        </form>
+    </div>
+
+    {% if search_type == 'order' and order %}
+    <!-- Single Order Detail View -->
+    <div class="order-detail">
+        <div class="order-section">
+            <div class="order-header">
+                <div class="order-id">Order #{{ order.order_number }}</div>  <!-- CHANGED from ORD{{ order.id }} -->
+                <div class="order-status-badge status-{{ order.status }}">
+                    {{ order.get_status_display }}
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="info-badge">👤 Customer: {{ order.user.username|upper }}</div>
+                <div class="info-badge">📅 Date: {{ order.created_at|date:"M d, Y" }}</div>
+                {% if order.expected_delivery_date %}
+                <div class="info-badge">🚚 Expected: {{ order.expected_delivery_date|date:"M d, Y" }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'adminpanel:update_order' order.id %}" id="orderUpdateForm">
+            {% csrf_token %}
+
+            <!-- Tracking Information -->
+            <div class="order-section">
+                <h3>📍 Order Tracking</h3>
+                <div class="tracking-info">
+                    <div class="form-group">
+                        <label style="color: white;">Current Location:</label>
+                        <select name="current_location" class="form-control">
+                            {% for value, label in location_choices %}
+                            <option value="{{ value }}" {% if order.current_location == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="tracking-steps">
+                        {% for value, label in location_choices %}
+                        <div class="tracking-step {% if order.current_location == value %}active{% endif %}">
+                            <div class="tracking-dot">
+                                {% if order.current_location == value %}✓{% endif %}
+                            </div>
+                            <div class="tracking-label">{{ label|truncatewords:2 }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Status -->
+            <div class="order-section">
+                <h3>📊 Order Status</h3>
+                <div class="form-group">
+                    <label>Status:</label>
+                    <select name="status" class="form-control">
+                        {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Contact & Delivery Information -->
+            <div class="order-section">
+                <h3>📞 Contact & Delivery Information</h3>
+                
+                {% if order.status in 'pending,confirmed,processing' %}
+                <div class="editable-notice">
+                    ✏️ This order is editable. You can modify contact number and delivery address.
+                </div>
+                {% else %}
+                <div class="readonly-notice">
+                    🔒 This order cannot be edited (Status: {{ order.get_status_display }})
+                </div>
+                {% endif %}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Contact Number:</label>
+                        <input 
+                            type="text" 
+                            name="contact_number" 
+                            class="form-control" 
+                            value="{{ order.contact_number }}"
+                            {% if order.status not in 'pending,confirmed,processing' %}disabled{% endif %}
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Delivery Address:</label>
+                    <textarea 
+                        name="delivery_address" 
+                        class="form-control"
+                        {% if order.status not in 'pending,confirmed,processing' %}disabled{% endif %}
+                    >{{ order.delivery_address }}</textarea>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="order-section">
+                <h3>📦 Order Items</h3>
+                <table class="order-items-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Variant</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in order.items.all %}
+                        <tr>
+                            <td>{{ item.variant.product.name }}</td>
+                            <td>
+                                <strong>ID:</strong> {{ item.variant.id }} | 
+                                <strong>SKU:</strong> {{ item.variant.sku }} | 
+                                <strong>Price:</strong> ${{ item.variant.price }}
+                            </td>
+                            <td>{{ item.quantity }}</td>
+                            <td>${{ item.price }}</td>
+                            <td>${{ item.subtotal }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top: 2px solid #667eea; background: #f8f9fa; font-weight: bold;">
+                            <td colspan="4" style="text-align: right; padding: 15px;">Order Total:</td>
+                            <td style="padding: 15px; font-size: 18px; color: #667eea;">${{ order.total }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <button type="submit" class="btn-update">💾 Update Order</button>
+        </form>
+    </div>
+
+    {% elif search_type == 'customer' and customer_orders %}
+    <!-- Customer Orders List -->
+    <div class="order-detail">
+        <div class="order-section">
+            <h3>📋 Orders for Customer: {{ customer_orders.first.user.username|upper }}</h3>
+            
+            <div class="customer-orders-list" style="display: flex; flex-direction: column; gap: 15px;">  <!-- ADD THIS WRAPPER -->
+                {% for order in customer_orders %}
+                <a href="?search={{ order.order_number }}" class="order-card">
+                    <div class="order-card-header">
+                        <div class="order-id" style="font-size: 18px;">Order #{{ order.order_number }}</div>
+                        <div class="order-status-badge status-{{ order.status }}">
+                            {{ order.get_status_display }}
+                        </div>
+                    </div>
+                    <div class="order-info">
+                        📅 Date: {{ order.created_at|date:"M d, Y - h:i A" }}<br>
+                        📍 Location: {{ order.get_current_location_display }}
+                    </div>
+                </a>
+                {% empty %}
+                <p>No orders found for this customer.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% elif search_query %}
+    <!-- No Results -->
+    <div class="order-detail">
+        <div class="order-section" style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 60px; margin-bottom: 20px;">📭</div>
+            <h3 style="color: #999;">No orders found</h3>
+            <p style="color: #666;">Try searching with a different Order ID or Customer ID</p>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Search Instructions -->
+    <div class="order-detail">
+        <div class="order-section" style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 60px; margin-bottom: 20px;">🔍</div>
+            <h3 style="color: #333;">Search for Orders</h3>
+            <p style="color: #666;">Enter an Order Number (e.g., ORD-A1B2C3D4) or Customer Username (e.g., testcustomer) to get started</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('orderUpdateForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const url = this.action;
+
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Order updated successfully!');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Error updating order');
+        console.error('Error:', error);
+    });
+});
+</script>
+{% endblock %}
