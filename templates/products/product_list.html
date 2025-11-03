@@ -20,9 +20,35 @@
                     <input type="hidden" name="q" value="{{ query }}">
                     {% endif %}
                     <input type="hidden" name="sort" value="{{ sort_by }}">
-                    {% if selected_category %}
-                    <input type="hidden" name="category" value="{{ selected_category.slug }}">
-                    {% endif %}
+
+                    <!-- Category Filter -->
+                    <div class="mb-6">
+                        <h3 class="font-semibold mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                            Category
+                        </h3>
+                        <select name="category" onchange="this.form.submit()" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                                <optgroup label="{{ category.name }}">
+                                    <option value="{{ category.slug }}" {% if selected_category and selected_category.slug == category.slug %}selected{% endif %}>
+                                        All {{ category.name }}
+                                    </option>
+                                    {% for child in category.children.all %}
+                                        <option value="{{ child.slug }}" {% if selected_category and selected_category.slug == child.slug %}selected{% endif %}>
+                                            {{ child.name }}
+                                        </option>
+                                    {% endfor %}
+                                </optgroup>
+                            {% endfor %}
+                        </select>
+                    </div>
 
                     <!-- Price Range -->
                     <div class="mb-6">
@@ -37,10 +63,10 @@
                             <div class="flex gap-2">
                                 <input type="number" name="min_price" value="{{ min_price }}" 
                                     placeholder="Min" min="0" step="0.01"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
                                 <input type="number" name="max_price" value="{{ max_price }}" 
                                     placeholder="Max" min="0" step="0.01"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
                             </div>
                             {% if price_range.min_price and price_range.max_price %}
                             <p class="text-xs text-gray-500">
@@ -73,8 +99,8 @@
                     </div>
                     {% endif %}
 
-                    <!-- Color Filter -->
-                    {% if available_colors %}
+                    <!-- Color Filter (only for fashion categories) -->
+                    {% if is_fashion_category and available_colors %}
                     <div class="mb-6">
                         <h3 class="font-semibold mb-3 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -96,8 +122,8 @@
                     </div>
                     {% endif %}
 
-                    <!-- Size Filter -->
-                    {% if available_sizes %}
+                    <!-- Size Filter (only for fashion categories) -->
+                    {% if is_fashion_category and available_sizes %}
                     <div class="mb-6">
                         <h3 class="font-semibold mb-3 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -173,24 +199,25 @@
                 {% for brand in selected_brands %}
                 <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
                     Brand: {{ brand }}
-                    <a href="?{{ query_string }}&brand={{ brand }}" class="hover:text-blue-900">×</a>
+                    <button onclick="removeFilter('brand', '{{ brand }}')" class="hover:text-blue-900 ml-1 font-bold">×</button>
                 </span>
                 {% endfor %}
                 {% for color in selected_colors %}
                 <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
                     Color: {{ color }}
-                    <a href="?{{ query_string }}&color={{ color }}" class="hover:text-green-900">×</a>
+                    <button onclick="removeFilter('color', '{{ color }}')" class="hover:text-green-900 ml-1 font-bold">×</button>
                 </span>
                 {% endfor %}
                 {% for size in selected_sizes %}
                 <span class="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
                     Size: {{ size }}
-                    <a href="?{{ query_string }}&size={{ size }}" class="hover:text-purple-900">×</a>
+                    <button onclick="removeFilter('size', '{{ size }}')" class="hover:text-purple-900 ml-1 font-bold">×</button>
                 </span>
                 {% endfor %}
                 {% if min_price or max_price %}
                 <span class="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm">
                     Price: ${{ min_price|default:"0" }} - ${{ max_price|default:"∞" }}
+                    <button onclick="removeFilter('price', null)" class="hover:text-yellow-900 ml-1 font-bold">×</button>
                 </span>
                 {% endif %}
             </div>
@@ -200,7 +227,7 @@
             {% if page_obj %}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {% for product in page_obj %}
-                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition group">
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition group relative">
                     <a href="{% url 'products:product_detail' product.slug %}">
                         <div class="relative h-64 bg-gray-100">
                             {% if product.images.first %}
@@ -213,6 +240,29 @@
                                 </svg>
                             </div>
                             {% endif %}
+                            
+                            <!-- Banner Ribbons -->
+                            {% with first_variant=product.variants.first %}
+                            {% if product.is_bestseller %}
+                            <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
+                                <div class="absolute top-6 -left-8 w-40 bg-yellow-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
+                                    BESTSELLER
+                                </div>
+                            </div>
+                            {% elif product.is_trending %}
+                            <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
+                                <div class="absolute top-6 -left-8 w-40 bg-red-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
+                                    TRENDING
+                                </div>
+                            </div>
+                            {% elif first_variant.compare_price and first_variant.compare_price > first_variant.price %}
+                            <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
+                                <div class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
+                                    SALE
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endwith %}
                         </div>
                         <div class="p-4">
                             <p class="text-sm text-gray-500 mb-1">{{ product.category.name }}</p>
@@ -221,9 +271,23 @@
                             <p class="text-xs text-gray-600 mb-2">{{ product.brand }}</p>
                             {% endif %}
                             <div class="flex justify-between items-center">
-                                <span class="text-2xl font-bold text-gray-900">
-                                    ${{ product.variants.first.price|floatformat:2 }}
-                                </span>
+                                {% with first_variant=product.variants.first %}
+                                <div class="flex flex-col">
+                                    {% if first_variant.compare_price and first_variant.compare_price > first_variant.price %}
+                                    <span class="text-sm text-gray-500 line-through">${{ first_variant.compare_price|floatformat:2 }}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-2xl font-bold text-gray-900">${{ first_variant.price|floatformat:2 }}</span>
+                                        <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold">
+                                            -{{ first_variant.discount_percentage }}% OFF
+                                        </span>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-2xl font-bold text-gray-900">
+                                        ${{ first_variant.price|floatformat:2 }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endwith %}
                             </div>
                         </div>
                     </a>
@@ -273,4 +337,32 @@
         </div>
     </div>
 </div>
+
+<script>
+function removeFilter(filterType, filterValue) {
+    // Get current URL parameters
+    const url = new URL(window.location);
+    const params = new URLSearchParams(url.search);
+    
+    if (filterType === 'price') {
+        // Remove both min and max price
+        params.delete('min_price');
+        params.delete('max_price');
+    } else {
+        // Get all values for this filter type
+        const values = params.getAll(filterType);
+        // Remove all instances of this filter type
+        params.delete(filterType);
+        // Add back all values except the one we want to remove
+        values.forEach(value => {
+            if (value !== filterValue) {
+                params.append(filterType, value);
+            }
+        });
+    }
+    
+    // Redirect to the new URL
+    window.location.search = params.toString();
+}
+</script>
 {% endblock %}

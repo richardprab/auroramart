@@ -4,24 +4,6 @@
 {% block title %}Shopping Cart - AuroraMart{% endblock %}
 
 {% block content %}
-<style>
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-
-    input[type=number] {
-        -moz-appearance: textfield;
-        appearance: textfield;
-        height: 2rem;
-        line-height: 2rem;
-        width: 3rem;
-        padding: 0;
-        text-align: center;
-    }
-</style>
-
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-4xl font-bold mb-8">Shopping Cart</h1>
 
@@ -54,6 +36,23 @@
                             </a>
                         </h3>
                         <p class="text-gray-600 text-sm mb-2">{{ item.product.category.name }}</p>
+                        
+                        <!-- Variant Info -->
+                        {% if item.product_variant.color or item.product_variant.size %}
+                        <div class="flex gap-3 text-sm text-gray-600 mb-2">
+                            {% if item.product_variant.color %}
+                            <span class="bg-gray-100 px-2 py-1 rounded">
+                                <strong>Color:</strong> {{ item.product_variant.color }}
+                            </span>
+                            {% endif %}
+                            {% if item.product_variant.size %}
+                            <span class="bg-gray-100 px-2 py-1 rounded">
+                                <strong>Size:</strong> {{ item.product_variant.size }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
                         <p class="text-xl font-bold text-gray-900">${{ item.product_variant.price }}</p>
                     </div>
 
@@ -72,7 +71,7 @@
                                 <!-- Quantity Input -->
                                 <input type="number" name="quantity" id="quantity-{{ item.id }}"
                                     value="{{ item.quantity }}" min="1" max="{{ item.product_variant.stock }}"
-                                    class="border border-gray-300 rounded font-semibold"
+                                    class="border border-gray-300 rounded font-semibold w-12 h-8 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     onchange="document.getElementById('cart-form-{{ item.id }}').submit()">
 
                                 <!-- Increase Button -->
