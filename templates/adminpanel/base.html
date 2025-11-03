@@ -1,0 +1,311 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Dashboard{% endblock %} - AuroraMart</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 55%;
+            left: 53%;
+            transform: translate(-50%, -50%);
+            width: 1000px;
+            height: 1000px;
+            background: url("{% static 'images/logo_without_text.png' %}") center/contain no-repeat;
+            opacity: 0.2;
+            pointer-events: none;
+            z-index: -1;  /* CHANGED TO NEGATIVE - puts it BEHIND everything */
+            filter: drop-shadow(0 10px 30px rgba(24, 24, 25, 0.3));  
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .sidebar-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header .company-name {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .staff-info {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .staff-info h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .staff-info p {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 15px 25px;
+            margin: 5px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #333;
+            text-decoration: none;
+            font-size: 15px;
+        }
+
+        .nav-item:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+        }
+
+        .logout-btn {
+            margin: 20px 15px;
+            padding: 15px 25px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+            transform: scale(1.02);
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 30px;
+        }
+
+        .content-header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .content-header h2 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .content-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .content-body {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            min-height: 500px;
+        }
+
+        /* Back to Chat Button */
+        .back-to-chat {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .back-to-chat:hover {
+            background: #5568d3;
+            transform: translateX(-5px);
+        }
+
+        /* Alert Messages */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>AuroraMart</h1>
+                <p class="company-name">Admin Panel</p>
+            </div>
+
+            <div class="staff-info">
+                <h3>{{ request.user.get_full_name|default:request.user.username }}</h3>
+                <p>Staff ID: {{ request.user.username|upper }}</p>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="{% url 'adminpanel:dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">📊</span>
+                    Dashboard
+                </a>
+
+                <a href="{% url 'adminpanel:customer_support' %}" class="nav-item {% if 'customer' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">💬</span>
+                    Customer Assistance
+                </a>
+
+                <a href="{% url 'adminpanel:products' %}" class="nav-item {% if 'product' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">📦</span>
+                    Product Management
+                </a>
+
+                <a href="{% url 'adminpanel:order_management' %}" class="nav-item {% if 'order' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">📋</span>
+                    Order Management
+                </a>
+
+                <a href="{% url 'adminpanel:analytics' %}" class="nav-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
+                    <span class="nav-icon">📈</span>
+                    Metrics Analysis
+                </a>
+            </nav>
+
+            <a href="{% url 'accounts:logout' %}" class="logout-btn">
+                <span>🚪</span>
+                Logout
+            </a>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        <span>
+                            {% if message.tags == 'success' %}✅
+                            {% elif message.tags == 'error' %}❌
+                            {% else %}ℹ️{% endif %}
+                        </span>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
