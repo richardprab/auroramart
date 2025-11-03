@@ -22,21 +22,27 @@
             <h3 class="font-semibold">Support Chat</h3>
         </div>
         <div class="flex items-center gap-2">
-            <button type="button" id="chat-minimize-btn" class="hover:bg-blue-700 p-1 rounded transition">
+            <button type="button" id="new-chat-btn" class="hover:bg-blue-700 p-1 rounded transition" title="New Chat">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+            </button>
+            <button type="button" id="chat-minimize-btn" class="hover:bg-blue-700 p-1 rounded transition" title="Minimize">
                 <i data-lucide="minus" class="w-5 h-5"></i>
             </button>
-            <button type="button" id="chat-close-btn" class="hover:bg-blue-700 p-1 rounded transition">
+            <button type="button" id="chat-close-btn" class="hover:bg-blue-700 p-1 rounded transition" title="Close">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
     </div>
 
-    <!-- Session Selector (if multiple sessions) -->
-    <div id="session-selector" class="hidden border-b bg-gray-50 p-2">
-        <select id="session-select" onchange="ChatWidget.switchSession(this.value)" 
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Select a conversation...</option>
-        </select>
+    <!-- Session Selector -->
+    <div id="session-selector" class="border-b bg-gray-50 p-3">
+        <div class="flex items-center gap-2">
+            <select id="session-select" 
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                <option value="">Loading conversations...</option>
+            </select>
+            <span id="session-indicator" class="text-xs text-gray-500 whitespace-nowrap"></span>
+        </div>
     </div>
 
     <!-- Messages Container -->
@@ -49,10 +55,10 @@
 
     <!-- Input Area -->
     <div class="p-4 border-t bg-white rounded-b-lg">
-        <form id="chat-form" onsubmit="ChatWidget.sendMessage(event)" class="flex gap-2">
+        <form id="chat-form" class="flex gap-2">
             <input type="text" id="chat-input" placeholder="Type your message..." 
                 class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+            <button type="submit" id="chat-send-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
                 <i data-lucide="send" class="w-4 h-4"></i>
             </button>
         </form>

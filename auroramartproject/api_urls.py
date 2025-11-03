@@ -4,10 +4,6 @@ Centralized routing for all API endpoints
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import (
-    TokenRefreshView,
-    TokenVerifyView,
-)
 
 # Import ViewSets
 from products.api_views import (
@@ -18,7 +14,6 @@ from products.api_views import (
 )
 from cart.api_views import CartViewSet
 from accounts.api_views import (
-    TokenObtainPairView,  # Use custom view with cart merge
     UserRegistrationView,
     UserProfileView,
     AddressViewSet,
@@ -56,11 +51,6 @@ router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
-    # JWT Authentication
-    path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
-    
     # User registration and profile
     path('auth/register/', UserRegistrationView.as_view(), name='register'),
     path('auth/profile/', UserProfileView.as_view(), name='profile'),

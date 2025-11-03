@@ -1,7 +1,3 @@
-/* ========================================
-   PRODUCTS - Product filtering, sorting, etc.
-   ======================================== */
-
 const ProductsModule = {
     init() {
         this.filterProducts();

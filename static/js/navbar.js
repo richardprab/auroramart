@@ -1,7 +1,3 @@
-/* ========================================
-   NAVBAR - Navigation functionality
-   ======================================== */
-
 const NavbarModule = {
     init() {
         this.mobileMenu();

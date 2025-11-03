@@ -5,14 +5,31 @@ const ChatWidget = {
     isOpen: false,
     pollInterval: null,
 
+    // Get CSRF token for session authentication
+    getCSRFToken() {
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='));
+        return cookieValue ? cookieValue.split('=')[1] : null;
+    },
+
+    // Get authentication headers for session auth
+    getAuthHeaders() {
+        return {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
+        };
+    },
+
     init() {
+        console.log('ChatWidget initializing...');
         this.attachEventListeners();
-        this.loadUnreadCount();
+        this.loadSessions();
         this.startPolling();
     },
 
     attachEventListeners() {
-        // Attach click handler to FAB button
+        // FAB button
         const fabButton = document.getElementById('chat-fab-button');
         if (fabButton) {
             fabButton.addEventListener('click', (e) => {
@@ -22,7 +39,17 @@ const ChatWidget = {
             });
         }
 
-        // Attach minimize button handler
+        // New chat button
+        const newChatBtn = document.getElementById('new-chat-btn');
+        if (newChatBtn) {
+            newChatBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.createNewSession();
+            });
+        }
+
+        // Minimize button
         const minimizeBtn = document.getElementById('chat-minimize-btn');
         if (minimizeBtn) {
             minimizeBtn.addEventListener('click', (e) => {
@@ -32,13 +59,30 @@ const ChatWidget = {
             });
         }
 
-        // Attach close button handler
+        // Close button
         const closeBtn = document.getElementById('chat-close-btn');
         if (closeBtn) {
             closeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 this.closeChat();
+            });
+        }
+
+        // Session selector
+        const sessionSelect = document.getElementById('session-select');
+        if (sessionSelect) {
+            sessionSelect.addEventListener('change', (e) => {
+                this.switchSession(e.target.value);
+            });
+        }
+
+        // Chat form
+        const chatForm = document.getElementById('chat-form');
+        if (chatForm) {
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.sendMessage();
             });
         }
 
@@ -71,9 +115,13 @@ const ChatWidget = {
             lucide.createIcons();
         }
 
-        if (!this.currentSession) {
-            await this.loadOrCreateSession();
-        } else {
+        // Load sessions if not loaded
+        if (this.sessions.length === 0) {
+            await this.loadSessions();
+        }
+
+        // Load messages if we have a current session
+        if (this.currentSession) {
             await this.loadMessages();
         }
     },
@@ -87,14 +135,12 @@ const ChatWidget = {
         this.closeChat();
     },
 
-    async loadOrCreateSession() {
+    async loadSessions() {
         try {
             const response = await fetch('/chat/api/sessions/', {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${window.JWTAuth.getAccessToken()}`,
-                    'Content-Type': 'application/json'
-                }
+                headers: this.getAuthHeaders(),
+                credentials: 'same-origin' // Important for session cookies
             });
 
             if (response.ok) {
@@ -102,12 +148,25 @@ const ChatWidget = {
                 this.sessions = sessions;
                 
                 if (sessions.length > 0) {
-                    this.currentSession = sessions[0];
-                    await this.loadMessages();
+                    // Set current session to the first one if not set
+                    if (!this.currentSession) {
+                        this.currentSession = sessions[0];
+                    }
                     this.updateSessionSelector();
+                    
+                    // Load messages if chat is open
+                    if (this.isOpen) {
+                        await this.loadMessages();
+                    }
                 } else {
+                    // No sessions, create first one
                     await this.createNewSession();
                 }
+                
+                // Update unread count
+                this.updateUnreadCountFromSessions();
+            } else {
+                console.error('Failed to load sessions:', response.status);
             }
         } catch (error) {
             console.error('Error loading sessions:', error);
@@ -116,18 +175,28 @@ const ChatWidget = {
 
     async createNewSession() {
         try {
+            const title = `Chat ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            
             const response = await fetch('/chat/api/sessions/', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${window.JWTAuth.getAccessToken()}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ title: 'Support Chat' })
+                headers: this.getAuthHeaders(),
+                credentials: 'same-origin',
+                body: JSON.stringify({ title })
             });
 
             if (response.ok) {
-                this.currentSession = await response.json();
+                const newSession = await response.json();
+                this.currentSession = newSession;
+                this.sessions.unshift(newSession); // Add to beginning of array
+                this.updateSessionSelector();
                 this.displayWelcomeMessage();
+                
+                // Show toast notification
+                if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast('New chat session created', 'success');
+                }
+            } else {
+                console.error('Failed to create session:', response.status);
             }
         } catch (error) {
             console.error('Error creating session:', error);
@@ -139,10 +208,8 @@ const ChatWidget = {
 
         try {
             const response = await fetch(`/chat/api/sessions/${this.currentSession.id}/`, {
-                headers: {
-                    'Authorization': `Bearer ${window.JWTAuth.getAccessToken()}`,
-                    'Content-Type': 'application/json'
-                }
+                headers: this.getAuthHeaders(),
+                credentials: 'same-origin'
             });
 
             if (response.ok) {
@@ -214,32 +281,54 @@ const ChatWidget = {
         }
     },
 
-    async sendMessage(event) {
-        event.preventDefault();
-        
+    async sendMessage() {
         const input = document.getElementById('chat-input');
         const message = input.value.trim();
         
-        if (!message || !this.currentSession) return;
+        if (!message) return;
+        
+        // Create session if doesn't exist
+        if (!this.currentSession) {
+            await this.createNewSession();
+        }
+        
+        if (!this.currentSession) {
+            console.error('No current session');
+            return;
+        }
         
         try {
             const response = await fetch(`/chat/api/sessions/${this.currentSession.id}/send_message/`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${window.JWTAuth.getAccessToken()}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: this.getAuthHeaders(),
+                credentials: 'same-origin',
                 body: JSON.stringify({ message })
             });
 
             if (response.ok) {
                 const newMessage = await response.json();
+                
+                // Clear welcome message if it exists
+                const container = document.getElementById('chat-messages');
+                const welcomeMsg = container.querySelector('.bg-blue-50');
+                if (welcomeMsg && welcomeMsg.parentElement) {
+                    welcomeMsg.parentElement.remove();
+                }
+                
                 this.appendMessage(newMessage);
                 input.value = '';
                 this.scrollToBottom();
+            } else {
+                console.error('Failed to send message:', response.status);
+                if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast('Failed to send message', 'error');
+                }
             }
         } catch (error) {
             console.error('Error sending message:', error);
+            if (window.AuroraMart && window.AuroraMart.toast) {
+                window.AuroraMart.toast('Failed to send message', 'error');
+            }
         }
     },
 
@@ -249,34 +338,24 @@ const ChatWidget = {
         try {
             await fetch(`/chat/api/sessions/${this.currentSession.id}/mark_as_read/`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${window.JWTAuth.getAccessToken()}`,
-                    'Content-Type': 'application/json'
-                }
+                headers: this.getAuthHeaders(),
+                credentials: 'same-origin'
             });
             
-            this.updateUnreadBadge(0);
+            // Update the session's unread count
+            if (this.currentSession) {
+                this.currentSession.unread_count = 0;
+            }
+            
+            this.updateUnreadCountFromSessions();
         } catch (error) {
             console.error('Error marking as read:', error);
         }
     },
 
-    async loadUnreadCount() {
-        try {
-            const response = await fetch('/chat/api/sessions/unread_count/', {
-                headers: {
-                    'Authorization': `Bearer ${window.JWTAuth.getAccessToken()}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.updateUnreadBadge(data.unread_count);
-            }
-        } catch (error) {
-            console.error('Error loading unread count:', error);
-        }
+    updateUnreadCountFromSessions() {
+        const totalUnread = this.sessions.reduce((sum, session) => sum + (session.unread_count || 0), 0);
+        this.updateUnreadBadge(totalUnread);
     },
 
     updateUnreadBadge(count) {
@@ -291,21 +370,39 @@ const ChatWidget = {
     },
 
     updateSessionSelector() {
-        if (this.sessions.length <= 1) return;
-
-        const selector = document.getElementById('session-selector');
         const select = document.getElementById('session-select');
+        const indicator = document.getElementById('session-indicator');
         
-        selector.classList.remove('hidden');
-        select.innerHTML = '<option value="">Select a conversation...</option>';
+        if (!select) return;
+        
+        select.innerHTML = '';
+        
+        if (this.sessions.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No conversations yet';
+            select.appendChild(option);
+            if (indicator) indicator.textContent = '';
+            return;
+        }
         
         this.sessions.forEach(session => {
             const option = document.createElement('option');
             option.value = session.id;
-            option.textContent = `${session.title} ${session.unread_count > 0 ? `(${session.unread_count})` : ''}`;
+            option.textContent = session.title || `Chat ${session.id}`;
+            
+            if (session.unread_count > 0) {
+                option.textContent += ` (${session.unread_count} new)`;
+            }
+            
             option.selected = this.currentSession && session.id === this.currentSession.id;
             select.appendChild(option);
         });
+        
+        // Update indicator
+        if (indicator) {
+            indicator.textContent = `${this.sessions.length} ${this.sessions.length === 1 ? 'chat' : 'chats'}`;
+        }
     },
 
     async switchSession(sessionId) {
@@ -321,10 +418,7 @@ const ChatWidget = {
     startPolling() {
         // Poll for new messages every 5 seconds
         this.pollInterval = setInterval(async () => {
-            if (this.isOpen && this.currentSession) {
-                await this.loadMessages();
-            }
-            await this.loadUnreadCount();
+            await this.loadSessions();
         }, 5000);
     },
 

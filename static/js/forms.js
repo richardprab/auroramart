@@ -1,7 +1,3 @@
-/* ========================================
-   FORMS - Form validation and handling
-   ======================================== */
-
 const FormsModule = (function () {
     'use strict';
 
