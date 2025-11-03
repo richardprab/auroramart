@@ -32,6 +32,7 @@ migrations:
 	python manage.py makemigrations orders
 	python manage.py makemigrations notifications
 	python manage.py makemigrations home
+	python manage.py makemigrations chat
 	@echo "✅ Migrations created successfully!"
 
 # Apply migrations
