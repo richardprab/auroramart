@@ -1,7 +1,3 @@
-/* ========================================
-   CORE - Main initialization and utilities
-   ======================================== */
-
 const AuroraMart = {
     // Configuration
     config: {

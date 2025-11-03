@@ -1,7 +1,3 @@
-/* ========================================
-   WISHLIST - Wishlist functionality
-   ======================================== */
-
 const WishlistModule = {
     init() {
         this.toggleWishlist();

@@ -1,7 +1,3 @@
-/* ========================================
-   UTILS - Helper functions
-   ======================================== */
-
 const Utils = {
     // Format date
     formatDate(date, format = 'short') {

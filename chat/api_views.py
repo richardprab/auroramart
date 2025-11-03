@@ -25,7 +25,7 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
         return ChatSession.objects.filter(
             user=self.request.user
         ).annotate(
-            unread_count=Count('messages', filter=Q(messages__is_read=False, messages__is_from_admin=True))
+            unread_messages_count=Count('messages', filter=Q(messages__is_read=False, messages__is_from_admin=True))
         )
     
     def create(self, request, *args, **kwargs):

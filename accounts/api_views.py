@@ -2,7 +2,6 @@ from rest_framework import viewsets, generics, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework_simplejwt.views import TokenObtainPairView as BaseTokenObtainPairView
 from django.contrib.auth import get_user_model
 from .models import Address, Wishlist, SaleSubscription, BrowsingHistory, ChatConversation, ChatMessage
 from .serializers import (
@@ -19,39 +18,8 @@ from .serializers import (
 User = get_user_model()
 
 
-class TokenObtainPairView(BaseTokenObtainPairView):
-    """
-    Custom TokenObtainPairView that automatically merges session cart
-    into user's cart after successful login.
-    """
-    def post(self, request, *args, **kwargs):
-        # Get tokens using parent class
-        response = super().post(request, *args, **kwargs)
-        
-        # If login successful and we have a session cart, merge it
-        if response.status_code == 200 and request.session.session_key:
-            try:
-                from cart.views import merge_session_cart_to_user
-                from django.contrib.auth import get_user_model
-                
-                User = get_user_model()
-                # Get the user from the request (validated by JWT serializer)
-                username = request.data.get('username')
-                user = User.objects.filter(username=username).first()
-                
-                if user:
-                    merge_result = merge_session_cart_to_user(user, request.session.session_key)
-                    # Add merge info to response
-                    response.data['cart_merged'] = {
-                        'merged': merge_result['merged'],
-                        'skipped': merge_result['skipped'],
-                        'message': merge_result['message']
-                    }
-            except Exception as e:
-                # Don't fail login if merge fails
-                response.data['cart_merge_error'] = str(e)
-        
-        return response
+# Removed TokenObtainPairView - using session authentication only
+# JWT token endpoints removed as they're not needed for this app
 
 
 class UserRegistrationView(generics.CreateAPIView):

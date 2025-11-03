@@ -11,7 +11,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 class ChatSessionSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField()
-    unread_count = serializers.IntegerField(read_only=True)
+    unread_count = serializers.SerializerMethodField()
     
     class Meta:
         model = ChatSession
@@ -27,13 +27,27 @@ class ChatSessionSerializer(serializers.ModelSerializer):
                 'created_at': last_msg.created_at
             }
         return None
+    
+    def get_unread_count(self, obj):
+        # Check if it's from annotated queryset first
+        if hasattr(obj, 'unread_messages_count'):
+            return obj.unread_messages_count
+        # Fallback to property
+        return obj.unread_count
 
 
 class ChatSessionDetailSerializer(serializers.ModelSerializer):
     messages = ChatMessageSerializer(many=True, read_only=True)
-    unread_count = serializers.IntegerField(read_only=True)
+    unread_count = serializers.SerializerMethodField()
     
     class Meta:
         model = ChatSession
         fields = ['id', 'title', 'created_at', 'updated_at', 'is_active', 'messages', 'unread_count']
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_unread_count(self, obj):
+        # Check if it's from annotated queryset first
+        if hasattr(obj, 'unread_messages_count'):
+            return obj.unread_messages_count
+        # Fallback to property
+        return obj.unread_count

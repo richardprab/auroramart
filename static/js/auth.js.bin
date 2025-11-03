@@ -1,7 +1,3 @@
-/* ========================================
-   JWT AUTH MODULE - Token management
-   ======================================== */
-
 const JWTAuth = {
     // Token storage keys
     ACCESS_TOKEN_KEY: 'access_token',
@@ -114,9 +110,7 @@ const JWTAuth = {
                 
                 // Check if cart was merged
                 if (data.cart_merged) {
-                    console.log('Cart merged:', data.cart_merged.message);
                     
-                    // Update cart count in UI if updateCartCount function exists
                     if (typeof updateCartCount === 'function') {
                         updateCartCount();
                     }

@@ -1,7 +1,3 @@
-/* ========================================
-   CART - Shopping cart functionality
-   ======================================== */
-
 const CartModule = {
     init() {
         this.updateCartCount();
@@ -11,18 +7,26 @@ const CartModule = {
         this.clearCart();
     },
 
+    // Get CSRF token helper
+    getCSRFToken() {
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='));
+        return cookieValue ? cookieValue.split('=')[1] : null;
+    },
+
     // Update cart count badge
     updateCartCount() {
         const url = '/api/cart/count/';
         const headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
         };
         
-        if (window.JWTAuth && window.JWTAuth.isAuthenticated()) {
-            Object.assign(headers, window.JWTAuth.getAuthHeaders());
-        }
-        
-        fetch(url, { headers })
+        fetch(url, { 
+            headers,
+            credentials: 'same-origin'
+        })
             .then(response => response.json())
             .then(data => {
                 const badge = document.getElementById('cart-count');
@@ -83,23 +87,14 @@ const CartModule = {
         const url = '/api/cart/add_item/';
         const headers = {
             'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
         };
-        
-        // Add JWT token if authenticated
-        if (window.JWTAuth && window.JWTAuth.isAuthenticated()) {
-            Object.assign(headers, window.JWTAuth.getAuthHeaders());
-        }
-        
-        // Get CSRF token for Django
-        const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]')?.value;
-        if (csrfToken) {
-            headers['X-CSRFToken'] = csrfToken;
-        }
 
         // Submit to API
         fetch(url, {
             method: 'POST',
             headers: headers,
+            credentials: 'same-origin',
             body: JSON.stringify({
                 product_id: productId,
                 product_variant_id: variantId,
