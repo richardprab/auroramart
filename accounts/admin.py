@@ -54,7 +54,7 @@ class AddressAdmin(admin.ModelAdmin):
     """
 
     list_display = ("user", "full_name", "address_type", "city", "state", "is_default")
-    list_filter = ("address_type", "is_default", "country")
+    list_filter = ("is_default", "country")
     search_fields = ("user__username", "full_name", "city", "state", "zip_code")
 
 
@@ -107,6 +107,9 @@ class ChatConversationAdmin(admin.ModelAdmin):
 
     list_display = (
         "user",
+        "subject",              # ADD THIS
+        "message_type",         # ADD THIS
+        "status",           # ADD THIS
         "product",
         "admin",
         "user_has_unread",
@@ -116,7 +119,7 @@ class ChatConversationAdmin(admin.ModelAdmin):
     list_filter = ("user_has_unread", "admin_has_unread")
     search_fields = ("user__username", "product__name", "admin__username")
     inlines = [ChatMessageInline]
-    readonly_fields = ("created_at",)
+    readonly_fields = ("created_at", "updated_at")  # ADD updated_at
 
 
 @admin.register(Notification)
