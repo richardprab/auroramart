@@ -130,12 +130,20 @@
                         </div>
                     </div>
                     {% else %}
-                    <!-- Login Button -->
+                    <!-- Login/Register Button -->
+                    {% if request.path == '/accounts/login/' %}
+                    <a href="{% url 'accounts:register' %}"
+                        class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                        <i data-lucide="user-plus" class="w-5 h-5"></i>
+                        Register
+                    </a>
+                    {% else %}
                     <a href="{% url 'accounts:login' %}"
                         class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
                         <i data-lucide="log-in" class="w-5 h-5"></i>
                         Login
                     </a>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>

@@ -48,7 +48,6 @@ const WishlistModule = {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    AuroraMart.toast('Added to wishlist! ❤️', 'success');
                     this.updateWishlistCount();
 
                     // Heart animation
@@ -60,14 +59,12 @@ const WishlistModule = {
                     // Revert on error
                     button.classList.remove('in-wishlist');
                     button.innerHTML = '🤍';
-                    AuroraMart.toast(data.message || 'Failed to add to wishlist', 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 button.classList.remove('in-wishlist');
                 button.innerHTML = '🤍';
-                AuroraMart.toast('Something went wrong', 'error');
             });
     },
 
@@ -90,7 +87,6 @@ const WishlistModule = {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    AuroraMart.toast('Removed from wishlist', 'info');
                     this.updateWishlistCount();
 
                     // If on wishlist page, remove the card
@@ -110,14 +106,12 @@ const WishlistModule = {
                     // Revert on error
                     button.classList.add('in-wishlist');
                     button.innerHTML = '❤️';
-                    AuroraMart.toast(data.message || 'Failed to remove from wishlist', 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 button.classList.add('in-wishlist');
                 button.innerHTML = '❤️';
-                AuroraMart.toast('Something went wrong', 'error');
             });
     },
 
