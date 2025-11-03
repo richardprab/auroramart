@@ -62,6 +62,18 @@ CATEGORIES = [
     ),
 ]
 
+# Brand data
+BRANDS = {
+    "Electronics": ["Samsung", "Apple", "Sony", "LG"],
+    "Fashion": ["Nike", "Adidas", "Zara", "H&M"],
+    "Home & Garden": ["IKEA", "West Elm", "Crate & Barrel"],
+    "Sports": ["Under Armour", "Reebok", "Puma", "New Balance"],
+}
+
+# Colors and sizes
+COLORS = ["Black", "White", "Blue", "Red", "Gray", "Navy", "Green"]
+SIZES = ["XS", "S", "M", "L", "XL", "XXL"]
+
 
 def base_price_for(category_name: str) -> tuple[int, int]:
     ranges = {
@@ -90,14 +102,14 @@ def download_image(url: str, filename: str) -> ContentFile:
 
 
 def ensure_product_image(product: Product, image_urls: list) -> ProductImage:
-    img = product.images.order_by("order").first()
+    img = product.images.order_by("display_order").first()
     if img:
         return img
     url = RNG.choice(image_urls)
     img = ProductImage(
         product=product,
         is_primary=True,
-        order=0,
+        display_order=0,
         alt_text=f"{product.name} image",
     )
     filename = f"{product.slug or slugify(product.name)}-main.jpg"
@@ -116,16 +128,22 @@ def unique_value(model, field: str, base: str) -> str:
     return value
 
 
-def product_defaults(name: str, cat: Category, idx: int) -> dict:
+def product_defaults(name: str, cat: Category, parent_cat: Category, idx: int) -> dict:
     base_slug = slugify(name)
     slug = unique_value(Product, "slug", base_slug)
     base_sku = f"{cat.name[:3].upper()}-{idx:04d}"
     sku = unique_value(Product, "sku", base_sku)
+
+    # Get brand for this category
+    brand_list = BRANDS.get(parent_cat.name, ["Generic"])
+    brand = RNG.choice(brand_list)
+
     return {
         "name": name,
         "slug": slug,
         "sku": sku,
         "category": cat,
+        "brand": brand,
         "description": f"High‑quality {name} with modern design and reliable performance.",
         "size_guide": "Refer to the product details for sizing.",
         "rating": Decimal(str(round(RNG.uniform(3.8, 5.0), 1))),
@@ -138,7 +156,7 @@ def product_defaults(name: str, cat: Category, idx: int) -> dict:
 
 
 @transaction.atomic
-def seed(reset: bool = False, per_category: int = 3, variants_per_product: int = 2):
+def seed(reset: bool = False, per_category: int = 3, variants_per_product: int = 3):
     if reset:
         print("Resetting catalog…")
         ProductVariant.objects.all().delete()
@@ -148,13 +166,14 @@ def seed(reset: bool = False, per_category: int = 3, variants_per_product: int =
 
     for top, subs, image_urls in CATEGORIES:
         parent, _ = Category.objects.get_or_create(
-            name=top, defaults={"slug": slugify(top), "parent": None}
+            name=top, defaults={"slug": slugify(top), "parent": None, "is_active": True}
         )
         targets = []
         if subs:
             for s in subs:
                 c, _ = Category.objects.get_or_create(
-                    name=s, defaults={"slug": slugify(s), "parent": parent}
+                    name=s,
+                    defaults={"slug": slugify(s), "parent": parent, "is_active": True},
                 )
                 targets.append(c)
         else:
@@ -165,14 +184,14 @@ def seed(reset: bool = False, per_category: int = 3, variants_per_product: int =
         for cat in targets:
             for i in range(1, per_category + 1):
                 name = f"{cat.name} Product {i}"
-                defaults = product_defaults(name, cat, i)
+                defaults = product_defaults(name, cat, parent, i)
 
-                # Use slug for lookup so re‑runs don’t duplicate by name
+                # Use slug for lookup so re‑runs don't duplicate by name
                 product, created = Product.objects.get_or_create(
                     slug=defaults["slug"], defaults=defaults
                 )
                 if created:
-                    print(f"Created product: {product.name}")
+                    print(f"Created product: {product.name} (Brand: {product.brand})")
                 else:
                     # Ensure required fields if product already existed
                     if not product.sku:
@@ -181,28 +200,50 @@ def seed(reset: bool = False, per_category: int = 3, variants_per_product: int =
                         )
                     if not product.category_id:
                         product.category = cat
+                    if not product.brand:
+                        brand_list = BRANDS.get(parent.name, ["Generic"])
+                        product.brand = RNG.choice(brand_list)
                     product.save()
 
                 primary_img = ensure_product_image(product, image_urls)
 
-                # Create a few variants with price/stock
+                # Create variants with color, size, price, and stock
                 if product.variants.count() == 0:
+                    # Pick random colors and sizes for this product
+                    product_colors = RNG.sample(
+                        COLORS, min(variants_per_product, len(COLORS))
+                    )
+                    product_sizes = RNG.sample(
+                        SIZES, min(variants_per_product, len(SIZES))
+                    )
+
                     for v in range(variants_per_product):
                         base_price = Decimal(RNG.randint(low, high))
                         price = max(
                             base_price + Decimal(RNG.randint(-20, 40)), Decimal("5.00")
                         )
                         compare = price + Decimal(RNG.choice([0, 10, 20, 50, 100]))
-                        sku_suffix = chr(ord("A") + v)
+
+                        color = product_colors[v % len(product_colors)]
+                        size = product_sizes[v % len(product_sizes)]
+                        sku_suffix = f"{color[:3].upper()}-{size}"
+
+                        variant_sku = unique_value(
+                            ProductVariant, "sku", f"{product.sku}-{sku_suffix}"
+                        )
+
                         ProductVariant.objects.create(
                             product=product,
-                            sku=f"{product.sku}-{sku_suffix}",
+                            sku=variant_sku,
+                            color=color,
+                            size=size,
                             price=price,
                             compare_price=compare if compare > price else None,
                             stock=RNG.randint(0, 80),
-                            main_image=primary_img,
                             is_active=True,
+                            is_default=(v == 0),  # First variant is default
                         )
+                        print(f"  → Created variant: {color} / {size} - ${price}")
 
     print(
         f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
@@ -227,7 +268,7 @@ def main():
     parser.add_argument(
         "--variants",
         type=int,
-        default=2,
+        default=3,
         help="Variants per product.",
     )
     args = parser.parse_args()
