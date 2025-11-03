@@ -1,7 +1,3 @@
-/* ========================================
-   CART - Shopping cart functionality
-   ======================================== */
-
 const CartModule = {
     init() {
         this.updateCartCount();
@@ -11,9 +7,26 @@ const CartModule = {
         this.clearCart();
     },
 
+    // Get CSRF token helper
+    getCSRFToken() {
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='));
+        return cookieValue ? cookieValue.split('=')[1] : null;
+    },
+
     // Update cart count badge
     updateCartCount() {
-        fetch('/cart/count/')
+        const url = '/api/cart/count/';
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
+        };
+        
+        fetch(url, { 
+            headers,
+            credentials: 'same-origin'
+        })
             .then(response => response.json())
             .then(data => {
                 const badge = document.getElementById('cart-count');
@@ -62,20 +75,31 @@ const CartModule = {
     // Add to cart with animation
     addToCart(productId, button) {
         const form = button.closest('form');
-        const formData = new FormData(form);
+        const variantId = form.querySelector('[name="variant_id"]')?.value;
+        const quantity = form.querySelector('[name="quantity"]')?.value || 1;
 
         // Show loading state
         const originalText = button.innerHTML;
         button.innerHTML = '<span class="loading-spinner"></span>';
         button.disabled = true;
 
-        // Submit form via AJAX
-        fetch(form.action, {
+        // Prepare API request
+        const url = '/api/cart/add_item/';
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCSRFToken()
+        };
+
+        // Submit to API
+        fetch(url, {
             method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            }
+            headers: headers,
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                product_id: productId,
+                product_variant_id: variantId,
+                quantity: parseInt(quantity)
+            })
         })
             .then(response => response.json())
             .then(data => {
@@ -85,13 +109,10 @@ const CartModule = {
 
                     // Update cart count
                     this.updateCartCount();
-                } else {
-                    AuroraMart.toast(data.message || 'Failed to add to cart', 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                AuroraMart.toast('Something went wrong', 'error');
             })
             .finally(() => {
                 // Restore button
@@ -174,13 +195,11 @@ const CartModule = {
                                     cartItem.remove();
                                     this.updateCartCount();
                                     this.updateCartTotal();
-                                    AuroraMart.toast('Item removed', 'info');
                                 }, 300);
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            AuroraMart.toast('Failed to remove item', 'error');
                         });
                 }
             });
@@ -208,12 +227,10 @@ const CartModule = {
                         if (data.success) {
                             this.updateCartTotal();
                             this.updateCartCount();
-                            AuroraMart.toast('Cart updated', 'success');
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        AuroraMart.toast('Failed to update quantity', 'error');
                     });
             }, 500));
         });
@@ -272,7 +289,6 @@ const CartModule = {
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        AuroraMart.toast('Failed to clear cart', 'error');
                     });
             }
         });

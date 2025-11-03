@@ -1,7 +1,3 @@
-/* ========================================
-   PRODUCTS - Product filtering, sorting, etc.
-   ======================================== */
-
 const ProductsModule = {
     init() {
         this.filterProducts();
@@ -258,7 +254,6 @@ const ProductsModule = {
             })
             .catch(error => {
                 console.error('Error:', error);
-                AuroraMart.toast('Failed to load product', 'error');
             });
     }
 };

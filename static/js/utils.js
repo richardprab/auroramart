@@ -1,7 +1,3 @@
-/* ========================================
-   UTILS - Helper functions
-   ======================================== */
-
 const Utils = {
     // Format date
     formatDate(date, format = 'short') {
@@ -68,7 +64,7 @@ const Utils = {
     copyToClipboard(text) {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(text).then(() => {
-                AuroraMart.toast('Copied to clipboard!', 'success');
+                // Clipboard copy successful
             });
         } else {
             // Fallback for older browsers
@@ -80,7 +76,6 @@ const Utils = {
             textarea.select();
             document.execCommand('copy');
             document.body.removeChild(textarea);
-            AuroraMart.toast('Copied to clipboard!', 'success');
         }
     },
 

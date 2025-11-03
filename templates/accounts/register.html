@@ -190,8 +190,8 @@
                 'info': 'info'
             };
 
-            if (message) {
-                window.toast[typeMap[type] || 'info'](message, 5000);
+            if (message && AuroraMart && AuroraMart.toast) {
+                AuroraMart.toast(message, typeMap[type] || 'info', 5000);
             }
         });
 
