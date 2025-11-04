@@ -21,12 +21,12 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
         return ChatSessionSerializer
     
     def get_queryset(self):
-        """Only return sessions for the current user"""
+        """Only return sessions for the current user, ordered by most recent"""
         return ChatSession.objects.filter(
             user=self.request.user
         ).annotate(
             unread_messages_count=Count('messages', filter=Q(messages__is_read=False, messages__is_from_admin=True))
-        )
+        ).order_by('-updated_at')
     
     def create(self, request, *args, **kwargs):
         """Create a new chat session for the user"""
