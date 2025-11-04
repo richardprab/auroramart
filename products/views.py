@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
-from django.db.models import Q, Min, Max, Prefetch
+from django.db.models import Q, Min, Max, Prefetch, F
 from decimal import Decimal
 from .models import Product, Category, ProductVariant, ProductImage
 
@@ -82,6 +82,32 @@ def product_list(request):
     sizes = request.GET.getlist("size")
     if sizes:
         products = products.filter(variants__size__in=sizes, variants__is_active=True)
+
+    # Rating filter
+    min_rating = request.GET.get("rating")
+    if min_rating:
+        try:
+            min_rating_decimal = Decimal(min_rating)
+            # Only show products with reviews (review_count > 0) and rating >= selected
+            # Also ensure rating is not 0.0
+            products = products.filter(
+                review_count__gt=0
+            ).filter(
+                rating__gte=min_rating_decimal
+            ).exclude(
+                rating=0.0
+            )
+        except (ValueError, TypeError):
+            min_rating = None
+
+    # On Sale filter
+    on_sale = request.GET.get("on_sale")
+    if on_sale == "true":
+        products = products.filter(
+            variants__compare_price__isnull=False,
+            variants__compare_price__gt=F("variants__price"),
+            variants__is_active=True
+        )
 
     # Sort
     sort_by = request.GET.get("sort", "featured")
@@ -200,6 +226,8 @@ def product_list(request):
         "min_price": min_price or "",
         "max_price": max_price or "",
         "price_range": price_range,
+        "selected_rating": min_rating or "",
+        "selected_on_sale": on_sale or "",
     }
 
     return render(request, "products/product_list.html", context)

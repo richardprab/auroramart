@@ -135,6 +135,83 @@
                     </div>
                     {% endif %}
 
+                    <!-- Rating Filter -->
+                    <div class="mb-6 pb-6 border-b border-gray-100">
+                        <h3 class="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-2">
+                            <i data-lucide="star" class="w-4 h-4 text-gray-500"></i>
+                            Rating
+                        </h3>
+                        <div class="space-y-1">
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
+                                <input type="radio" name="rating" value="4" 
+                                    {% if selected_rating == '4' %}checked{% endif %}
+                                    class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500 transition">
+                                <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900 flex items-center gap-1">
+                                    <span class="flex text-yellow-400">
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                    </span>
+                                    <span class="text-gray-500">& up</span>
+                                </span>
+                            </label>
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
+                                <input type="radio" name="rating" value="3" 
+                                    {% if selected_rating == '3' %}checked{% endif %}
+                                    class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500 transition">
+                                <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900 flex items-center gap-1">
+                                    <span class="flex text-yellow-400">
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                    </span>
+                                    <span class="text-gray-500">& up</span>
+                                </span>
+                            </label>
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
+                                <input type="radio" name="rating" value="2" 
+                                    {% if selected_rating == '2' %}checked{% endif %}
+                                    class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500 transition">
+                                <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900 flex items-center gap-1">
+                                    <span class="flex text-yellow-400">
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                    </span>
+                                    <span class="text-gray-500">& up</span>
+                                </span>
+                            </label>
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
+                                <input type="radio" name="rating" value="1" 
+                                    {% if selected_rating == '1' %}checked{% endif %}
+                                    class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500 transition">
+                                <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900 flex items-center gap-1">
+                                    <span class="flex text-yellow-400">
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                    </span>
+                                    <span class="text-gray-500">& up</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- On Sale Filter -->
+                    <div class="mb-6 pb-6 border-b border-gray-100">
+                        <h3 class="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-2">
+                            <i data-lucide="badge-percent" class="w-4 h-4 text-gray-500"></i>
+                            Special Offers
+                        </h3>
+                        <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
+                            <input type="checkbox" name="on_sale" value="true" 
+                                {% if selected_on_sale == 'true' %}checked{% endif %}
+                                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 transition">
+                            <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900 flex items-center gap-1">
+                                <i data-lucide="tag" class="w-3 h-3 text-green-600"></i>
+                                On Sale
+                            </span>
+                        </label>
+                    </div>
+
                     <!-- Apply Filters Button -->
                     <button type="submit" class="w-full bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 transition shadow-sm flex items-center justify-center gap-2">
                         <i data-lucide="check" class="w-4 h-4"></i>
@@ -173,6 +250,8 @@
                     {% for size in selected_sizes %}<input type="hidden" name="size" value="{{ size }}">{% endfor %}
                     {% if min_price %}<input type="hidden" name="min_price" value="{{ min_price }}">{% endif %}
                     {% if max_price %}<input type="hidden" name="max_price" value="{{ max_price }}">{% endif %}
+                    {% if selected_rating %}<input type="hidden" name="rating" value="{{ selected_rating }}">{% endif %}
+                    {% if selected_on_sale %}<input type="hidden" name="on_sale" value="{{ selected_on_sale }}">{% endif %}
                     
                     <div class="flex items-center gap-2">
                         <label for="sort-select" class="text-sm text-gray-600 whitespace-nowrap flex items-center gap-1">
@@ -192,7 +271,8 @@
             </div>
 
             <!-- Active Filters Display -->
-            {% if selected_brands or selected_colors or selected_sizes or min_price or max_price %}
+            <div class="active-filters-container">
+            {% if selected_brands or selected_colors or selected_sizes or min_price or max_price or selected_rating or selected_on_sale %}
             <div class="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="text-sm font-semibold text-gray-700 flex items-center gap-1">
@@ -235,10 +315,31 @@
                         </button>
                     </span>
                     {% endif %}
+                    {% if selected_rating %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-sm font-medium transition hover:bg-amber-200">
+                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                        {{ selected_rating }}+ Stars
+                        <button onclick="removeFilter('rating', null)" class="hover:text-amber-900 transition">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                    </span>
+                    {% endif %}
+                    {% if selected_on_sale == 'true' %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-pink-100 text-pink-700 rounded-lg text-sm font-medium transition hover:bg-pink-200">
+                        <i data-lucide="badge-percent" class="w-3 h-3"></i>
+                        On Sale
+                        <button onclick="removeFilter('on_sale', null)" class="hover:text-pink-900 transition">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                    </span>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}
+            </div>
 
+            <!-- Products Grid Container for AJAX updates -->
+            <div class="products-grid-container">
             <!-- Products Grid -->
             {% if page_obj %}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -286,25 +387,46 @@
                             {% if product.brand %}
                             <p class="text-xs text-gray-600 mb-2">{{ product.brand }}</p>
                             {% endif %}
-                            <div class="flex justify-between items-center">
-                                {% with lowest_variant=product.get_lowest_priced_variant %}
-                                <div class="flex flex-col">
-                                    {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
-                                    <span class="text-sm text-gray-500 line-through">${{ lowest_variant.compare_price|floatformat:2 }}</span>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-2xl font-bold text-gray-900">${{ lowest_variant.price|floatformat:2 }}</span>
-                                        <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold">
-                                            -{{ lowest_variant.discount_percentage }}% OFF
-                                        </span>
-                                    </div>
+                            
+                            <!-- Rating with Stars -->
+                            {% if product.review_count > 0 %}
+                            <div class="flex items-center gap-1 mb-3">
+                                <div class="flex text-yellow-400">
+                                    {% with rating=product.rating|floatformat:0|add:0 %}
+                                    {% for i in "12345" %}
+                                    {% if forloop.counter <= rating %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 fill-current" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                    </svg>
                                     {% else %}
-                                    <span class="text-2xl font-bold text-gray-900">
-                                        ${{ lowest_variant.price|floatformat:2 }}
-                                    </span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                    </svg>
                                     {% endif %}
+                                    {% endfor %}
+                                    {% endwith %}
                                 </div>
-                                {% endwith %}
+                                <span class="text-sm text-gray-600">({{ product.review_count }})</span>
                             </div>
+                            {% endif %}
+                            
+                            {% with lowest_variant=product.get_lowest_priced_variant %}
+                            {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+                            <!-- Price with Discount -->
+                            <div class="mt-2 flex items-center gap-2">
+                                <span class="text-2xl font-bold text-gray-900">${{ lowest_variant.price|floatformat:2 }}</span>
+                                <span class="text-sm text-gray-500 line-through">${{ lowest_variant.compare_price|floatformat:2 }}</span>
+                                <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold">
+                                    -{{ lowest_variant.discount_percentage }}% OFF
+                                </span>
+                            </div>
+                            {% else %}
+                            <!-- Price without Discount -->
+                            <div class="mt-2">
+                                <span class="text-2xl font-bold text-gray-900">${{ lowest_variant.price|floatformat:2 }}</span>
+                            </div>
+                            {% endif %}
+                            {% endwith %}
                         </div>
                     </a>
                 </div>
@@ -348,6 +470,8 @@
                 </a>
             </div>
             {% endif %}
+            </div>
+            <!-- End products-grid-container -->
         </div>
     </div>
 </div>
@@ -399,6 +523,16 @@ function removeFilter(filterType, filterValue) {
         // Remove both min and max price
         params.delete('min_price');
         params.delete('max_price');
+    } else if (filterType === 'q') {
+        // Remove search query
+        params.delete('q');
+        // Also clear search inputs
+        document.querySelectorAll('input[name="q"]').forEach(input => {
+            input.value = '';
+        });
+    } else if (filterType === 'rating' || filterType === 'on_sale') {
+        // Remove single-value filters
+        params.delete(filterType);
     } else {
         // Get all values for this filter type
         const values = params.getAll(filterType);
@@ -412,8 +546,15 @@ function removeFilter(filterType, filterValue) {
         });
     }
     
-    // Redirect to the new URL
-    window.location.search = params.toString();
+    // Reset to page 1
+    params.delete('page');
+    
+    // Use AJAX to update if the function exists, otherwise reload
+    if (typeof window.performLiveFilter === 'function') {
+        window.performLiveFilter(params);
+    } else {
+        window.location.search = params.toString();
+    }
 }
 </script>
 {% endblock %}
