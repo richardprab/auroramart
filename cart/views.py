@@ -1,9 +1,46 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse
+from django.conf import settings
 from decimal import Decimal
 from .models import Cart, CartItem
 from products.models import Product, ProductVariant
+
+
+def calculate_cart_totals(cart_items):
+    """
+    Calculate cart totals including subtotal, tax, shipping, and total.
+    
+    Args:
+        cart_items: QuerySet of CartItem objects
+        
+    Returns:
+        dict: Dictionary containing subtotal, tax, shipping, total, and item_count
+    """
+    subtotal = sum(
+        ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
+        for item in cart_items
+    )
+    
+    tax_rate = Decimal(str(settings.TAX_RATE))
+    tax = (subtotal * tax_rate).quantize(Decimal("0.01"))
+    
+    # Apply shipping cost (free shipping over threshold)
+    if cart_items and subtotal < Decimal(str(settings.FREE_SHIPPING_THRESHOLD)):
+        shipping = Decimal(str(settings.SHIPPING_COST))
+    else:
+        shipping = Decimal("0.00")
+    
+    total = (subtotal + tax + shipping).quantize(Decimal("0.01"))
+    item_count = sum(item.quantity for item in cart_items)
+    
+    return {
+        'subtotal': subtotal,
+        'tax': tax,
+        'shipping': shipping,
+        'total': total,
+        'item_count': item_count
+    }
 
 
 def get_or_create_cart(request):
@@ -114,18 +151,15 @@ def cart_detail(request):
         price = it.product_variant.price or Decimal("0")
         it.line_total = (price * it.quantity).quantize(Decimal("0.01"))
 
-    # Order summary
-    subtotal = sum((it.line_total for it in cart_items), Decimal("0.00"))
-    tax = (subtotal * Decimal("0.10")).quantize(Decimal("0.01"))
-    shipping = Decimal("10.00") if cart_items else Decimal("0.00")
-    total = (subtotal + tax + shipping).quantize(Decimal("0.01"))
+    # Calculate totals using helper function
+    totals = calculate_cart_totals(cart_items)
 
     context = {
         "cart_items": cart_items,
-        "subtotal": subtotal,
-        "tax": tax,
-        "shipping": shipping,
-        "total": total,
+        "subtotal": totals['subtotal'],
+        "tax": totals['tax'],
+        "shipping": totals['shipping'],
+        "total": totals['total'],
     }
     return render(request, "cart/cart.html", context)
 
@@ -206,6 +240,8 @@ def update_cart(request, item_id):
     """Update cart item quantity"""
     if request.method == "POST":
         cart = get_or_create_cart(request)
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
         try:
             item = cart.items.select_related("product_variant", "product").get(
                 id=item_id
@@ -214,17 +250,45 @@ def update_cart(request, item_id):
             # Check if variant exists
             if not item.product_variant:
                 item.delete()
+                if is_ajax:
+                    return JsonResponse({
+                        "success": False,
+                        "error": "Invalid cart item removed."
+                    })
                 messages.error(request, "Invalid cart item removed.")
                 return redirect("cart:cart_detail")
 
             quantity = int(request.POST.get("quantity", 1))
 
             if quantity < 1:
+                product_name = item.product.name
                 item.delete()
-                messages.success(request, f"{item.product.name} removed from cart.")
+                
+                if is_ajax:
+                    # Recalculate totals after deletion
+                    cart_items = cart.items.select_related("product", "product_variant").all()
+                    totals = calculate_cart_totals(cart_items)
+                    
+                    return JsonResponse({
+                        "success": True,
+                        "message": f"{product_name} removed from cart.",
+                        "removed": True,
+                        "subtotal": str(totals['subtotal']),
+                        "tax": str(totals['tax']),
+                        "shipping": str(totals['shipping']),
+                        "total": str(totals['total']),
+                        "item_count": totals['item_count']
+                    })
+                
+                messages.success(request, f"{product_name} removed from cart.")
             else:
                 # Check stock
                 if quantity > item.product_variant.stock:
+                    if is_ajax:
+                        return JsonResponse({
+                            "success": False,
+                            "error": f"Only {item.product_variant.stock} items available."
+                        })
                     messages.error(
                         request, f"Only {item.product_variant.stock} items available."
                     )
@@ -232,10 +296,42 @@ def update_cart(request, item_id):
 
                 item.quantity = quantity
                 item.save()
+                
+                if is_ajax:
+                    # Calculate line total
+                    price = item.product_variant.price or Decimal("0")
+                    line_total = (price * item.quantity).quantize(Decimal("0.01"))
+                    
+                    # Recalculate order totals using helper function
+                    cart_items = cart.items.select_related("product", "product_variant").all()
+                    totals = calculate_cart_totals(cart_items)
+                    
+                    return JsonResponse({
+                        "success": True,
+                        "message": f"{item.product.name} quantity updated.",
+                        "line_total": str(line_total),
+                        "subtotal": str(totals['subtotal']),
+                        "tax": str(totals['tax']),
+                        "shipping": str(totals['shipping']),
+                        "total": str(totals['total']),
+                        "item_count": totals['item_count']
+                    })
+                
                 messages.success(request, f"{item.product.name} quantity updated.")
+                
         except CartItem.DoesNotExist:
+            if is_ajax:
+                return JsonResponse({
+                    "success": False,
+                    "error": "Item not found in cart."
+                })
             messages.error(request, "Item not found in cart.")
         except Exception as e:
+            if is_ajax:
+                return JsonResponse({
+                    "success": False,
+                    "error": f"Error updating cart: {str(e)}"
+                })
             messages.error(request, f"Error updating cart: {str(e)}")
 
     return redirect("cart:cart_detail")
@@ -245,12 +341,35 @@ def remove_from_cart(request, item_id):
     """Remove item from cart"""
     if request.method == "POST":
         cart = get_or_create_cart(request)
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
         try:
             item = cart.items.get(id=item_id)
             product_name = item.product.name
             item.delete()
+            
+            if is_ajax:
+                # Recalculate totals after deletion using helper function
+                cart_items = cart.items.select_related("product", "product_variant").all()
+                totals = calculate_cart_totals(cart_items)
+                
+                return JsonResponse({
+                    "success": True,
+                    "message": f"{product_name} removed from cart.",
+                    "subtotal": str(totals['subtotal']),
+                    "tax": str(totals['tax']),
+                    "shipping": str(totals['shipping']),
+                    "total": str(totals['total']),
+                    "item_count": totals['item_count']
+                })
+            
             messages.success(request, f"{product_name} removed from cart.")
         except CartItem.DoesNotExist:
+            if is_ajax:
+                return JsonResponse({
+                    "success": False,
+                    "error": "Item not found in cart."
+                })
             messages.error(request, "Item not found in cart.")
 
     return redirect("cart:cart_detail")

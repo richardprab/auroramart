@@ -4,6 +4,8 @@ const ChatWidget = {
     unreadCount: 0,
     isOpen: false,
     pollInterval: null,
+    sessionListOpen: true,
+    sessionToDelete: null,
 
     // Get CSRF token for session authentication
     getCSRFToken() {
@@ -22,7 +24,6 @@ const ChatWidget = {
     },
 
     init() {
-        console.log('ChatWidget initializing...');
         this.attachEventListeners();
         this.loadSessions();
         this.startPolling();
@@ -49,16 +50,6 @@ const ChatWidget = {
             });
         }
 
-        // Minimize button
-        const minimizeBtn = document.getElementById('chat-minimize-btn');
-        if (minimizeBtn) {
-            minimizeBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.minimizeChat();
-            });
-        }
-
         // Close button
         const closeBtn = document.getElementById('chat-close-btn');
         if (closeBtn) {
@@ -69,11 +60,15 @@ const ChatWidget = {
             });
         }
 
-        // Session selector
-        const sessionSelect = document.getElementById('session-select');
-        if (sessionSelect) {
-            sessionSelect.addEventListener('change', (e) => {
-                this.switchSession(e.target.value);
+        // Session list will be handled by click delegation in updateSessionSelector
+
+        // Session toggle
+        const sessionToggle = document.getElementById('session-toggle');
+        if (sessionToggle) {
+            sessionToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSessionList();
             });
         }
 
@@ -93,6 +88,23 @@ const ChatWidget = {
             
             if (this.isOpen && chatWindow && !chatWindow.contains(e.target) && !chatFab.contains(e.target)) {
                 this.closeChat();
+            }
+        });
+
+        // Close delete modal when clicking outside
+        const deleteModal = document.getElementById('delete-chat-modal');
+        if (deleteModal) {
+            deleteModal.addEventListener('click', (e) => {
+                if (e.target === deleteModal) {
+                    this.hideDeleteModal();
+                }
+            });
+        }
+
+        // Close delete modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hideDeleteModal();
             }
         });
     },
@@ -115,6 +127,14 @@ const ChatWidget = {
             lucide.createIcons();
         }
 
+        // Ensure session list is visible when opening chat
+        const sessionList = document.getElementById('session-list');
+        const chevron = document.getElementById('session-chevron');
+        if (sessionList && this.sessionListOpen) {
+            sessionList.style.display = 'block';
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+        }
+
         // Load sessions if not loaded
         if (this.sessions.length === 0) {
             await this.loadSessions();
@@ -131,10 +151,6 @@ const ChatWidget = {
         document.getElementById('chat-window').classList.add('hidden');
     },
 
-    minimizeChat() {
-        this.closeChat();
-    },
-
     async loadSessions() {
         try {
             const response = await fetch('/chat/api/sessions/', {
@@ -144,7 +160,10 @@ const ChatWidget = {
             });
 
             if (response.ok) {
-                const sessions = await response.json();
+                const data = await response.json();
+                
+                // Handle paginated response - extract results array
+                const sessions = Array.isArray(data) ? data : (data.results || []);
                 this.sessions = sessions;
                 
                 if (sessions.length > 0) {
@@ -159,8 +178,8 @@ const ChatWidget = {
                         await this.loadMessages();
                     }
                 } else {
-                    // No sessions, create first one
-                    await this.createNewSession();
+                    // No sessions exist - just update the UI, don't auto-create
+                    this.updateSessionSelector();
                 }
                 
                 // Update unread count
@@ -241,12 +260,10 @@ const ChatWidget = {
     displayWelcomeMessage() {
         const container = document.getElementById('chat-messages');
         container.innerHTML = `
-            <div class="text-center text-gray-500 py-4">
-                <div class="bg-blue-50 rounded-lg p-4 mb-4">
-                    <i data-lucide="headphones" class="w-12 h-12 mx-auto mb-2 text-blue-600"></i>
-                    <p class="font-semibold text-gray-700">Welcome to Support Chat!</p>
-                    <p class="text-sm mt-2">Our team is here to help you. Send us a message and we'll respond as soon as possible.</p>
-                </div>
+            <div class="text-center text-gray-500 py-8">
+                <i data-lucide="headphones" class="w-12 h-12 mx-auto mb-2 text-blue-600"></i>
+                <p class="font-semibold text-gray-700">Welcome to Support Chat!</p>
+                <p class="text-sm mt-2">Our team is here to help you. Send us a message and we'll respond as soon as possible.</p>
             </div>
         `;
         
@@ -370,38 +387,74 @@ const ChatWidget = {
     },
 
     updateSessionSelector() {
-        const select = document.getElementById('session-select');
+        const sessionList = document.getElementById('session-list');
         const indicator = document.getElementById('session-indicator');
         
-        if (!select) return;
+        if (!sessionList) return;
         
-        select.innerHTML = '';
+        sessionList.innerHTML = '';
         
         if (this.sessions.length === 0) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'No conversations yet';
-            select.appendChild(option);
+            sessionList.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">No conversations yet</div>';
             if (indicator) indicator.textContent = '';
             return;
         }
         
-        this.sessions.forEach(session => {
-            const option = document.createElement('option');
-            option.value = session.id;
-            option.textContent = session.title || `Chat ${session.id}`;
-            
-            if (session.unread_count > 0) {
-                option.textContent += ` (${session.unread_count} new)`;
-            }
-            
-            option.selected = this.currentSession && session.id === this.currentSession.id;
-            select.appendChild(option);
-        });
-        
         // Update indicator
         if (indicator) {
             indicator.textContent = `${this.sessions.length} ${this.sessions.length === 1 ? 'chat' : 'chats'}`;
+        }
+        
+        // Build session items
+        this.sessions.forEach(session => {
+            const isActive = this.currentSession && session.id === this.currentSession.id;
+            
+            const sessionItem = document.createElement('div');
+            sessionItem.className = `flex items-center gap-2 p-2 rounded transition group ${
+                isActive ? 'bg-blue-100 hover:bg-blue-200' : 'hover:bg-gray-100'
+            }`;
+            sessionItem.dataset.sessionId = session.id;
+            
+            // Session title and info (clickable area)
+            const sessionInfo = document.createElement('div');
+            sessionInfo.className = 'flex-1 min-w-0 cursor-pointer';
+            sessionInfo.onclick = (e) => {
+                e.stopPropagation();
+                this.switchSession(session.id);
+            };
+            
+            const titleEl = document.createElement('div');
+            titleEl.className = 'text-sm font-medium truncate';
+            titleEl.textContent = session.title || `Chat ${session.id}`;
+            
+            // Unread badge
+            if (session.unread_count > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'inline-block ml-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full';
+                badge.textContent = session.unread_count;
+                titleEl.appendChild(badge);
+            }
+            
+            sessionInfo.appendChild(titleEl);
+            sessionItem.appendChild(sessionInfo);
+            
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'p-1 text-red-600 hover:bg-transparent rounded opacity-0 group-hover:opacity-100 transition flex-shrink-0';
+            deleteBtn.title = 'Delete chat';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.deleteSession(session.id);
+            };
+            deleteBtn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i>';
+            
+            sessionItem.appendChild(deleteBtn);
+            sessionList.appendChild(sessionItem);
+        });
+        
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
         }
     },
 
@@ -412,6 +465,117 @@ const ChatWidget = {
         if (session) {
             this.currentSession = session;
             await this.loadMessages();
+            // Update UI to reflect the active session
+            this.updateSessionSelector();
+        }
+    },
+
+    deleteSession(sessionId) {
+        const session = this.sessions.find(s => s.id === sessionId);
+        if (!session) return;
+
+        // Store session to delete and show modal
+        this.sessionToDelete = sessionId;
+        
+        // Update modal message with session title
+        const messageEl = document.getElementById('delete-chat-message');
+        if (messageEl) {
+            messageEl.textContent = `This will permanently delete all messages in "${session.title || 'this conversation'}". This action cannot be undone.`;
+        }
+        
+        this.showDeleteModal();
+    },
+
+    showDeleteModal() {
+        const modal = document.getElementById('delete-chat-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            
+            // Initialize Lucide icons in modal
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+    },
+
+    hideDeleteModal() {
+        const modal = document.getElementById('delete-chat-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+        this.sessionToDelete = null;
+    },
+
+    async confirmDeleteSession() {
+        if (!this.sessionToDelete) return;
+        
+        const sessionId = this.sessionToDelete;
+        this.hideDeleteModal();
+
+        try {
+            const response = await fetch(`/chat/api/sessions/${sessionId}/`, {
+                method: 'DELETE',
+                headers: this.getAuthHeaders(),
+                credentials: 'same-origin'
+            });
+
+            if (response.ok || response.status === 204) {
+                // Remove from sessions array
+                this.sessions = this.sessions.filter(s => s.id !== sessionId);
+
+                // If we deleted the current session, switch to another
+                if (this.currentSession && this.currentSession.id === sessionId) {
+                    this.currentSession = null;
+                    
+                    // Set to first remaining session or null
+                    if (this.sessions.length > 0) {
+                        this.currentSession = this.sessions[0];
+                        await this.loadMessages();
+                    } else {
+                        // No sessions left, show welcome message
+                        this.displayWelcomeMessage();
+                    }
+                }
+
+                // Update UI
+                this.updateSessionSelector();
+                this.updateUnreadCountFromSessions();
+
+                if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast('Chat session deleted', 'success');
+                }
+            } else {
+                console.error('Failed to delete session:', response.status);
+                if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast('Failed to delete chat session', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error deleting session:', error);
+            if (window.AuroraMart && window.AuroraMart.toast) {
+                window.AuroraMart.toast('Failed to delete chat session', 'error');
+            }
+        }
+    },
+
+    toggleSessionList() {
+        const sessionList = document.getElementById('session-list');
+        const chevron = document.getElementById('session-chevron');
+        
+        if (!sessionList || !chevron) return;
+        
+        this.sessionListOpen = !this.sessionListOpen;
+        
+        if (this.sessionListOpen) {
+            sessionList.style.display = 'block';
+            chevron.style.transform = 'rotate(0deg)';
+        } else {
+            sessionList.style.display = 'none';
+            chevron.style.transform = 'rotate(-90deg)';
         }
     },
 
