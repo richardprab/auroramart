@@ -67,11 +67,11 @@
 
             <!-- Add to Cart Button -->
             <div class="p-4 pt-0">
-                {% with first_variant=product.variants.first %}
-                {% if first_variant and first_variant.stock > 0 %}
+                {% with lowest_variant=product.get_lowest_priced_variant %}
+                {% if lowest_variant and lowest_variant.stock > 0 %}
                 <form action="{% url 'cart:add_to_cart' product.id %}" method="post" class="ajax-add-to-cart">
                     {% csrf_token %}
-                    <input type="hidden" name="variant_id" value="{{ first_variant.id }}">
+                    <input type="hidden" name="variant_id" value="{{ lowest_variant.id }}">
                     <input type="hidden" name="quantity" value="1">
                     <button type="submit"
                         class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"

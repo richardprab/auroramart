@@ -81,7 +81,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     primary_image = serializers.SerializerMethodField()
     price_range = serializers.SerializerMethodField()
-    first_variant = ProductVariantSerializer(source='get_default_variant', read_only=True)
+    lowest_variant = ProductVariantSerializer(source='get_lowest_priced_variant', read_only=True)
     
     class Meta:
         model = Product
@@ -89,7 +89,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'id', 'name', 'slug', 'sku', 'category', 'category_name',
             'brand', 'rating', 'review_count', 'is_trending',
             'is_bestseller', 'is_featured', 'is_active',
-            'primary_image', 'price_range', 'first_variant'
+            'primary_image', 'price_range', 'lowest_variant'
         ]
         read_only_fields = ['slug', 'rating', 'review_count']
     

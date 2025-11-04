@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
-from django.db.models import Q, Min, Max, Count, Prefetch
+from django.db.models import Q, Min, Max, Prefetch
 from decimal import Decimal
 from .models import Product, Category, ProductVariant, ProductImage
 
@@ -86,13 +86,15 @@ def product_list(request):
     # Sort
     sort_by = request.GET.get("sort", "featured")
     if sort_by == "price_low":
-        products = products.annotate(min_price=Min("variants__price")).order_by(
-            "min_price"
-        )
+        # Annotate with lowest variant price (already discounted in the price field)
+        products = products.annotate(
+            lowest_price=Min("variants__price", filter=Q(variants__is_active=True))
+        ).order_by("lowest_price")
     elif sort_by == "price_high":
-        products = products.annotate(max_price=Max("variants__price")).order_by(
-            "-max_price"
-        )
+        # Annotate with highest variant price
+        products = products.annotate(
+            highest_price=Max("variants__price", filter=Q(variants__is_active=True))
+        ).order_by("-highest_price")
     elif sort_by == "newest":
         products = products.order_by("-created_at")
     elif sort_by == "name":
