@@ -233,22 +233,30 @@
 
     <!-- Variant Selection JavaScript -->
     {% if is_fashion_category %}
+    <!-- Hidden variant data elements (rendered for templates but consumed by JS to avoid inline template tokens inside scripts) -->
+    {% for variant in product.variants.all %}
+    <div class="variant-data" style="display:none"
+         data-id="{{ variant.id }}"
+         data-color="{{ variant.color }}"
+         data-size="{{ variant.size }}"
+         data-price="{{ variant.price }}"
+         data-compare-price="{% if variant.compare_price %}{{ variant.compare_price }}{% else %}0{% endif %}"
+         data-stock="{{ variant.stock }}"
+         data-sku="{{ variant.sku }}"></div>
+    {% endfor %}
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Store all variants data
-            const variants = [
-                {% for variant in product.variants.all %}
-                {
-                    id: {{ variant.id }},
-                    color: "{{ variant.color }}",
-                    size: "{{ variant.size }}",
-                    price: {{ variant.price }},
-                    comparePrice: {% if variant.compare_price %}{{ variant.compare_price }}{% else %}null{% endif %},
-                    stock: {{ variant.stock }},
-                    sku: "{{ variant.sku }}"
-                },
-                {% endfor %}
-            ];
+            // Build variants array from DOM data-* attributes to avoid embedding template tags inside JS code
+            const variants = Array.from(document.querySelectorAll('.variant-data')).map(el => ({
+                id: Number(el.dataset.id),
+                color: el.dataset.color || "",
+                size: el.dataset.size || "",
+                price: Number(el.dataset.price),
+                comparePrice: Number(el.dataset.comparePrice) || null,
+                stock: Number(el.dataset.stock),
+                sku: el.dataset.sku || ""
+            }));
 
             let selectedColor = null;
             let selectedSize = null;

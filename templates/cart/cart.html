@@ -63,8 +63,8 @@
                             {% csrf_token %}
                             <div class="flex items-center gap-2 mb-4">
                                 <!-- Decrease Button -->
-                                <button type="button" onclick="updateQuantity({{ item.id }}, -1)"
-                                    class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center font-bold">
+                                <button type="button" data-action="decrease" data-item-id="{{ item.id }}"
+                                    class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center font-bold qty-decrease">
                                     -
                                 </button>
 
@@ -75,8 +75,8 @@
                                     onchange="document.getElementById('cart-form-{{ item.id }}').submit()">
 
                                 <!-- Increase Button -->
-                                <button type="button" onclick="updateQuantity({{ item.id }}, 1)"
-                                    class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center font-bold">
+                                <button type="button" data-action="increase" data-item-id="{{ item.id }}"
+                                    class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center font-bold qty-increase">
                                     +
                                 </button>
                             </div>
@@ -219,6 +219,23 @@
             document.getElementById('cart-form-' + itemId).submit();
         }
     }
+
+    // Attach listeners to quantity buttons that use data attributes instead of inline onclick
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('button[data-action="decrease"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.dataset.itemId;
+                updateQuantity(id, -1);
+            });
+        });
+
+        document.querySelectorAll('button[data-action="increase"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.dataset.itemId;
+                updateQuantity(id, 1);
+            });
+        });
+    });
 
     function showClearCartModal() {
         const modal = document.getElementById('clear-cart-modal');

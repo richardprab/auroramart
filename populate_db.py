@@ -101,7 +101,7 @@ def download_image(url: str, filename: str) -> ContentFile:
         return ContentFile(base64.b64decode(ph), name=f"{filename}.png")
 
 
-def ensure_product_image(product: Product, image_urls: list) -> ProductImage:
+def ensure_product_image(product, image_urls: list):
     img = product.images.order_by("display_order").first()
     if img:
         return img
@@ -128,7 +128,7 @@ def unique_value(model, field: str, base: str) -> str:
     return value
 
 
-def product_defaults(name: str, cat: Category, parent_cat: Category, idx: int) -> dict:
+def product_defaults(name: str, cat, parent_cat, idx: int) -> dict:
     base_slug = slugify(name)
     slug = unique_value(Product, "slug", base_slug)
     base_sku = f"{cat.name[:3].upper()}-{idx:04d}"
