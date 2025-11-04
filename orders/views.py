@@ -1,8 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.conf import settings
 from .models import Order, OrderItem
 from cart.models import Cart
+from cart.views import get_or_create_cart, calculate_cart_totals
 from decimal import Decimal
 
 
@@ -10,24 +12,21 @@ from decimal import Decimal
 def checkout(request):
     """Display checkout page"""
     cart = get_or_create_cart(request)
-    cart_items = cart.items.select_related("product", "variant").all()
+    cart_items = cart.items.select_related("product", "product_variant").all()
 
     if not cart_items:
         messages.warning(request, "Your cart is empty.")
         return redirect("cart:cart_detail")
 
-    # Calculate totals
-    subtotal = sum(item.variant.price * item.quantity for item in cart_items)
-    tax = subtotal * Decimal("0.10")  # 10% tax
-    shipping = Decimal("10.00")
-    total = subtotal + tax + shipping
+    # Calculate totals using helper function
+    totals = calculate_cart_totals(cart_items)
 
     context = {
         "cart_items": cart_items,
-        "subtotal": subtotal,
-        "tax": tax,
-        "shipping": shipping,
-        "total": total,
+        "subtotal": totals['subtotal'],
+        "tax": totals['tax'],
+        "shipping": totals['shipping'],
+        "total": totals['total'],
     }
 
     return render(request, "orders/checkout.html", context)

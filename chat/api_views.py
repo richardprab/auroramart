@@ -30,20 +30,13 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Create a new chat session for the user"""
-        # Check if user already has an active session
-        active_session = ChatSession.objects.filter(
-            user=request.user,
-            is_active=True
-        ).first()
+        # Get title from request, or use default
+        title = request.data.get('title', 'Chat with Support')
         
-        if active_session:
-            serializer = self.get_serializer(active_session)
-            return Response(serializer.data)
-        
-        # Create new session
+        # Create new session (allow multiple sessions per user)
         session = ChatSession.objects.create(
             user=request.user,
-            title=f"Chat with Support"
+            title=title
         )
         serializer = self.get_serializer(session)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

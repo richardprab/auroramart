@@ -163,3 +163,8 @@ REST_FRAMEWORK = {
 # CORS settings (for development)
 CORS_ALLOW_ALL_ORIGINS = True  # Change in production
 CORS_ALLOW_CREDENTIALS = True
+
+# Business settings
+TAX_RATE = 0.10
+SHIPPING_COST = 10.00
+FREE_SHIPPING_THRESHOLD = 100.00
