@@ -1,8 +1,8 @@
 {% load static %}
 
-{% with first_variant=product.variants.first primary_image=product.images.first %}
+{% with lowest_variant=product.get_lowest_priced_variant primary_image=product.images.first %}
 <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 relative flex flex-col h-full"
-    data-product data-product-id="{{ product.id }}" data-price="{{ first_variant.price|default:'0' }}"
+    data-product data-product-id="{{ product.id }}" data-price="{{ lowest_variant.price|default:'0' }}"
     data-category="{{ product.category.slug }}" data-name="{{ product.name }}">
 
     <!-- Product Image -->
@@ -33,7 +33,7 @@
                 TRENDING
             </div>
         </div>
-        {% elif first_variant.compare_price and first_variant.compare_price > first_variant.price %}
+        {% elif lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
         <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
             <div
                 class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
@@ -92,22 +92,22 @@
 
         <!-- Bottom section anchored to card bottom -->
         <div class="mt-auto">
-            {% if first_variant %}
+            {% if lowest_variant %}
             <div class="flex items-center justify-between mb-3">
                 <div class="flex flex-col">
-                    {% if first_variant.compare_price and first_variant.compare_price > first_variant.price %}
-                    <span class="text-sm text-gray-500 line-through">${{ first_variant.compare_price }}</span>
+                    {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+                    <span class="text-sm text-gray-500 line-through">${{ lowest_variant.compare_price }}</span>
                     <div class="flex items-center gap-2">
-                        <span class="text-2xl font-bold text-blue-600">${{ first_variant.price }}</span>
+                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price }}</span>
                         <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold">
-                            -{{ first_variant.discount_percentage }}% OFF
+                            -{{ lowest_variant.discount_percentage }}% OFF
                         </span>
                     </div>
                     {% else %}
-                    <span class="text-2xl font-bold text-blue-600">${{ first_variant.price }}</span>
+                    <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price }}</span>
                     {% endif %}
                 </div>
-                {% if first_variant.stock and first_variant.stock > 0 %}
+                {% if lowest_variant.stock and lowest_variant.stock > 0 %}
                 <span class="text-sm text-green-600 flex items-center gap-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2">
@@ -132,10 +132,10 @@
             <form method="POST" action="{% url 'cart:add_to_cart' product_id=product.id %}" class="ajax-add-to-cart">
                 {% csrf_token %}
                 <input type="hidden" name="quantity" value="1">
-                <input type="hidden" name="variant_id" value="{{ first_variant.id }}">
+                <input type="hidden" name="variant_id" value="{{ lowest_variant.id }}">
                 <button type="submit"
-                    class="btn btn-primary w-full flex items-center justify-center gap-2 {% if not first_variant.stock %}opacity-50 cursor-not-allowed{% endif %}"
-                    {% if not first_variant.stock %}disabled{% endif %}
+                    class="btn btn-primary w-full flex items-center justify-center gap-2 {% if not lowest_variant.stock %}opacity-50 cursor-not-allowed{% endif %}"
+                    {% if not lowest_variant.stock %}disabled{% endif %}
                     data-add-to-cart data-product-id="{{ product.id }}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2">

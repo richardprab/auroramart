@@ -95,10 +95,10 @@ class Product(models.Model):
     def get_primary_image(self):
         """Get the primary product image"""
         return self.images.filter(is_primary=True).first() or self.images.first()
-
-    def get_default_variant(self):
-        """Get the first active variant"""
-        return self.variants.filter(is_active=True).first()
+    
+    def get_lowest_priced_variant(self):
+        """Get the variant with the lowest price (already discounted)"""
+        return self.variants.filter(is_active=True).order_by("price").first()
 
     def get_price_range(self):
         """Get min and max price from variants"""

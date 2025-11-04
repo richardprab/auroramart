@@ -22,7 +22,7 @@
         </a>
     </div>
 
-    {% with first_variant=product.variants.first primary_image=product.images.first %}
+    {% with lowest_variant=product.get_lowest_priced_variant primary_image=product.images.first %}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         <!-- Product Images -->
         <div>
@@ -93,20 +93,20 @@
             </div>
 
             <!-- Price -->
-            {% if first_variant %}
+            {% if lowest_variant %}
             <div class="mb-6" id="price-section">
                 <div class="flex items-baseline gap-3">
-                    <span class="text-4xl font-bold text-gray-900" id="current-price">${{ first_variant.price }}</span>
-                    {% if first_variant.compare_price and first_variant.compare_price > first_variant.price %}
-                    <span class="text-2xl text-gray-500 line-through" id="original-price">${{ first_variant.compare_price }}</span>
-                    <span class="text-green-600 font-semibold" id="discount-badge">Save {{ first_variant.discount_percentage }}%</span>
+                    <span class="text-4xl font-bold text-gray-900" id="current-price">${{ lowest_variant.price }}</span>
+                    {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+                    <span class="text-2xl text-gray-500 line-through" id="original-price">${{ lowest_variant.compare_price }}</span>
+                    <span class="text-green-600 font-semibold" id="discount-badge">Save {{ lowest_variant.discount_percentage }}%</span>
                     {% endif %}
                 </div>
             </div>
 
             <!-- Stock Status -->
             <div class="mb-6" id="stock-section">
-                {% if first_variant.stock > 0 %}
+                {% if lowest_variant.stock > 0 %}
                 <span class="text-green-600 font-semibold flex items-center gap-2" id="stock-status">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2">
@@ -183,10 +183,10 @@
 
             <!-- Actions -->
             <div class="flex gap-4">
-                {% if first_variant and first_variant.stock > 0 %}
+                {% if lowest_variant and lowest_variant.stock > 0 %}
                 <form action="{% url 'cart:add_to_cart' product_id=product.id %}" method="post" class="flex-1 ajax-add-to-cart" id="add-to-cart-form">
                     {% csrf_token %}
-                    <input type="hidden" name="variant_id" value="{{ first_variant.id }}" id="selected-variant-id">
+                    <input type="hidden" name="variant_id" value="{{ lowest_variant.id }}" id="selected-variant-id">
                     <input type="hidden" name="quantity" value="1">
                     <button type="submit"
                         class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
