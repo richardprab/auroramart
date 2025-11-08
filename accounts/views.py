@@ -5,9 +5,10 @@ from django.contrib import messages
 from django.http import JsonResponse
 from products.models import Product
 from .models import Wishlist
-from .forms import CustomUserCreationForm
+from .forms import CustomUserCreationForm, UserProfileForm
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import logout
+import json
 
 User = get_user_model()
 
@@ -77,32 +78,102 @@ def register(request):
 
 @login_required
 def profile(request):
-    """User profile page"""
-    if request.method == "POST":
-        user = request.user
-        user.first_name = request.POST.get("first_name", "")
-        user.last_name = request.POST.get("last_name", "")
-        user.email = request.POST.get("email", "")
-        user.save()
+    """User profile page with edit functionality"""
+    # Get user statistics
+    total_orders = 0
+    wishlist_count = Wishlist.objects.filter(user=request.user).count()
+    recent_orders = []
+    
+    try:
+        from orders.models import Order
+        total_orders = Order.objects.filter(user=request.user).count()
+        recent_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
+    except:
+        pass
 
-        messages.success(request, "Profile updated successfully!")
-        return redirect("accounts:profile")
+    # Handle AJAX form submission
+    if request.method == "POST" and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        form = UserProfileForm(request.POST, instance=request.user, user=request.user)
+        
+        if form.is_valid():
+            form.save()
+            return JsonResponse({
+                'success': True,
+                'message': 'Profile updated successfully!',
+                'user': {
+                    'first_name': request.user.first_name,
+                    'last_name': request.user.last_name,
+                    'full_name': request.user.get_full_name(),
+                    'email': request.user.email,
+                    'phone': request.user.phone or '',
+                    'date_of_birth': request.user.date_of_birth.strftime('%Y-%m-%d') if request.user.date_of_birth else '',
+                }
+            })
+        else:
+            # Return validation errors
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            
+            return JsonResponse({
+                'success': False,
+                'message': 'Please correct the errors below.',
+                'errors': errors
+            }, status=400)
+
+    # Handle regular form submission (fallback)
+    if request.method == "POST":
+        form = UserProfileForm(request.POST, instance=request.user, user=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile updated successfully!")
+            return redirect("accounts:profile")
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = UserProfileForm(instance=request.user, user=request.user)
 
     context = {
         "user": request.user,
+        "form": form,
+        "total_orders": total_orders,
+        "wishlist_count": wishlist_count,
+        "recent_orders": recent_orders,
     }
     return render(request, "accounts/profile.html", context)
 
 
 @login_required
 def wishlist(request):
-    """User's wishlist"""
+    """User's wishlist with detailed product information"""
     wishlist_items = Wishlist.objects.filter(user=request.user).select_related(
-        "product"
-    )
+        "product_variant__product", "product"
+    ).prefetch_related(
+        "product__images",
+        "product_variant__product__images"
+    ).order_by('-added_at')
+
+    # Enrich wishlist items with additional data
+    for item in wishlist_items:
+        # Determine the actual product (could be from product or product_variant)
+        if item.product_variant:
+            item.display_product = item.product_variant.product
+            item.display_variant = item.product_variant
+            item.display_price = item.product_variant.price
+            item.in_stock = item.product_variant.stock > 0
+            item.stock_count = item.product_variant.stock
+        elif item.product:
+            item.display_product = item.product
+            # Get the lowest priced variant as default
+            lowest_variant = item.product.variants.filter(stock__gt=0).order_by('price').first()
+            item.display_variant = lowest_variant
+            item.display_price = lowest_variant.price if lowest_variant else 0
+            item.in_stock = lowest_variant is not None
+            item.stock_count = lowest_variant.stock if lowest_variant else 0
 
     context = {
         "wishlist_items": wishlist_items,
+        "wishlist_count": wishlist_items.count(),
     }
     return render(request, "accounts/wishlist.html", context)
 
@@ -150,4 +221,89 @@ def remove_from_wishlist(request, product_id):
         messages.success(request, f"{product.name} removed from wishlist")
         return redirect("accounts:wishlist")
 
+    return redirect("accounts:wishlist")
+
+
+@login_required
+def move_to_cart(request, wishlist_id):
+    """Move item from wishlist to cart"""
+    if request.method == "POST":
+        from cart.models import Cart, CartItem
+        from decimal import Decimal
+        
+        wishlist_item = get_object_or_404(Wishlist, id=wishlist_id, user=request.user)
+        
+        # Determine which variant to add
+        if wishlist_item.product_variant:
+            variant = wishlist_item.product_variant
+            product = wishlist_item.product_variant.product
+        elif wishlist_item.product:
+            # Get lowest priced variant with stock
+            product = wishlist_item.product
+            variant = product.variants.filter(stock__gt=0).order_by('price').first()
+            
+            if not variant:
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return JsonResponse({
+                        "success": False,
+                        "message": "Product is out of stock"
+                    })
+                messages.error(request, f"{product.name} is out of stock")
+                return redirect("accounts:wishlist")
+        else:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({
+                    "success": False,
+                    "message": "Invalid wishlist item"
+                })
+            messages.error(request, "Invalid wishlist item")
+            return redirect("accounts:wishlist")
+        
+        # Check stock availability
+        if variant.stock < 1:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({
+                    "success": False,
+                    "message": "Product is out of stock"
+                })
+            messages.error(request, f"{product.name} is out of stock")
+            return redirect("accounts:wishlist")
+        
+        # Get or create cart
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        
+        # Add to cart or update quantity
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            product_variant=variant,
+            defaults={'quantity': 1}
+        )
+        
+        if not created:
+            # Item already in cart, increase quantity
+            if cart_item.quantity < variant.stock:
+                cart_item.quantity += 1
+                cart_item.save()
+            else:
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return JsonResponse({
+                        "success": False,
+                        "message": "Maximum stock quantity already in cart"
+                    })
+                messages.warning(request, f"Maximum available quantity of {product.name} is already in your cart")
+                return redirect("accounts:wishlist")
+        
+        # Remove from wishlist
+        wishlist_item.delete()
+        
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": True,
+                "message": f"{product.name} moved to cart"
+            })
+        
+        messages.success(request, f"{product.name} moved to cart!")
+        return redirect("accounts:wishlist")
+    
     return redirect("accounts:wishlist")

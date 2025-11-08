@@ -4,7 +4,196 @@
 {% block title %}My Profile - AuroraMart{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+<style>
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background-color: #fff;
+        border-radius: 1rem;
+        padding: 2.5rem;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: overlay;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f3f4f6;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease-out;
+    }
+
+    /* Custom scrollbar for modal */
+    .modal-content::-webkit-scrollbar {
+        width: 8px;
+        background: #f3f4f6;
+        border-radius: 8px;
+    }
+    .modal-content::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 8px;
+    }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .modal-header h2 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        color: #6b7280;
+        cursor: pointer;
+        transition: color 0.2s;
+        line-height: 1;
+        padding: 0;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close:hover {
+        color: #1f2937;
+    }
+
+    /* Profile Card Styles */
+    .profile-avatar {
+        width: 6rem;
+        height: 6rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+        font-weight: bold;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        color: #1f2937;
+        font-weight: 500;
+        font-size: 1rem;
+    }
+
+    .action-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s;
+        color: #374151;
+        text-decoration: none;
+    }
+
+    .action-link:hover {
+        background-color: #f9fafb;
+    }
+
+    .edit-profile-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        font-size: 1rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .edit-profile-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .edit-profile-btn:active {
+        transform: translateY(0);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -12,39 +201,33 @@
     <div class="max-w-6xl mx-auto">
         <!-- Profile Header -->
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div class="flex items-center space-x-6">
-                <div
-                    class="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+            <div class="flex items-center space-x-6 flex-wrap">
+                <div class="profile-avatar">
                     {{ user.first_name.0|upper }}{{ user.last_name.0|upper }}
                 </div>
-                <div class="flex-1">
-                    <h1 class="text-3xl font-bold text-gray-800">{{ user.get_full_name }}</h1>
+                <div class="flex-1 min-w-0">
+                    <h1 class="text-3xl font-bold text-gray-800 truncate">{{ user.get_full_name }}</h1>
                     <p class="text-gray-600">@{{ user.username }}</p>
                     <p class="text-gray-500">{{ user.email }}</p>
                 </div>
-                <div>
-                    <a href="{% url 'accounts:profile' %}"
-                        class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        Edit Profile
-                    </a>
-                </div>
+                <button onclick="openEditModal()" class="edit-profile-btn">
+                    <i data-lucide="edit" class="w-5 h-5"></i>
+                    <span>Edit Profile</span>
+                </button>
             </div>
         </div>
 
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <!-- Orders Card -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="stat-card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500 text-sm">Total Orders</p>
                         <p class="text-3xl font-bold text-blue-600">{{ total_orders|default:0 }}</p>
                     </div>
                     <div class="bg-blue-100 rounded-full p-3">
-                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                        </svg>
+                        <i data-lucide="shopping-bag" class="w-8 h-8 text-blue-600"></i>
                     </div>
                 </div>
                 <a href="{% url 'orders:order_list' %}" class="text-blue-600 text-sm mt-2 inline-block hover:underline">
@@ -53,18 +236,14 @@
             </div>
 
             <!-- Wishlist Card -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="stat-card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500 text-sm">Wishlist Items</p>
                         <p class="text-3xl font-bold text-purple-600">{{ wishlist_count|default:0 }}</p>
                     </div>
                     <div class="bg-purple-100 rounded-full p-3">
-                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z">
-                            </path>
-                        </svg>
+                        <i data-lucide="heart" class="w-8 h-8 text-purple-600"></i>
                     </div>
                 </div>
                 <a href="{% url 'accounts:wishlist' %}"
@@ -74,17 +253,14 @@
             </div>
 
             <!-- Account Age Card -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="stat-card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500 text-sm">Member Since</p>
                         <p class="text-xl font-bold text-green-600">{{ user.date_joined|date:"M Y" }}</p>
                     </div>
                     <div class="bg-green-100 rounded-full p-3">
-                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                        <i data-lucide="clock" class="w-8 h-8 text-green-600"></i>
                     </div>
                 </div>
                 <p class="text-gray-600 text-sm mt-2">
@@ -96,136 +272,376 @@
         <!-- Account Information -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Personal Information -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="info-card">
                 <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                    </svg>
+                    <i data-lucide="user" class="w-6 h-6 mr-2 text-blue-600"></i>
                     Personal Information
                 </h2>
                 <div class="space-y-3">
                     <div>
-                        <label class="text-sm text-gray-500">Full Name</label>
-                        <p class="text-gray-800 font-medium">{{ user.get_full_name }}</p>
+                        <label class="info-label">Full Name</label>
+                        <p class="info-value" id="display-full-name">{{ user.get_full_name }}</p>
                     </div>
                     <div>
-                        <label class="text-sm text-gray-500">Username</label>
-                        <p class="text-gray-800 font-medium">@{{ user.username }}</p>
+                        <label class="info-label">Username</label>
+                        <p class="info-value">@{{ user.username }}</p>
                     </div>
                     <div>
-                        <label class="text-sm text-gray-500">Email</label>
-                        <p class="text-gray-800 font-medium">{{ user.email }}</p>
+                        <label class="info-label">Email</label>
+                        <p class="info-value" id="display-email">{{ user.email }}</p>
                     </div>
-                    {% if user.phone %}
                     <div>
-                        <label class="text-sm text-gray-500">Phone</label>
-                        <p class="text-gray-800 font-medium">{{ user.phone }}</p>
+                        <label class="info-label">Phone</label>
+                        <p class="info-value" id="display-phone">{{ user.phone|default:"Not provided" }}</p>
                     </div>
-                    {% endif %}
-                    {% if user.date_of_birth %}
                     <div>
-                        <label class="text-sm text-gray-500">Date of Birth</label>
-                        <p class="text-gray-800 font-medium">{{ user.date_of_birth|date:"F d, Y" }}</p>
+                        <label class="info-label">Date of Birth</label>
+                        <p class="info-value" id="display-dob">
+                            {% if user.date_of_birth %}
+                                {{ user.date_of_birth|date:"F d, Y" }}
+                            {% else %}
+                                Not provided
+                            {% endif %}
+                        </p>
                     </div>
-                    {% endif %}
                 </div>
             </div>
 
             <!-- Account Settings -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="info-card">
                 <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
+                    <i data-lucide="settings" class="w-6 h-6 mr-2 text-blue-600"></i>
                     Account Settings
                 </h2>
-                <div class="space-y-3">
-                    <a href="{% url 'accounts:profile' %}"
-                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                <div class="space-y-2">
+                    <button onclick="openEditModal()" class="action-link w-full">
                         <span class="text-gray-700">Edit Profile</span>
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
-                            </path>
-                        </svg>
-                    </a>
-                    <a href="#"
-                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                    </button>
+                    <a href="#" class="action-link">
                         <span class="text-gray-700">Change Password</span>
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
-                            </path>
-                        </svg>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
                     </a>
-                    <a href="#"
-                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-gray-700">Manage Addresses</span>
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
-                            </path>
-                        </svg>
-                    </a>
-                    <a href="{% url 'accounts:wishlist' %}"
-                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <a href="{% url 'accounts:wishlist' %}" class="action-link">
                         <span class="text-gray-700">My Wishlist</span>
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
-                            </path>
-                        </svg>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
                     </a>
                 </div>
             </div>
         </div>
 
         <!-- Recent Activity -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+        {% if recent_orders %}
+        <div class="info-card mt-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+                <i data-lucide="activity" class="w-6 h-6 mr-2 text-blue-600"></i>
                 Recent Activity
             </h2>
-            {% if recent_orders %}
             <div class="space-y-3">
                 {% for order in recent_orders %}
-                <div
-                    class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                     <div class="flex-1">
                         <p class="font-medium text-gray-800">Order #{{ order.id }}</p>
                         <p class="text-sm text-gray-500">{{ order.created_at|date:"F d, Y" }}</p>
                     </div>
                     <div class="text-right">
-                        <p class="font-bold text-blue-600">${{ order.total_amount }}</p>
+                        <p class="font-semibold text-gray-800">${{ order.total_price }}</p>
                         <span class="text-xs px-2 py-1 rounded-full 
                             {% if order.status == 'delivered' %}bg-green-100 text-green-800
-                            {% elif order.status == 'shipped' %}bg-blue-100 text-blue-800
-                            {% elif order.status == 'processing' %}bg-yellow-100 text-yellow-800
-                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {% elif order.status == 'cancelled' %}bg-red-100 text-red-800
+                            {% else %}bg-blue-100 text-blue-800{% endif %}">
                             {{ order.status|title }}
                         </span>
                     </div>
                 </div>
                 {% endfor %}
             </div>
-            {% else %}
-            <div class="text-center py-8">
-                <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                </svg>
-                <p class="text-gray-500 mb-4">No recent orders</p>
-                <a href="{% url 'products:product_list' %}"
-                    class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                    Start Shopping
-                </a>
-            </div>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
+
+<!-- Edit Profile Modal -->
+<div id="editProfileModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="edit" class="w-6 h-6"></i>
+                Edit Profile
+            </h2>
+            <button class="modal-close" onclick="closeEditModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="editProfileForm" method="POST" class="auth-form" novalidate>
+            {% csrf_token %}
+
+            <!-- First Name Field -->
+            <div class="form-group">
+                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                    First Name<span class="required-mark">*</span>
+                </label>
+                <input type="text" 
+                       name="{{ form.first_name.name }}" 
+                       id="{{ form.first_name.id_for_label }}"
+                       value="{{ form.first_name.value|default:user.first_name }}"
+                       class="form-control" 
+                       placeholder="Enter your first name" 
+                       autocomplete="given-name" 
+                       required>
+                <div class="form-error" id="error-first_name" style="display: none;"></div>
+                <small class="form-help">{{ form.first_name.help_text }}</small>
+            </div>
+
+            <!-- Last Name Field -->
+            <div class="form-group">
+                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                    Last Name<span class="required-mark">*</span>
+                </label>
+                <input type="text" 
+                       name="{{ form.last_name.name }}" 
+                       id="{{ form.last_name.id_for_label }}"
+                       value="{{ form.last_name.value|default:user.last_name }}"
+                       class="form-control" 
+                       placeholder="Enter your last name" 
+                       autocomplete="family-name" 
+                       required>
+                <div class="form-error" id="error-last_name" style="display: none;"></div>
+                <small class="form-help">{{ form.last_name.help_text }}</small>
+            </div>
+
+            <!-- Email Field -->
+            <div class="form-group">
+                <label for="{{ form.email.id_for_label }}" class="form-label">
+                    Email Address<span class="required-mark">*</span>
+                </label>
+                <input type="email" 
+                       name="{{ form.email.name }}" 
+                       id="{{ form.email.id_for_label }}"
+                       value="{{ form.email.value|default:user.email }}"
+                       class="form-control" 
+                       placeholder="your@email.com" 
+                       autocomplete="email" 
+                       required>
+                <div class="form-error" id="error-email" style="display: none;"></div>
+                <small class="form-help">{{ form.email.help_text }}</small>
+            </div>
+
+            <!-- Phone Field -->
+            <div class="form-group">
+                <label for="{{ form.phone.id_for_label }}" class="form-label">
+                    Phone Number
+                </label>
+                <input type="text" 
+                       name="{{ form.phone.name }}" 
+                       id="{{ form.phone.id_for_label }}"
+                       value="{{ form.phone.value|default:user.phone|default:'' }}"
+                       class="form-control" 
+                       placeholder="+1 (555) 123-4567" 
+                       autocomplete="tel">
+                <div class="form-error" id="error-phone" style="display: none;"></div>
+                <small class="form-help">{{ form.phone.help_text }}</small>
+            </div>
+
+            <!-- Date of Birth Field -->
+            <div class="form-group">
+                <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">
+                    Date of Birth
+                </label>
+                <input type="date" 
+                       name="{{ form.date_of_birth.name }}" 
+                       id="{{ form.date_of_birth.id_for_label }}"
+                       value="{% if user.date_of_birth %}{{ user.date_of_birth|date:'Y-m-d' }}{% endif %}"
+                       class="form-control" 
+                       autocomplete="bday">
+                <div class="form-error" id="error-date_of_birth" style="display: none;"></div>
+                <small class="form-help">{{ form.date_of_birth.help_text }}</small>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="mt-6">
+                <button type="submit" class="w-full btn-submit">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Modal functions
+    function openEditModal() {
+        document.getElementById('editProfileModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Initialize Lucide icons in modal
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeEditModal() {
+        document.getElementById('editProfileModal').classList.remove('active');
+        document.body.style.overflow = 'auto';
+        
+        // Clear errors
+        document.querySelectorAll('.form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('.form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('editProfileModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeEditModal();
+        }
+    });
+
+    // Handle form submission
+    document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+        form.classList.add('loading');
+        
+        // Clear previous errors
+        document.querySelectorAll('.form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('.form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('{% url "accounts:profile" %}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show success toast
+                if (window.toast) {
+                    window.toast.success(data.message);
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message, 'success');
+                }
+                
+                // Update displayed information
+                if (data.user) {
+                    document.getElementById('display-full-name').textContent = data.user.full_name;
+                    document.getElementById('display-email').textContent = data.user.email;
+                    document.getElementById('display-phone').textContent = data.user.phone || 'Not provided';
+                    
+                    if (data.user.date_of_birth) {
+                        const date = new Date(data.user.date_of_birth);
+                        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                        document.getElementById('display-dob').textContent = date.toLocaleDateString('en-US', options);
+                    } else {
+                        document.getElementById('display-dob').textContent = 'Not provided';
+                    }
+                    
+                    // Update header
+                    document.querySelectorAll('h1').forEach(el => {
+                        if (el.textContent.includes('@')) return;
+                        el.textContent = data.user.full_name;
+                    });
+                }
+                
+                // Close modal
+                setTimeout(() => {
+                    closeEditModal();
+                }, 500);
+                
+            } else {
+                }
+                
+                // Show error toast
+                if (window.toast) {
+                    window.toast.error(data.message || 'Please correct the errors below.');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Please correct the errors below.', 'error');
+                }
+                
+                // Display field errors
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorEl = document.getElementById(`error-${field}`);
+                        const inputEl = document.getElementById(`id_${field}`);
+                        
+                        if (errorEl && errors.length > 0) {
+                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.style.display = 'flex';
+                        }
+                        
+                        if (inputEl) {
+                            inputEl.classList.add('error');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            } else if (window.AuroraMart && window.AuroraMart.toast) {
+                window.AuroraMart.toast('An error occurred. Please try again.', 'error');
+            }
+        } finally {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+            form.classList.remove('loading');
+        }
+    });
+
+    // Real-time validation
+    document.querySelectorAll('.form-control').forEach(input => {
+        input.addEventListener('blur', function() {
+            const errorEl = document.getElementById(`error-${this.name}`);
+            if (errorEl) {
+                errorEl.style.display = 'none';
+            }
+            this.classList.remove('error');
+        });
+
+        input.addEventListener('input', function() {
+            if (this.classList.contains('error')) {
+                this.classList.remove('error');
+                const errorEl = document.getElementById(`error-${this.name}`);
+                if (errorEl) {
+                    errorEl.style.display = 'none';
+                }
+            }
+        });
+    });
+
+    // Initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>
 {% endblock %}

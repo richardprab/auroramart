@@ -35,6 +35,15 @@ def index(request):
             .distinct()
             .count()
         )
+    
+    # Get user's wishlist items if authenticated
+    user_wishlist_ids = []
+    if request.user.is_authenticated:
+        from accounts.models import Wishlist
+        user_wishlist_ids = list(
+            Wishlist.objects.filter(user=request.user)
+            .values_list('product_id', flat=True)
+        )
 
     return render(
         request,
@@ -42,6 +51,7 @@ def index(request):
         {
             "featured_products": featured_products,
             "categories": cats,
+            "user_wishlist_ids": user_wishlist_ids,
         },
     )
 

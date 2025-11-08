@@ -5,13 +5,10 @@ from . import views
 app_name = "accounts"
 
 urlpatterns = [
-    # Auth
     path("register/", views.register, name="register"),
     path('login/', views.user_login, name='login'),
     path("logout/", LogoutView.as_view(), name="logout"),
-    # Profile
     path("profile/", views.profile, name="profile"),
-    # Wishlist
     path("wishlist/", views.wishlist, name="wishlist"),
     path(
         "wishlist/add/<int:product_id>/", views.add_to_wishlist, name="add_to_wishlist"
@@ -20,5 +17,10 @@ urlpatterns = [
         "wishlist/remove/<int:product_id>/",
         views.remove_from_wishlist,
         name="remove_from_wishlist",
+    ),
+    path(
+        "wishlist/move-to-cart/<int:wishlist_id>/",
+        views.move_to_cart,
+        name="move_to_cart",
     ),
 ]

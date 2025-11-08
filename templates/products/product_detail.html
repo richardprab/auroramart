@@ -208,16 +208,15 @@
                 {% endif %}
 
                 {% if user.is_authenticated %}
-                <form action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" method="post">
+                <form action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" method="post" data-wishlist-toggle>
                     {% csrf_token %}
-                    <button type="submit"
+                    <button type="submit" data-product-id="{{ product.id }}"
                         class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <path
-                                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
-                            </path>
-                        </svg>
+                        {% if is_in_wishlist %}
+                        <i data-lucide="heart" class="w-6 h-6 text-red-500 fill-current"></i>
+                        {% else %}
+                        <i data-lucide="heart" class="w-6 h-6"></i>
+                        {% endif %}
                     </button>
                 </form>
                 {% endif %}
