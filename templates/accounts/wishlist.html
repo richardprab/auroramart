@@ -145,7 +145,8 @@
                     </a>
                     
                     <!-- Remove Button (Overlay) -->
-                    <button onclick="removeFromWishlist({{ item.id }}, {{ item.display_product.id }})" 
+                    <button data-remove-wishlist="{{ item.id }}" 
+                            data-product-id="{{ item.display_product.id }}"
                             class="remove-btn absolute top-3 right-3 bg-white rounded-full p-2 shadow-lg hover:bg-red-50 transition-colors">
                         <i data-lucide="x" class="w-5 h-5 text-red-600"></i>
                     </button>
@@ -213,7 +214,7 @@
                     <!-- Actions -->
                     <div class="flex flex-col gap-2">
                         {% if item.in_stock %}
-                            <button onclick="moveToCart({{ item.id }})" 
+                            <button data-move-to-cart="{{ item.id }}" 
                                     class="action-btn btn-move-to-cart w-full justify-center"
                                     data-item-id="{{ item.id }}">
                                 <i data-lucide="shopping-cart" class="w-4 h-4"></i>
@@ -267,6 +268,31 @@
         init() {
             lucide.createIcons();
             this.updateLocalWishlistCount();
+            this.attachEventListeners();
+        },
+
+        /**
+         * Attach event listeners for wishlist actions
+         */
+        attachEventListeners() {
+            // Event delegation for move to cart buttons
+            document.addEventListener('click', (e) => {
+                const moveButton = e.target.closest('[data-move-to-cart]');
+                if (moveButton) {
+                    e.preventDefault();
+                    const wishlistId = moveButton.getAttribute('data-move-to-cart');
+                    this.moveToCart(wishlistId);
+                }
+
+                // Event delegation for remove buttons
+                const removeButton = e.target.closest('[data-remove-wishlist]');
+                if (removeButton) {
+                    e.preventDefault();
+                    const wishlistId = removeButton.getAttribute('data-remove-wishlist');
+                    const productId = removeButton.getAttribute('data-product-id');
+                    this.removeFromWishlist(wishlistId, productId);
+                }
+            });
         },
 
         /**
@@ -427,10 +453,6 @@
             }
         }
     };
-
-    // Expose functions to global scope for inline onclick handlers
-    window.moveToCart = (wishlistId) => WishlistPage.moveToCart(wishlistId);
-    window.removeFromWishlist = (wishlistId, productId) => WishlistPage.removeFromWishlist(wishlistId, productId);
 
     // Initialize on DOM ready
     document.addEventListener('DOMContentLoaded', () => {

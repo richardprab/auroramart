@@ -70,6 +70,27 @@ const WishlistModule = {
                 }
             });
         });
+
+        /**
+         * Attach event listeners for wishlist actions
+         */
+        const container = document.querySelector('.wishlist-container');
+        if (!container) return;
+
+        container.addEventListener('click', (e) => {
+            const button = e.target.closest('button[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const wishlistId = button.dataset.wishlistId;
+            const productId = button.dataset.productId;
+
+            if (action === 'remove') {
+                this.removeFromWishlist(wishlistId, productId);
+            } else if (action === 'move-to-cart') {
+                this.moveToCart(wishlistId);
+            }
+        });
     },
 
     /**
