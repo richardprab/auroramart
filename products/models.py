@@ -64,8 +64,6 @@ class Product(models.Model):
     review_count = models.IntegerField(default=0)
 
     # --- Merchandising Flags (from your snippet) ---
-    is_trending = models.BooleanField(default=False)
-    is_bestseller = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 

@@ -151,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Profile dropdown with hover delay
     const profileButton = document.getElementById('user-menu-button');
     const profileDropdown = document.getElementById('user-menu');
+    const profileWrapper = profileButton?.parentElement; // Get the wrapper element
     let hideTimeout;
     const DROPDOWN_DELAY = 300; // Reduced delay for better UX
 

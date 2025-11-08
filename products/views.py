@@ -126,7 +126,7 @@ def product_list(request):
     elif sort_by == "name":
         products = products.order_by("name")
     else:  # featured
-        products = products.order_by("-is_featured", "-is_bestseller", "-created_at")
+        products = products.order_by("-is_featured", "-created_at")
     
     # Remove duplicates after all filtering and sorting
     products = products.distinct()
@@ -256,17 +256,6 @@ def product_detail(request, slug):
         is_active=True,
     )
 
-    related_products = (
-        Product.objects.filter(category=product.category, is_active=True)
-        .exclude(id=product.id)
-        .prefetch_related(
-            Prefetch(
-                "variants", queryset=ProductVariant.objects.filter(is_active=True)
-            ),
-            Prefetch("images", queryset=ProductImage.objects.order_by("display_order")),
-        )[:4]
-    )
-
     # Check if this is a fashion category
     fashion_slugs = ['fashion', 'men', 'women', 'kids', 'clothing', 'apparel']
     category_slug_lower = product.category.slug.lower()
@@ -296,7 +285,6 @@ def product_detail(request, slug):
 
     context = {
         "product": product,
-        "related_products": related_products,
         "is_fashion_category": is_fashion_category,
         "available_colors": available_colors,
         "available_sizes": available_sizes,

@@ -5,24 +5,18 @@ from products.models import Product, Category
 
 def index(request):
     """Home page view"""
+    # Featured products for "Recommended For You" section
     featured_products = (
-        Product.objects.filter(is_active=True)
+        Product.objects.filter(is_active=True, is_featured=True)
         .select_related("category")
         .prefetch_related("images", "variants")[:8]
     )
 
-    # Keep placeholders order from the seed: Electronics, Fashion, Home & Garden, Sports
-    slugs = ["electronics", "fashion", "home-garden", "sports"]
-    ordering = Case(
-        *[When(slug=s, then=idx) for idx, s in enumerate(slugs)],
-        default=len(slugs),
-        output_field=IntegerField(),
-    )
-
+    # Get all parent categories (categories without parent)
     cats = list(
-        Category.objects.filter(slug__in=slugs, is_active=True)
-        .only("id", "name", "slug", "parent")
-        .order_by(ordering)
+        Category.objects.filter(parent__isnull=True, is_active=True)
+        .only("id", "name", "slug")
+        .order_by("name")
     )
 
     # Attach accurate product_count (includes direct children)
@@ -44,6 +38,16 @@ def index(request):
             Wishlist.objects.filter(user=request.user)
             .values_list('product_id', flat=True)
         )
+
+    return render(
+        request,
+        "home/index.html",
+        {
+            "categories": cats,
+            "featured_products": featured_products,
+            "user_wishlist_ids": user_wishlist_ids,
+        },
+    )
 
     return render(
         request,

@@ -296,6 +296,75 @@ class CustomUserCreationForm(UserCreationForm):
         return user
 
 
+class WelcomePersonalizationForm(forms.ModelForm):
+    """Quick personalization form shown after registration"""
+    
+    age_range = forms.ChoiceField(
+        required=False,
+        choices=[
+            ('', 'Select your age range'),
+            ('18-24', '18-24'),
+            ('25-34', '25-34'),
+            ('35-44', '35-44'),
+            ('45-54', '45-54'),
+            ('55-64', '55-64'),
+            ('65+', '65+'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    
+    gender = forms.ChoiceField(
+        required=False,
+        choices=[
+            ('', 'Select gender'),
+            ('Male', 'Male'),
+            ('Female', 'Female'),
+            ('Other', 'Prefer not to say'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    
+    shopping_interest = forms.ChoiceField(
+        required=False,
+        label="What brings you here?",
+        choices=[
+            ('', 'What are you interested in?'),
+            ('Electronics', 'Electronics & Gadgets'),
+            ('Fashion - Men', 'Men\'s Fashion'),
+            ('Fashion - Women', 'Women\'s Fashion'),
+            ('Home & Kitchen', 'Home & Kitchen'),
+            ('Beauty & Personal Care', 'Beauty & Personal Care'),
+            ('Sports & Outdoors', 'Sports & Outdoors'),
+            ('Books', 'Books'),
+            ('Groceries & Gourmet', 'Groceries'),
+            ('Pet Supplies', 'Pet Supplies'),
+            ('Automotive', 'Automotive'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    
+    class Meta:
+        model = User
+        fields = ['age_range', 'gender']
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        
+        # Map shopping interest to preferred category if provided
+        if self.cleaned_data.get('shopping_interest'):
+            from products.models import Category
+            category_name = self.cleaned_data['shopping_interest']
+            try:
+                category = Category.objects.get(name=category_name)
+                user.preferred_category = category
+            except Category.DoesNotExist:
+                pass
+        
+        if commit:
+            user.save()
+        return user
+
+
 class UserProfileForm(forms.ModelForm):
     """Form for editing user profile information"""
 
@@ -374,7 +443,19 @@ class UserProfileForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email", "phone", "date_of_birth"]
+        fields = [
+            "first_name", 
+            "last_name", 
+            "email", 
+            "phone", 
+            "date_of_birth",
+            "age_range",
+            "gender",
+            "occupation",
+            "education",
+            "household_size",
+            "has_children",
+        ]
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)

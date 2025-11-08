@@ -24,6 +24,7 @@ from accounts.api_views import (
 )
 from orders.api_views import OrderViewSet
 from notifications.api_views import NotificationViewSet
+from recommendations import api_views as recommendations_api
 
 # Create router
 router = DefaultRouter()
@@ -54,6 +55,12 @@ urlpatterns = [
     # User registration and profile
     path('auth/register/', UserRegistrationView.as_view(), name='register'),
     path('auth/profile/', UserProfileView.as_view(), name='profile'),
+    
+    # Recommendations API
+    path('recommendations/predict-category/', recommendations_api.predict_user_category, name='predict_category'),
+    path('recommendations/similar-products/<int:product_id>/', recommendations_api.get_similar_products, name='similar_products'),
+    path('recommendations/cart-recommendations/', recommendations_api.get_cart_recommendations, name='cart_recommendations'),
+    path('recommendations/personalized/', recommendations_api.get_personalized_recommendations, name='personalized'),
     
     # Include router URLs
     path('', include(router.urls)),

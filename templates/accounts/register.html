@@ -11,7 +11,7 @@
 <div class="auth-page">
     <div class="auth-card">
         <div class="auth-header">
-            <h1>🛒 Create Account</h1>
+            <h1><i data-lucide="shopping-cart" class="inline-block w-8 h-8"></i> Create Account</h1>
             <p>
                 Already have an account?
                 <a href="{% url 'accounts:login' %}">Sign in here</a>
@@ -22,19 +22,16 @@
         {% if form.non_field_errors %}
         <div class="alert alert-error">
             {% for error in form.non_field_errors %}
-            <div>⚠️ {{ error }}</div>
+            <div><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
             {% endfor %}
         </div>
         {% endif %}
 
-        <!-- Success messages will be shown as toasts -->
+        <!-- Success messages will be shown as toasts (these are consumed and won't repeat) -->
         {% if messages %}
-        <div style="display: none;">
+        <div style="display: none;" id="django-messages">
             {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} toast-message" data-message="{{ message }}"
-                data-type="{{ message.tags }}">
-                {{ message }}
-            </div>
+            <div class="toast-message" data-message="{{ message }}" data-type="{{ message.tags }}"></div>
             {% endfor %}
         </div>
         {% endif %}
@@ -53,7 +50,7 @@
                     autocomplete="username" required autofocus>
                 {% if form.username.errors %}
                 {% for error in form.username.errors %}
-                <div class="form-error">⚠️ {{ error }}</div>
+                <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
                 {% if form.username.help_text %}
@@ -72,7 +69,7 @@
                     autocomplete="email" required>
                 {% if form.email.errors %}
                 {% for error in form.email.errors %}
-                <div class="form-error">⚠️ {{ error }}</div>
+                <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
                 {% if form.email.help_text %}
@@ -91,7 +88,7 @@
                     placeholder="Enter your first name" autocomplete="given-name" required>
                 {% if form.first_name.errors %}
                 {% for error in form.first_name.errors %}
-                <div class="form-error">⚠️ {{ error }}</div>
+                <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
                 {% if form.first_name.help_text %}
@@ -110,7 +107,7 @@
                     placeholder="Enter your last name" autocomplete="family-name" required>
                 {% if form.last_name.errors %}
                 {% for error in form.last_name.errors %}
-                <div class="form-error">⚠️ {{ error }}</div>
+                <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
                 {% if form.last_name.help_text %}
@@ -128,7 +125,7 @@
                     placeholder="Create a strong password" autocomplete="new-password" required>
                 {% if form.password1.errors %}
                 {% for error in form.password1.errors %}
-                <div class="form-error">⚠️ {{ error }}</div>
+                <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
                 {% if form.password1.help_text %}
@@ -146,7 +143,7 @@
                     placeholder="Re-enter your password" autocomplete="new-password" required>
                 {% if form.password2.errors %}
                 {% for error in form.password2.errors %}
-                <div class="form-error">⚠️ {{ error }}</div>
+                <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
                 {% if form.password2.help_text %}
@@ -177,7 +174,7 @@
         const form = document.querySelector('.auth-form');
         const inputs = form.querySelectorAll('.form-control');
 
-        // Show toast messages
+        // Display toast messages (only once per page load)
         const toastMessages = document.querySelectorAll('.toast-message');
         toastMessages.forEach(el => {
             const message = el.dataset.message;
@@ -194,6 +191,12 @@
                 AuroraMart.toast(message, typeMap[type] || 'info', 5000);
             }
         });
+        
+        // Remove messages container after displaying to prevent re-triggering
+        const messagesContainer = document.getElementById('django-messages');
+        if (messagesContainer) {
+            messagesContainer.remove();
+        }
 
         // Real-time validation
         inputs.forEach(input => {

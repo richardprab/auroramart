@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from products.models import Product
 from .models import Wishlist
-from .forms import CustomUserCreationForm, UserProfileForm
+from .forms import CustomUserCreationForm, UserProfileForm, WelcomePersonalizationForm
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import logout
 import json
@@ -34,14 +34,12 @@ def user_login(request):
                 
                 # Check if user is staff and redirect accordingly
                 if user.is_staff:
-                    messages.success(request, f'Welcome back, {user.username}!')
                     return redirect('adminpanel:dashboard')
                 else:
-                    messages.success(request, f'Welcome back, {user.username}!')
                     next_url = request.POST.get('next') or request.GET.get('next', 'home:index')
                     return redirect(next_url)
         else:
-            messages.error(request, 'Invalid username or password.')
+            messages.error(request, 'Invalid credentials. Please try again.')
     else:
         form = AuthenticationForm()
     
@@ -60,13 +58,11 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            messages.success(
-                request,
-                f"Welcome, {user.username}! Your account has been created successfully!",
-            )
-            return redirect("home:index")
+            # Redirect to welcome personalization screen without toast
+            return redirect("accounts:welcome")
         else:
-            messages.error(request, "Please correct the errors below.")
+            # Don't show generic error message, let form errors show
+            pass
     else:
         form = CustomUserCreationForm()
 
@@ -74,6 +70,25 @@ def register(request):
         "form": form,
     }
     return render(request, "accounts/register.html", context)
+
+
+@login_required
+def welcome_personalization(request):
+    """Welcome screen for new users to personalize their experience"""
+    # If user already has preferences set, skip to home
+    if request.user.age_range and request.user.gender:
+        return redirect("home:index")
+    
+    if request.method == "POST":
+        form = WelcomePersonalizationForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile personalized! Enjoy your shopping experience.")
+            return redirect("home:index")
+    else:
+        form = WelcomePersonalizationForm(instance=request.user)
+    
+    return render(request, "accounts/welcome.html", {"form": form})
 
 
 @login_required
@@ -128,8 +143,7 @@ def profile(request):
             form.save()
             messages.success(request, "Profile updated successfully!")
             return redirect("accounts:profile")
-        else:
-            messages.error(request, "Please correct the errors below.")
+        # Don't show generic error, let form errors display
     else:
         form = UserProfileForm(instance=request.user, user=request.user)
 
@@ -141,6 +155,44 @@ def profile(request):
         "recent_orders": recent_orders,
     }
     return render(request, "accounts/profile.html", context)
+
+
+@login_required
+def update_demographics(request):
+    """Update user demographics for ML recommendations"""
+    if request.method == "POST":
+        user = request.user
+        
+        # Update demographic fields
+        if request.POST.get('age_range'):
+            user.age_range = request.POST.get('age_range')
+        if request.POST.get('gender'):
+            user.gender = request.POST.get('gender')
+        if request.POST.get('household_size'):
+            user.household_size = request.POST.get('household_size')
+        if request.POST.get('has_children'):
+            user.has_children = request.POST.get('has_children') == 'true'
+        if request.POST.get('occupation'):
+            user.occupation = request.POST.get('occupation')
+        if request.POST.get('education'):
+            user.education = request.POST.get('education')
+        if request.POST.get('employment'):
+            user.employment = request.POST.get('employment')
+        if request.POST.get('income_range'):
+            user.income_range = request.POST.get('income_range')
+        
+        user.save()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Profile updated successfully! Your recommendations will be more personalized.'
+            })
+        else:
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('accounts:profile')
+    
+    return redirect('accounts:profile')
 
 
 @login_required
@@ -197,11 +249,7 @@ def add_to_wishlist(request, product_id):
                 }
             )
 
-        if created:
-            messages.success(request, f"{product.name} added to wishlist!")
-        else:
-            messages.info(request, f"{product.name} is already in your wishlist")
-
+        # No toast for wishlist actions
         return redirect("products:product_detail", slug=product.slug)
 
     return redirect("products:product_list")
@@ -218,7 +266,7 @@ def remove_from_wishlist(request, product_id):
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return JsonResponse({"success": True, "message": "Removed from wishlist"})
 
-        messages.success(request, f"{product.name} removed from wishlist")
+        # No toast for wishlist removal
         return redirect("accounts:wishlist")
 
     return redirect("accounts:wishlist")
@@ -246,27 +294,27 @@ def move_to_cart(request, wishlist_id):
                 if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                     return JsonResponse({
                         "success": False,
-                        "message": "Product is out of stock"
+                        "message": f"{product.name} is currently out of stock"
                     })
-                messages.error(request, f"{product.name} is out of stock")
+                messages.error(request, f"{product.name} is currently out of stock")
                 return redirect("accounts:wishlist")
         else:
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return JsonResponse({
                     "success": False,
-                    "message": "Invalid wishlist item"
+                    "message": "Unable to move this item to cart"
                 })
-            messages.error(request, "Invalid wishlist item")
+            messages.error(request, "Unable to move this item to cart")
             return redirect("accounts:wishlist")
         
-        # Check stock availability
+        # Check stock availability (consolidated check)
         if variant.stock < 1:
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return JsonResponse({
                     "success": False,
-                    "message": "Product is out of stock"
+                    "message": f"{product.name} is currently out of stock"
                 })
-            messages.error(request, f"{product.name} is out of stock")
+            messages.error(request, f"{product.name} is currently out of stock")
             return redirect("accounts:wishlist")
         
         # Get or create cart
@@ -289,9 +337,9 @@ def move_to_cart(request, wishlist_id):
                 if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                     return JsonResponse({
                         "success": False,
-                        "message": "Maximum stock quantity already in cart"
+                        "message": f"Only {variant.stock} left in stock"
                     })
-                messages.warning(request, f"Maximum available quantity of {product.name} is already in your cart")
+                # No toast for stock warning
                 return redirect("accounts:wishlist")
         
         # Remove from wishlist
@@ -300,10 +348,10 @@ def move_to_cart(request, wishlist_id):
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return JsonResponse({
                 "success": True,
-                "message": f"{product.name} moved to cart"
+                "message": "Moved to cart"
             })
         
-        messages.success(request, f"{product.name} moved to cart!")
+        # No toast for move to cart
         return redirect("accounts:wishlist")
     
     return redirect("accounts:wishlist")

@@ -15,7 +15,7 @@ def checkout(request):
     cart_items = cart.items.select_related("product", "product_variant").all()
 
     if not cart_items:
-        messages.warning(request, "Your cart is empty.")
+        # No toast, just redirect
         return redirect("cart:cart_detail")
 
     # Calculate totals using helper function

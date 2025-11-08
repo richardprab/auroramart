@@ -11,7 +11,7 @@
 <div class="auth-page">
     <div class="auth-card">
         <div class="auth-header">
-            <h1>🛒 Welcome Back</h1>
+            <h1><i data-lucide="shopping-cart" class="inline-block w-8 h-8"></i> Welcome Back</h1>
             <p>
                 New to AuroraMart?
                 <a href="{% url 'accounts:register' %}">Create an account</a>
@@ -23,22 +23,19 @@
         <div class="alert alert-error">
             {% if form.non_field_errors %}
             {% for error in form.non_field_errors %}
-            <div>⚠️ {{ error }}</div>
+            <div><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
             {% endfor %}
             {% else %}
-            <div>⚠️ Please correct the errors below.</div>
+            <div><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> Please correct the errors below.</div>
             {% endif %}
         </div>
         {% endif %}
 
-        <!-- Success messages will be shown as toasts -->
+        <!-- Success messages will be shown as toasts (these are consumed and won't repeat) -->
         {% if messages %}
-        <div style="display: none;">
+        <div style="display: none;" id="django-messages">
             {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} toast-message" data-message="{{ message }}"
-                data-type="{{ message.tags }}">
-                {{ message }}
-            </div>
+            <div class="toast-message" data-message="{{ message }}" data-type="{{ message.tags }}"></div>
             {% endfor %}
         </div>
         {% endif %}
@@ -56,7 +53,7 @@
                     placeholder="Enter your username or email" required autofocus>
                 {% if form.username.errors %}
                 {% for error in form.username.errors %}
-                <div class="form-error">⚠️ {{ error }}</div>
+                <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
             </div>
@@ -71,7 +68,7 @@
                     required>
                 {% if form.password.errors %}
                 {% for error in form.password.errors %}
-                <div class="form-error">⚠️ {{ error }}</div>
+                <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
             </div>
@@ -113,6 +110,7 @@
         const form = document.querySelector('.auth-form');
         const inputs = form.querySelectorAll('.form-control');
 
+        // Display toast messages (only once per page load)
         const toastMessages = document.querySelectorAll('.toast-message');
         toastMessages.forEach(el => {
             const message = el.dataset.message;
@@ -130,6 +128,12 @@
                 AuroraMart.toast(message, typeMap[type] || 'info', 5000);
             }
         });
+        
+        // Remove messages container after displaying to prevent re-triggering
+        const messagesContainer = document.getElementById('django-messages');
+        if (messagesContainer) {
+            messagesContainer.remove();
+        }
 
         // Real-time validation
         inputs.forEach(input => {

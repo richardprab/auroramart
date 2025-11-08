@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "adminpanel",
     "notifications",
     "chat",
+    "recommendations",
 ]
 
 MIDDLEWARE = [
