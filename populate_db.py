@@ -4,6 +4,7 @@ import random
 from decimal import Decimal
 from pathlib import Path
 import urllib.request
+import csv
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "auroramartproject.settings")
 import django  # noqa: E402
@@ -233,6 +234,11 @@ def ensure_product_image(product, image_urls: list):
     img = product.images.order_by("display_order").first()
     if img:
         return img
+    # Fallback to a generic image if image_urls is empty
+    if not image_urls:
+        image_urls = [
+            "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=1200&q=70"
+        ]
     url = RNG.choice(image_urls)
     img = ProductImage(
         product=product,
@@ -259,7 +265,13 @@ def unique_value(model, field: str, base: str) -> str:
 def product_defaults(name: str, cat, parent_cat, idx: int) -> dict:
     base_slug = slugify(name)
     slug = unique_value(Product, "slug", base_slug)
-    base_sku = f"{cat.name[:3].upper()}-{idx:04d}"
+    
+    # Generate SKU in format matching the ML model: XXX-YYYYYYYY (12 chars total)
+    # XXX = 3-letter category code, YYYYYYYY = 8 random alphanumeric characters
+    import string
+    category_code = cat.name[:3].upper().ljust(3, 'X')  # Ensure 3 chars
+    random_part = ''.join(RNG.choices(string.ascii_uppercase + string.digits, k=8))
+    base_sku = f"{category_code}-{random_part}"
     sku = unique_value(Product, "sku", base_sku)
 
     # Get brand for this category
@@ -279,130 +291,6 @@ def product_defaults(name: str, cat, parent_cat, idx: int) -> dict:
         "is_featured": (idx % 3 == 0),
         "is_active": True,
     }
-
-
-@transaction.atomic
-def seed(reset: bool = False, per_category: int = 3, variants_per_product: int = 3):
-    # Create sample users with demographic data
-    create_sample_users()
-    
-    if reset:
-        print("Resetting catalog…")
-        ProductVariant.objects.all().delete()
-        ProductImage.objects.all().delete()
-        Product.objects.all().delete()
-        Category.objects.all().delete()
-
-    for top, subs, image_urls in CATEGORIES:
-        parent, _ = Category.objects.get_or_create(
-            name=top, defaults={"slug": slugify(top), "parent": None, "is_active": True}
-        )
-        targets = []
-        if subs:
-            for s in subs:
-                c, _ = Category.objects.get_or_create(
-                    name=s,
-                    defaults={"slug": slugify(s), "parent": parent, "is_active": True},
-                )
-                targets.append(c)
-        else:
-            targets = [parent]
-
-        low, high = base_price_for(parent.name)
-
-        for cat in targets:
-            for i in range(1, per_category + 1):
-                name = f"{cat.name} Product {i}"
-                defaults = product_defaults(name, cat, parent, i)
-
-                # Use slug for lookup so re‑runs don't duplicate by name
-                product, created = Product.objects.get_or_create(
-                    slug=defaults["slug"], defaults=defaults
-                )
-                if created:
-                    print(f"Created product: {product.name} (Brand: {product.brand})")
-                else:
-                    # Ensure required fields if product already existed
-                    if not product.sku:
-                        product.sku = unique_value(
-                            Product, "sku", f"{cat.name[:3].upper()}-{i:04d}"
-                        )
-                    if not product.category_id:
-                        product.category = cat
-                    if not product.brand:
-                        brand_list = BRANDS.get(parent.name, ["Generic"])
-                        product.brand = RNG.choice(brand_list)
-                    product.save()
-
-                primary_img = ensure_product_image(product, image_urls)
-
-                # Create variants with color, size, price, and stock
-                if product.variants.count() == 0:
-                    # Check if this is a fashion category (products that have sizes/colors)
-                    fashion_categories = ['Fashion - Men', 'Fashion - Women']
-                    is_fashion = parent.name in fashion_categories
-                    
-                    if is_fashion:
-                        # Fashion products: multiple variants with colors and sizes
-                        product_colors = RNG.sample(
-                            COLORS, min(variants_per_product, len(COLORS))
-                        )
-                        product_sizes = RNG.sample(
-                            SIZES, min(variants_per_product, len(SIZES))
-                        )
-
-                        for v in range(variants_per_product):
-                            base_price = Decimal(RNG.randint(low, high))
-                            price = max(
-                                base_price + Decimal(RNG.randint(-20, 40)), Decimal("5.00")
-                            )
-                            compare = price + Decimal(RNG.choice([0, 10, 20, 50, 100]))
-
-                            color = product_colors[v % len(product_colors)]
-                            size = product_sizes[v % len(product_sizes)]
-                            sku_suffix = f"{color[:3].upper()}-{size}"
-
-                            variant_sku = unique_value(
-                                ProductVariant, "sku", f"{product.sku}-{sku_suffix}"
-                            )
-
-                            ProductVariant.objects.create(
-                                product=product,
-                                sku=variant_sku,
-                                color=color,
-                                size=size,
-                                price=price,
-                                compare_price=compare if compare > price else None,
-                                stock=RNG.randint(0, 80),
-                                is_active=True,
-                                is_default=(v == 0),
-                            )
-                            print(f"  → Created variant: {color} / {size} - ${price}")
-                    else:
-                        # Non-fashion products: single variant without color/size
-                        base_price = Decimal(RNG.randint(low, high))
-                        compare = base_price + Decimal(RNG.choice([0, 10, 20, 50, 100]))
-                        
-                        variant_sku = unique_value(
-                            ProductVariant, "sku", f"{product.sku}-STD"
-                        )
-                        
-                        ProductVariant.objects.create(
-                            product=product,
-                            sku=variant_sku,
-                            color="",  # No color for non-fashion
-                            size="",   # No size for non-fashion
-                            price=base_price,
-                            compare_price=compare if compare > base_price else None,
-                            stock=RNG.randint(5, 100),
-                            is_active=True,
-                            is_default=True,
-                        )
-                        print(f"  → Created single variant: ${base_price}")
-
-    print(
-        f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
-    )
 
 
 def create_sample_users():
@@ -593,9 +481,131 @@ def create_sample_users():
     return created_count
 
 
+@transaction.atomic
+def seed_from_csv(csv_path, reset=False):
+    create_sample_users()
+    if reset:
+        print("Resetting catalog…")
+        ProductVariant.objects.all().delete()
+        ProductImage.objects.all().delete()
+        Product.objects.all().delete()
+        Category.objects.all().delete()
+
+    # Cache for categories
+    category_cache = {}
+
+    # Try reading CSV with utf-8-sig, fallback to latin1 if error
+    try:
+        csvfile = open(csv_path, newline='', encoding='utf-8-sig')
+        reader = csv.DictReader(csvfile)
+        rows = list(reader)
+        csvfile.close()
+    except UnicodeDecodeError:
+        print("WARNING: utf-8-sig decode failed, trying latin1 encoding.")
+        csvfile = open(csv_path, newline='', encoding='latin1')
+        reader = csv.DictReader(csvfile)
+        rows = list(reader)
+        csvfile.close()
+
+    for idx, row in enumerate(rows):
+        sku = row.get("SKU code")
+        name = row.get("Product name")
+        description = row.get("Product description") or f"High-quality {name}."
+        parent_cat_name = row.get("Product Category")
+        subcat_name = row.get("Product Subcategory")
+        price = Decimal(row.get("Unit price") or RNG.randint(10, 100))
+        rating = Decimal(row.get("Product rating") or round(RNG.uniform(3.8, 5.0), 1))
+        stock = int(row.get("Quantity on hand") or RNG.randint(10, 100))
+        reorder_qty = int(row.get("Reorder Quantity") or RNG.randint(5, 20))
+
+        # Create parent category
+        if parent_cat_name not in category_cache:
+            parent_cat, _ = Category.objects.get_or_create(
+                name=parent_cat_name,
+                defaults={"slug": slugify(parent_cat_name), "parent": None, "is_active": True}
+            )
+            category_cache[parent_cat_name] = parent_cat
+        else:
+            parent_cat = category_cache[parent_cat_name]
+
+        # Create subcategory
+        if subcat_name:
+            subcat_key = f"{parent_cat_name}:{subcat_name}"
+            if subcat_key not in category_cache:
+                subcat, _ = Category.objects.get_or_create(
+                    name=subcat_name,
+                    defaults={"slug": slugify(subcat_name), "parent": parent_cat, "is_active": True}
+                )
+                category_cache[subcat_key] = subcat
+            else:
+                subcat = category_cache[subcat_key]
+        else:
+            subcat = parent_cat
+
+        # Brand random from parent category brands or "Generic"
+        brand_list = BRANDS.get(parent_cat_name, ["Generic"])
+        brand = RNG.choice(brand_list)
+
+        slug = unique_value(Product, "slug", slugify(name))
+        product, created = Product.objects.get_or_create(
+            sku=sku,
+            defaults={
+                "name": name,
+                "slug": slug,
+                "category": subcat,
+                "brand": brand,
+                "description": description,
+                "size_guide": "Refer to the product details for sizing.",
+                "rating": rating,
+                "review_count": RNG.randint(3, 120),
+                "is_featured": (idx % 3 == 0),
+                "is_active": True,
+            }
+        )
+        if created:
+            print(f"Created product: {product.name} (SKU: {sku}, Brand: {brand})")
+        else:
+            product.category = subcat
+            product.brand = brand
+            product.description = description
+            product.rating = rating
+            product.is_active = True
+            product.save()
+
+        # Find image URLs for the product's parent category and subcategory
+        image_urls = []
+        for cat_name, subcats, urls in CATEGORIES:
+            if cat_name == parent_cat_name:
+                image_urls = urls
+                break
+        ensure_product_image(product, image_urls)
+
+        # Create a default variant if none exists
+        if product.variants.count() == 0:
+            color = RNG.choice(COLORS)
+            size = RNG.choice(SIZES)
+            variant_sku = unique_value(ProductVariant, "sku", f"{sku}-V")
+            ProductVariant.objects.create(
+                product=product,
+                sku=variant_sku,
+                color=color,
+                size=size,
+                price=price,
+                compare_price=price + Decimal(RNG.choice([0, 10, 20, 50, 100])),
+                stock=stock,
+                is_active=True,
+                is_default=True,
+            )
+            print(f"  → Created variant: {color} / {size} - ${price} (SKU: {variant_sku})")
+
+    print(
+        f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Seed a small catalog with images, prices, and stock."
+        description="Seed catalog from CSV."
     )
     parser.add_argument(
         "--reset",
@@ -603,22 +613,15 @@ def main():
         help="Delete existing products/categories first.",
     )
     parser.add_argument(
-        "--per-category",
-        type=int,
-        default=3,
-        help="Products per subcategory.",
-    )
-    parser.add_argument(
-        "--variants",
-        type=int,
-        default=3,
-        help="Variants per product.",
+        "--csv",
+        type=str,
+        default="data/b2c_products_500.csv",
+        help="CSV file to import products from.",
     )
     args = parser.parse_args()
-    seed(
+    seed_from_csv(
+        csv_path=args.csv,
         reset=args.reset,
-        per_category=args.per_category,
-        variants_per_product=args.variants,
     )
 
 

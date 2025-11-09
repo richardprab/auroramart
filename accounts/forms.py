@@ -299,31 +299,6 @@ class CustomUserCreationForm(UserCreationForm):
 class WelcomePersonalizationForm(forms.ModelForm):
     """Quick personalization form shown after registration"""
     
-    age_range = forms.ChoiceField(
-        required=False,
-        choices=[
-            ('', 'Select your age range'),
-            ('18-24', '18-24'),
-            ('25-34', '25-34'),
-            ('35-44', '35-44'),
-            ('45-54', '45-54'),
-            ('55-64', '55-64'),
-            ('65+', '65+'),
-        ],
-        widget=forms.Select(attrs={'class': 'form-control'}),
-    )
-    
-    gender = forms.ChoiceField(
-        required=False,
-        choices=[
-            ('', 'Select gender'),
-            ('Male', 'Male'),
-            ('Female', 'Female'),
-            ('Other', 'Prefer not to say'),
-        ],
-        widget=forms.Select(attrs={'class': 'form-control'}),
-    )
-    
     shopping_interest = forms.ChoiceField(
         required=False,
         label="What brings you here?",
@@ -345,20 +320,48 @@ class WelcomePersonalizationForm(forms.ModelForm):
     
     class Meta:
         model = User
-        fields = ['age_range', 'gender']
+        fields = []
     
     def save(self, commit=True):
         user = super().save(commit=False)
         
-        # Map shopping interest to preferred category if provided
-        if self.cleaned_data.get('shopping_interest'):
-            from products.models import Category
-            category_name = self.cleaned_data['shopping_interest']
-            try:
-                category = Category.objects.get(name=category_name)
-                user.preferred_category = category
-            except Category.DoesNotExist:
-                pass
+        # # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+        # # Map shopping interest to preferred category if provided
+        # if self.cleaned_data.get('shopping_interest'):
+        #     from products.models import Category
+        #     shopping_interest = self.cleaned_data['shopping_interest']
+        #     
+        #     # Map shopping interest to category name
+        #     category_mapping = {
+        #         'Electronics': 'Electronics',
+        #         'Fashion - Men': 'Men\'s Fashion',
+        #         'Fashion - Women': 'Women\'s Fashion',
+        #         'Home & Kitchen': 'Home & Kitchen',
+        #         'Beauty & Personal Care': 'Beauty & Personal Care',
+        #         'Sports & Outdoors': 'Sports & Outdoors',
+        #         'Books': 'Books',
+        #         'Groceries & Gourmet': 'Groceries & Gourmet',
+        #         'Pet Supplies': 'Pet Supplies',
+        #         'Automotive': 'Automotive',
+        #     }
+        #     
+        #     category_name = category_mapping.get(shopping_interest, shopping_interest)
+        #     
+        #     try:
+        #         # Try exact match first
+        #         category = Category.objects.filter(name=category_name, is_active=True).first()
+        #         
+        #         # If not found, try case-insensitive match
+        #         if not category:
+        #             category = Category.objects.filter(
+        #                 name__iexact=category_name, 
+        #                 is_active=True
+        #             ).first()
+        #         
+        #         if category:
+        #             user.preferred_category = category
+        #     except Exception:
+        #         pass  # Silently fail if category not found
         
         if commit:
             user.save()

@@ -1,10 +1,10 @@
 from django.db import models
-from products.models import ProductVariant
 from accounts.models import Address
 from django.conf import settings
 from datetime import timedelta
 from django.utils import timezone
 import uuid
+import random
 
 class Order(models.Model):
     """
@@ -46,6 +46,10 @@ class Order(models.Model):
         related_name="orders"
     )
     address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True)
+    delivery_address = models.TextField(
+        blank=True,
+        help_text="Snapshot of delivery address at time of order (for historical reference)."
+    )
     
     # Pricing Breakdown
     subtotal = models.DecimalField(
@@ -75,15 +79,13 @@ class Order(models.Model):
         help_text="The current fulfillment status of the order."
     )
 
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # ADD THIS
-    payment_status = models.CharField(max_length=20, blank=True)  # Already exists based on earlier code
+    payment_status = models.CharField(max_length=20, blank=True)
 
     payment_method = models.CharField(max_length=50, blank=True)
     current_location = models.CharField(max_length=50, choices=LOCATION_CHOICES, default='warehouse')
     
     # Contact information
     contact_number = models.CharField(max_length=20, blank=True)
-    delivery_address = models.TextField(blank=True)
     
     # Delivery tracking
     tracking_number = models.CharField(
@@ -119,7 +121,6 @@ class Order(models.Model):
             self.order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
         # Auto-generate expected delivery date if not set
         if not self.expected_delivery_date and self.status in ['confirmed', 'processing']:
-            import random
             days_to_deliver = random.randint(3, 7)
             self.expected_delivery_date = timezone.now().date() + timedelta(days=days_to_deliver)
         super().save(*args, **kwargs)
@@ -132,15 +133,13 @@ class OrderItem(models.Model):
     the quantity and price at the time of purchase.
     """
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey("products.Product", on_delete=models.CASCADE, null=True, blank=True)
+    product = models.ForeignKey("products.Product", on_delete=models.CASCADE, null=True, blank=True, help_text="Product reference (can be derived from variant)")
     product_variant = models.ForeignKey("products.ProductVariant", on_delete=models.CASCADE, null=True, blank=True, related_name="order_items")
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(
         max_digits=10, decimal_places=2,
         help_text="Price of the product *at the time of purchase*."
     )
-    
-    variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True)
     
     def __str__(self):
         """

@@ -98,12 +98,16 @@
 
 <!-- ML-Powered Personalized Recommendations / Featured Products -->
 {% if featured_products or user.is_authenticated %}
-<section class="py-16 bg-white" id="personalized-recommendations-section">
+<section class="py-16" id="personalized-recommendations-section">
     <div class="container mx-auto px-4">
-        <div class="mb-12">
+        <div class="mb-12 flex items-center justify-between">
             <h2 class="text-3xl font-bold" id="recommendations-title">
                 {% if user.is_authenticated %}Recommended For You{% else %}Featured Products{% endif %}
             </h2>
+            <a href="{% url 'products:product_list' %}" class="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-2 transition-colors">
+                View All Products
+                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </a>
         </div>
         
         <!-- Show featured products by default -->
@@ -136,20 +140,33 @@
         const grid = document.getElementById('personalized-grid');
         
         // Try to load ML recommendations
-        fetch('/api/recommendations/personalized/?limit=8')
-            .then(response => response.json())
+        fetch('/recommendations/personalized/?limit=8')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 // Only replace featured products if we have ML recommendations
                 if (data.recommendations && data.recommendations.length > 0) {
+                    // Clear grid first
+                    grid.innerHTML = '';
+                    
+                    // Add each product card
+                    data.recommendations.forEach(product => {
+                        try {
+                            grid.innerHTML += createProductCard(product);
+                        } catch (err) {
+                            // Silently handle errors
+                        }
+                    });
+                    
                     // Hide featured products fallback
                     featuredFallback.classList.add('hidden');
                     
                     // Show ML recommendations
                     contentState.classList.remove('hidden');
-                    
-                    data.recommendations.forEach(product => {
-                        grid.innerHTML += createProductCard(product);
-                    });
                     
                     // Reinitialize Lucide icons
                     if (typeof lucide !== 'undefined') {
@@ -159,7 +176,6 @@
                 // If no recommendations, keep featured products visible (do nothing)
             })
             .catch(error => {
-                console.error('Error loading personalized recommendations:', error);
                 // Keep featured products visible on error
             });
         

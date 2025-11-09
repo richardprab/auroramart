@@ -17,72 +17,15 @@
             </div>
             <h1>Welcome to AuroraMart!</h1>
             <p class="welcome-subtitle">Help us personalize your shopping experience</p>
-            <p class="welcome-description">Just a few quick questions to get started (completely optional)</p>
+            <p class="welcome-description">Complete your profile to get personalized recommendations powered by ML</p>
         </div>
 
         <form method="POST" class="personalization-form">
             {% csrf_token %}
 
-            <!-- Age Range Selection -->
-            <div class="form-group">
-                <label class="form-label">
-                    <i data-lucide="calendar"></i>
-                    What's your age range?
-                </label>
-                <div class="tile-group" data-field="age_range">
-                    <input type="hidden" name="age_range" id="id_age_range" value="">
-                    <button type="button" class="tile" data-value="18-24">
-                        <i data-lucide="graduation-cap"></i>
-                        <span>18-24</span>
-                    </button>
-                    <button type="button" class="tile" data-value="25-34">
-                        <i data-lucide="briefcase"></i>
-                        <span>25-34</span>
-                    </button>
-                    <button type="button" class="tile" data-value="35-44">
-                        <i data-lucide="users"></i>
-                        <span>35-44</span>
-                    </button>
-                    <button type="button" class="tile" data-value="45-54">
-                        <i data-lucide="home"></i>
-                        <span>45-54</span>
-                    </button>
-                    <button type="button" class="tile" data-value="55-64">
-                        <i data-lucide="sun"></i>
-                        <span>55-64</span>
-                    </button>
-                    <button type="button" class="tile" data-value="65+">
-                        <i data-lucide="heart"></i>
-                        <span>65+</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Gender Selection -->
-            <div class="form-group">
-                <label class="form-label">
-                    <i data-lucide="users"></i>
-                    How do you identify?
-                </label>
-                <div class="tile-group tile-group-large" data-field="gender">
-                    <input type="hidden" name="gender" id="id_gender" value="">
-                    <button type="button" class="tile tile-large" data-value="Male">
-                        <i data-lucide="user"></i>
-                        <span>Male</span>
-                    </button>
-                    <button type="button" class="tile tile-large" data-value="Female">
-                        <i data-lucide="user-round"></i>
-                        <span>Female</span>
-                    </button>
-                    <button type="button" class="tile tile-large" data-value="Other">
-                        <i data-lucide="users-round"></i>
-                        <span>Other</span>
-                    </button>
-                </div>
-            </div>
-
+            <!-- # COMMENTED OUT: Preferred category is redundant - ML model should be primary
             <!-- Shopping Interest -->
-            <div class="form-group">
+            <!-- <div class="form-group">
                 <label class="form-label">
                     <i data-lucide="shopping-bag"></i>
                     What brings you here today?
@@ -122,7 +65,7 @@
                         <span>Pets</span>
                     </button>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Action Buttons -->
             <div class="form-actions">

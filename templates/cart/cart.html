@@ -553,7 +553,7 @@
     ];
 
     // Fetch cart-based recommendations
-    fetch('/api/recommendations/cart-recommendations/', {
+    fetch('/recommendations/cart-recommendations/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -561,7 +561,12 @@
         },
         body: JSON.stringify({ cart_items: cartItems, limit: 4 })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         const loadingState = document.getElementById('cart-recommendations-loading');
         const contentState = document.getElementById('cart-recommendations-content');
@@ -574,7 +579,11 @@
             const grid = document.getElementById('cart-recommendations-grid');
             
             data.recommendations.forEach(product => {
-                grid.innerHTML += createProductCard(product);
+                try {
+                    grid.innerHTML += createProductCard(product);
+                } catch (err) {
+                    // Silently handle errors
+                }
             });
             
             // Reinitialize Lucide icons
@@ -586,7 +595,6 @@
         }
     })
     .catch(error => {
-        console.error('Error loading cart recommendations:', error);
         document.getElementById('cart-recommendations-loading').classList.add('hidden');
         document.getElementById('cart-recommendations-empty').classList.remove('hidden');
     });

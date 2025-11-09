@@ -220,7 +220,7 @@ const ProductsModule = {
 
     showQuickView(productId) {
         // Fetch product data
-        fetch(`/api/products/${productId}/`)
+        fetch(`/products/ajax/${productId}/`)
             .then(response => response.json())
             .then(data => {
                 // Create modal

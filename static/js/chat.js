@@ -24,6 +24,13 @@ const ChatWidget = {
     },
 
     init() {
+        // Get current user ID from chat window data attribute
+        const chatWindow = document.getElementById('chat-window');
+        if (chatWindow) {
+            const userId = chatWindow.getAttribute('data-user-id');
+            this.currentUserId = userId ? parseInt(userId) : null;
+        }
+        
         this.attachEventListeners();
         this.loadSessions();
         this.startPolling();
@@ -153,7 +160,7 @@ const ChatWidget = {
 
     async loadSessions() {
         try {
-            const response = await fetch('/chat/api/sessions/', {
+            const response = await fetch('/accounts/ajax/conversations/', {
                 method: 'GET',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin' // Important for session cookies
@@ -196,11 +203,11 @@ const ChatWidget = {
         try {
             const title = `Chat ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
             
-            const response = await fetch('/chat/api/sessions/', {
+            const response = await fetch('/accounts/ajax/conversations/create/', {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin',
-                body: JSON.stringify({ title })
+                body: JSON.stringify({ subject: title })
             });
 
             if (response.ok) {
@@ -226,7 +233,7 @@ const ChatWidget = {
         if (!this.currentSession) return;
 
         try {
-            const response = await fetch(`/chat/api/sessions/${this.currentSession.id}/`, {
+            const response = await fetch(`/accounts/ajax/conversations/${this.currentSession.id}/`, {
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin'
             });
@@ -274,7 +281,20 @@ const ChatWidget = {
 
     appendMessage(message, prepend = false) {
         const container = document.getElementById('chat-messages');
-        const isAdmin = message.is_from_admin;
+        // Check if sender is admin/staff by checking if sender ID differs from current user
+        // If currentUserId is not set, try to get it from chat window
+        if (!this.currentUserId) {
+            const chatWindow = document.getElementById('chat-window');
+            if (chatWindow) {
+                const userId = chatWindow.getAttribute('data-user-id');
+                this.currentUserId = userId ? parseInt(userId) : null;
+            }
+        }
+        const isAdmin = message.sender && this.currentUserId && message.sender !== this.currentUserId;
+        
+        // Get user's first name from chat window data attribute
+        const chatWindow = document.getElementById('chat-window');
+        const userFirstName = chatWindow ? (chatWindow.getAttribute('data-user-first-name') || 'You') : 'You';
         
         const messageEl = document.createElement('div');
         messageEl.className = `flex ${isAdmin ? 'justify-start' : 'justify-end'}`;
@@ -284,8 +304,8 @@ const ChatWidget = {
         messageEl.innerHTML = `
             <div class="max-w-[75%]">
                 <div class="${isAdmin ? 'bg-white' : 'bg-blue-600 text-white'} rounded-lg px-4 py-2 shadow">
-                    ${isAdmin ? `<p class="text-xs font-semibold text-blue-600 mb-1">Support Team</p>` : ''}
-                    <p class="text-sm break-words">${this.escapeHtml(message.message)}</p>
+                    ${isAdmin ? `<p class="text-xs font-semibold text-blue-600 mb-1">Support Team</p>` : `<p class="text-xs font-semibold text-blue-100 mb-1">${this.escapeHtml(userFirstName)}</p>`}
+                    <p class="text-sm break-words">${this.escapeHtml(message.content || message.message)}</p>
                 </div>
                 <p class="text-xs text-gray-500 mt-1 ${isAdmin ? 'text-left' : 'text-right'}">${time}</p>
             </div>
@@ -315,11 +335,11 @@ const ChatWidget = {
         }
         
         try {
-            const response = await fetch(`/chat/api/sessions/${this.currentSession.id}/send_message/`, {
+            const response = await fetch(`/accounts/ajax/conversations/${this.currentSession.id}/send/`, {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin',
-                body: JSON.stringify({ message })
+                body: JSON.stringify({ content: message })
             });
 
             if (response.ok) {
@@ -353,7 +373,7 @@ const ChatWidget = {
         if (!this.currentSession) return;
 
         try {
-            await fetch(`/chat/api/sessions/${this.currentSession.id}/mark_as_read/`, {
+            await fetch(`/accounts/ajax/conversations/${this.currentSession.id}/mark-read/`, {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin'
@@ -361,7 +381,7 @@ const ChatWidget = {
             
             // Update the session's unread count
             if (this.currentSession) {
-                this.currentSession.unread_count = 0;
+                this.currentSession.user_has_unread = false;
             }
             
             this.updateUnreadCountFromSessions();
@@ -371,7 +391,7 @@ const ChatWidget = {
     },
 
     updateUnreadCountFromSessions() {
-        const totalUnread = this.sessions.reduce((sum, session) => sum + (session.unread_count || 0), 0);
+        const totalUnread = this.sessions.reduce((sum, session) => sum + (session.user_has_unread ? 1 : 0), 0);
         this.updateUnreadBadge(totalUnread);
     },
 
@@ -425,13 +445,13 @@ const ChatWidget = {
             
             const titleEl = document.createElement('div');
             titleEl.className = 'text-sm font-medium truncate';
-            titleEl.textContent = session.title || `Chat ${session.id}`;
+            titleEl.textContent = session.subject || `Chat ${session.id}`;
             
             // Unread badge
-            if (session.unread_count > 0) {
+            if (session.user_has_unread) {
                 const badge = document.createElement('span');
                 badge.className = 'inline-block ml-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full';
-                badge.textContent = session.unread_count;
+                badge.textContent = 'New';
                 titleEl.appendChild(badge);
             }
             
@@ -480,7 +500,7 @@ const ChatWidget = {
         // Update modal message with session title
         const messageEl = document.getElementById('delete-chat-message');
         if (messageEl) {
-            messageEl.textContent = `This will permanently delete all messages in "${session.title || 'this conversation'}". This action cannot be undone.`;
+            messageEl.textContent = `This will permanently delete all messages in "${session.subject || 'this conversation'}". This action cannot be undone.`;
         }
         
         this.showDeleteModal();
@@ -517,7 +537,7 @@ const ChatWidget = {
         this.hideDeleteModal();
 
         try {
-            const response = await fetch(`/chat/api/sessions/${sessionId}/`, {
+            const response = await fetch(`/accounts/ajax/conversations/${sessionId}/delete/`, {
                 method: 'DELETE',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin'

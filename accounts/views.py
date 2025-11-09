@@ -1,12 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate, get_user_model
+from django.contrib.auth import login, authenticate, get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from products.models import Product
-from .models import Wishlist
+from .models import Wishlist, ChatConversation, ChatMessage
 from .forms import CustomUserCreationForm, UserProfileForm, WelcomePersonalizationForm
-from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import logout
 import json
 
@@ -75,15 +76,16 @@ def register(request):
 @login_required
 def welcome_personalization(request):
     """Welcome screen for new users to personalize their experience"""
-    # If user already has preferences set, skip to home
-    if request.user.age_range and request.user.gender:
-        return redirect("home:index")
+    # # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+    # # If user already has shopping preference set, skip to home
+    # if request.user.preferred_category:
+    #     return redirect("home:index")
     
     if request.method == "POST":
         form = WelcomePersonalizationForm(request.POST, instance=request.user)
         if form.is_valid():
             form.save()
-            messages.success(request, "Profile personalized! Enjoy your shopping experience.")
+            messages.success(request, "Profile updated! Enjoy your personalized experience.")
             return redirect("home:index")
     else:
         form = WelcomePersonalizationForm(instance=request.user)
@@ -355,3 +357,301 @@ def move_to_cart(request, wishlist_id):
         return redirect("accounts:wishlist")
     
     return redirect("accounts:wishlist")
+
+@require_http_methods(["GET"])
+@login_required
+def list_conversations(request):
+    """List all conversations for the authenticated user"""
+    conversations = ChatConversation.objects.filter(
+        user=request.user
+    ).select_related('admin', 'product').order_by('-updated_at')
+    
+    data = []
+    for conv in conversations:
+        messages_data = []
+        for msg in conv.messages.all().select_related('sender')[:50]:  # Last 50 messages
+            messages_data.append({
+                'id': msg.id,
+                'content': msg.content,
+                'sender': msg.sender.id,
+                'created_at': msg.created_at.isoformat(),
+            })
+        
+        data.append({
+            'id': conv.id,
+            'subject': conv.subject,
+            'message_type': conv.message_type,
+            'status': conv.status,
+            'user_has_unread': conv.user_has_unread,
+            'admin_has_unread': conv.admin_has_unread,
+            'created_at': conv.created_at.isoformat(),
+            'updated_at': conv.updated_at.isoformat(),
+            'messages': messages_data,
+        })
+    
+    return JsonResponse({'results': data})
+
+
+@require_http_methods(["POST"])
+@login_required
+def create_conversation(request):
+    """Create a new conversation"""
+    try:
+        data = json.loads(request.body)
+        subject = data.get('subject', 'New Conversation')
+        
+        # Auto-assign to staff using round-robin
+        from adminpanel.views import get_next_assigned_staff
+        next_staff = get_next_assigned_staff()
+        
+        conversation = ChatConversation.objects.create(
+            user=request.user,
+            subject=subject,
+            admin=next_staff,
+        )
+        
+        return JsonResponse({
+            'id': conversation.id,
+            'subject': conversation.subject,
+            'message_type': conversation.message_type,
+            'status': conversation.status,
+            'user_has_unread': conversation.user_has_unread,
+            'admin_has_unread': conversation.admin_has_unread,
+            'created_at': conversation.created_at.isoformat(),
+            'updated_at': conversation.updated_at.isoformat(),
+            'messages': [],
+        }, status=201)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@require_http_methods(["GET"])
+@login_required
+def get_conversation(request, conversation_id):
+    """Get a specific conversation with all messages"""
+    conversation = get_object_or_404(
+        ChatConversation.objects.select_related('admin', 'product'),
+        id=conversation_id,
+        user=request.user
+    )
+    
+    messages_data = []
+    for msg in conversation.messages.all().select_related('sender'):
+        messages_data.append({
+            'id': msg.id,
+            'content': msg.content,
+            'sender': msg.sender.id,
+            'created_at': msg.created_at.isoformat(),
+        })
+    
+    return JsonResponse({
+        'id': conversation.id,
+        'subject': conversation.subject,
+        'message_type': conversation.message_type,
+        'status': conversation.status,
+        'user_has_unread': conversation.user_has_unread,
+        'admin_has_unread': conversation.admin_has_unread,
+        'created_at': conversation.created_at.isoformat(),
+        'updated_at': conversation.updated_at.isoformat(),
+        'messages': messages_data,
+    })
+
+
+@require_http_methods(["POST"])
+@login_required
+def send_message(request, conversation_id):
+    """Send a message in a conversation"""
+    conversation = get_object_or_404(
+        ChatConversation,
+        id=conversation_id,
+        user=request.user
+    )
+    
+    try:
+        data = json.loads(request.body)
+        content = data.get('content', '').strip()
+        
+        if not content:
+            return JsonResponse({'error': 'Message content is required'}, status=400)
+        
+        message = ChatMessage.objects.create(
+            conversation=conversation,
+            sender=request.user,
+            content=content
+        )
+        
+        # Update conversation status
+        conversation.status = 'pending'
+        conversation.admin_has_unread = True
+        conversation.save()
+        
+        return JsonResponse({
+            'id': message.id,
+            'content': message.content,
+            'sender': message.sender.id,
+            'created_at': message.created_at.isoformat(),
+        }, status=201)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@require_http_methods(["POST"])
+@login_required
+def mark_conversation_read(request, conversation_id):
+    """Mark conversation as read for the user"""
+    conversation = get_object_or_404(
+        ChatConversation,
+        id=conversation_id,
+        user=request.user
+    )
+    
+    conversation.user_has_unread = False
+    conversation.save()
+    
+    return JsonResponse({'success': True})
+
+
+@require_http_methods(["DELETE"])
+@login_required
+def delete_conversation(request, conversation_id):
+    """Delete a conversation"""
+    conversation = get_object_or_404(
+        ChatConversation,
+        id=conversation_id,
+        user=request.user
+    )
+    
+    conversation.delete()
+    
+    return JsonResponse({'success': True}, status=204)
+
+
+@require_http_methods(["GET"])
+@login_required
+def get_wishlist_count(request):
+    """Get the count of wishlist items"""
+    count = Wishlist.objects.filter(user=request.user).count()
+    return JsonResponse({'count': count})
+@require_http_methods(["POST"])
+@login_required
+def change_password(request):
+    """Change user password"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        
+        if form.is_valid():
+            user = form.save()
+            # Update session to prevent logout
+            update_session_auth_hash(request, user)
+            return JsonResponse({
+                'success': True,
+                'message': 'Password changed successfully!'
+            })
+        else:
+            # Return validation errors
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            
+            return JsonResponse({
+                'success': False,
+                'message': 'Please correct the errors below.',
+                'errors': errors
+            }, status=400)
+    
+    # Fallback for non-AJAX requests
+    if request.method == "POST":
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Password changed successfully!')
+            return redirect('accounts:profile')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    
+    return redirect('accounts:profile')
+
+# # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+# @require_http_methods(["POST"])
+# @login_required
+# def update_shopping_interest(request):
+#     """Update user's shopping interest/preferred category"""
+#     try:
+#         shopping_interest = request.POST.get('shopping_interest', '').strip()
+#         
+#         if not shopping_interest:
+#             return JsonResponse({
+#                 'success': False,
+#                 'message': 'Please select a shopping interest'
+#             }, status=400)
+#         
+#         # Map shopping interest to category name
+#         # This maps the form values to actual category names in the database
+#         category_mapping = {
+#             'Electronics': 'Electronics',
+#             'Fashion - Men': 'Men\'s Fashion',
+#             'Fashion - Women': 'Women\'s Fashion',
+#             'Home & Kitchen': 'Home & Kitchen',
+#             'Beauty & Personal Care': 'Beauty & Personal Care',
+#             'Sports & Outdoors': 'Sports & Outdoors',
+#             'Books': 'Books',
+#             'Groceries & Gourmet': 'Groceries & Gourmet',
+#             'Pet Supplies': 'Pet Supplies',
+#             'Automotive': 'Automotive',
+#         }
+#         
+#         # Get the mapped category name, or use the original if not in mapping
+#         category_name = category_mapping.get(shopping_interest, shopping_interest)
+#         
+#         # Map shopping interest to category
+#         from products.models import Category
+#         try:
+#             # Try exact match first
+#             category = Category.objects.filter(name=category_name, is_active=True).first()
+#             
+#             # If not found, try case-insensitive match
+#             if not category:
+#                 category = Category.objects.filter(
+#                     name__iexact=category_name, 
+#                     is_active=True
+#                 ).first()
+#             
+#             # If still not found, try partial match
+#             if not category:
+#                 category = Category.objects.filter(
+#                     name__icontains=category_name.split()[0] if category_name.split() else category_name,
+#                     is_active=True
+#                 ).first()
+#             
+#             if not category:
+#                 # Return all available categories for debugging
+#                 available_categories = list(Category.objects.filter(is_active=True).values_list('name', flat=True))
+#                 return JsonResponse({
+#                     'success': False,
+#                     'message': f'Category "{category_name}" not found. Available categories: {", ".join(available_categories[:10])}'
+#                 }, status=400)
+#             
+#             request.user.preferred_category = category
+#             request.user.save()
+#             
+#             return JsonResponse({
+#                 'success': True,
+#                 'message': f'Shopping interest updated to {category.name}!',
+#                 'category_name': category.name,
+#                 'category_id': category.id
+#             })
+#         except Exception as e:
+#             return JsonResponse({
+#                 'success': False,
+#                 'message': f'Error updating category: {str(e)}'
+#             }, status=500)
+#     except Exception as e:
+#         return JsonResponse({
+#             'success': False,
+#             'message': str(e)
+#         }, status=500)
+
+
+
+

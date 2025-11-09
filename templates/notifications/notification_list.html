@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Notifications - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Notifications</h1>
+            {% if unread_count > 0 %}
+            <form method="post" action="{% url 'notifications:mark_all_read' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-2 transition-colors">
+                    <i data-lucide="check-check" class="w-5 h-5"></i>
+                    Mark All as Read
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- Notifications List -->
+        {% if notifications %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
+            {% for notification in notifications %}
+            <div class="p-4 hover:bg-gray-50 transition-colors {% if not notification.is_read %}bg-blue-50{% endif %}">
+                <div class="flex items-start gap-4">
+                    <!-- Icon based on notification type -->
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center
+                        {% if notification.notification_type == 'message' %}bg-blue-100
+                        {% elif notification.notification_type == 'sale' %}bg-green-100
+                        {% elif notification.notification_type == 'stock' %}bg-purple-100
+                        {% elif notification.notification_type == 'order' %}bg-yellow-100
+                        {% elif notification.notification_type == 'review' %}bg-pink-100
+                        {% else %}bg-gray-100{% endif %}">
+                        {% if notification.notification_type == 'message' %}
+                            <i data-lucide="message-circle" class="w-5 h-5 text-blue-600"></i>
+                        {% elif notification.notification_type == 'sale' %}
+                            <i data-lucide="tag" class="w-5 h-5 text-green-600"></i>
+                        {% elif notification.notification_type == 'stock' %}
+                            <i data-lucide="package" class="w-5 h-5 text-purple-600"></i>
+                        {% elif notification.notification_type == 'order' %}
+                            <i data-lucide="shopping-bag" class="w-5 h-5 text-yellow-600"></i>
+                        {% elif notification.notification_type == 'review' %}
+                            <i data-lucide="star" class="w-5 h-5 text-pink-600"></i>
+                        {% else %}
+                            <i data-lucide="bell" class="w-5 h-5 text-gray-600"></i>
+                        {% endif %}
+                    </div>
+
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                        <p class="text-gray-900 {% if not notification.is_read %}font-semibold{% endif %}">
+                            {{ notification.message }}
+                        </p>
+                        <p class="text-sm text-gray-500 mt-1">
+                            {{ notification.created_at|timesince }} ago
+                        </p>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-2">
+                        {% if notification.link %}
+                        <a href="{% url 'notifications:mark_read' notification.pk %}" 
+                           class="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors">
+                            View
+                        </a>
+                        {% endif %}
+                        {% if not notification.is_read %}
+                        <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <i data-lucide="bell-off" class="w-16 h-16 mx-auto text-gray-300 mb-4"></i>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">No notifications yet</h2>
+            <p class="text-gray-600">When you receive notifications, they'll appear here</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Initialize Lucide icons
+if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
+</script>
+{% endblock %}
+

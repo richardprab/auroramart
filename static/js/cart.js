@@ -14,7 +14,7 @@ const CartModule = {
 
     // Update cart count badge
     updateCartCount() {
-        const url = '/api/cart/count/';
+        const url = '/cart/count/';
         const headers = {
             'Content-Type': 'application/json',
             'X-CSRFToken': this.getCSRFToken()
@@ -80,23 +80,21 @@ const CartModule = {
         button.innerHTML = '<span class="loading-spinner"></span>';
         button.disabled = true;
 
-        // Prepare API request
-        const url = '/api/cart/add_item/';
-        const headers = {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': this.getCSRFToken()
-        };
+        // Prepare request
+        const url = `/cart/add/${productId}/`;
+        const formData = new FormData();
+        formData.append('variant_id', variantId);
+        formData.append('quantity', parseInt(quantity));
 
-        // Submit to API
+        // Submit to backend
         fetch(url, {
             method: 'POST',
-            headers: headers,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': this.getCSRFToken()
+            },
             credentials: 'same-origin',
-            body: JSON.stringify({
-                product_id: productId,
-                product_variant_id: variantId,
-                quantity: parseInt(quantity)
-            })
+            body: formData
         })
             .then(response => response.json())
             .then(data => {

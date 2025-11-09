@@ -60,15 +60,47 @@
                 <!-- Navigation Icons -->
                 <div class="flex items-center space-x-6">
                     <!-- Notifications -->
-                    <a href="{% if user.is_authenticated %}{% url 'notifications:notification_list' %}{% else %}{% url 'accounts:login' %}?next={% url 'notifications:notification_list' %}{% endif %}"
+                    {% if user.is_authenticated %}
+                    <div class="relative" id="notification-dropdown-container">
+                        <button type="button" id="notification-bell" class="text-gray-700 hover:text-blue-600 relative transition-colors">
+                            <i data-lucide="bell" class="w-6 h-6"></i>
+                            <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden"
+                                id="notification-count">
+                            </span>
+                        </button>
+                        
+                        <!-- Notification Dropdown -->
+                        <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50" style="max-height: 480px;">
+                            <!-- Header -->
+                            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                                <h3 class="font-semibold text-gray-900">Notifications</h3>
+                                <button type="button" id="mark-all-read-btn" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                    Mark all as read
+                                </button>
+                            </div>
+                            
+                            <!-- Notifications List -->
+                            <div id="notification-list" class="overflow-y-auto" style="max-height: 360px;">
+                                <div class="p-4 text-center text-gray-500">
+                                    <i data-lucide="loader" class="w-8 h-8 mx-auto mb-2 animate-spin text-gray-400"></i>
+                                    <p class="text-sm">Loading notifications...</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Footer -->
+                            <div class="border-t border-gray-200 p-3">
+                                <a href="{% url 'notifications:notification_list' %}" class="block text-center text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                    View All Notifications
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <a href="{% url 'accounts:login' %}?next={% url 'notifications:notification_list' %}"
                         class="text-gray-700 hover:text-blue-600 relative">
                         <i data-lucide="bell" class="w-6 h-6"></i>
-                        <span
-                            class="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                            id="notification-count">
-                            3
-                        </span>
                     </a>
+                    {% endif %}
 
                     <!-- Cart -->
                     <a href="{% url 'cart:cart_detail' %}"
@@ -297,6 +329,7 @@
     <script src="{% static 'js/wishlist.js' %}"></script>
     <script src="{% static 'js/chat.js' %}"></script>
     <script src="{% static 'js/search.js' %}"></script>
+    <script src="{% static 'js/notifications.js' %}"></script>
     <!-- Page-specific JavaScript -->
     {% block extra_js %}{% endblock %}
 </body>

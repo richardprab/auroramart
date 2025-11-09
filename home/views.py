@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.db.models import Q, Case, When, IntegerField
+from django.db.models import Q
 from products.models import Product, Category
 
 
@@ -45,16 +45,6 @@ def index(request):
         {
             "categories": cats,
             "featured_products": featured_products,
-            "user_wishlist_ids": user_wishlist_ids,
-        },
-    )
-
-    return render(
-        request,
-        "home/index.html",
-        {
-            "featured_products": featured_products,
-            "categories": cats,
             "user_wishlist_ids": user_wishlist_ids,
         },
     )

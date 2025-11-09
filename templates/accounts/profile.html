@@ -175,19 +175,59 @@
         font-size: 1rem;
     }
 
-    .action-link {
+    .settings-option {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem 1rem;
-        border-radius: 0.5rem;
-        transition: background-color 0.2s;
-        color: #374151;
-        text-decoration: none;
+        gap: 1rem;
+        width: 100%;
+        padding: 1rem;
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
     }
 
-    .action-link:hover {
-        background-color: #f9fafb;
+    .settings-option:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+
+    .settings-option-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.5rem;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .settings-option:nth-child(2) .settings-option-icon {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+
+    .settings-option-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .settings-option-title {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 0.95rem;
+    }
+
+    .settings-option-desc {
+        font-size: 0.8rem;
+        color: #6b7280;
     }
 
     /* Tile Button Styles for Complete Profile Modal */
@@ -220,6 +260,36 @@
         color: white;
         box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
     }
+
+    .shopping-tile {
+        padding: 1.5rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: white;
+        color: #374151;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100px;
+    }
+
+    .shopping-tile:hover {
+        border-color: #8b5cf6;
+        background: #faf5ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    }
+
+    .shopping-tile.active {
+        border-color: #8b5cf6;
+        background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+    }
 </style>
 {% endblock %}
 
@@ -236,6 +306,14 @@
                     <h1 class="text-3xl font-bold text-gray-800 truncate">{{ user.get_full_name }}</h1>
                     <p class="text-gray-600">@{{ user.username }}</p>
                     <p class="text-gray-500">{{ user.email }}</p>
+                    <!-- # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <button onclick="openShoppingInterestModal()" class="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full text-sm font-medium hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-md hover:shadow-lg">
+                            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                            <span>{% if user.preferred_category %}{{ user.preferred_category.name }}{% else %}Set Shopping Interest{% endif %}</span>
+                        </button>
+                    </div>
+                    -->
                 </div>
             </div>
         </div>
@@ -364,19 +442,27 @@
                     <i data-lucide="settings" class="w-6 h-6 mr-2 text-blue-600"></i>
                     Account Settings
                 </h2>
-                <div class="space-y-2">
-                    <button onclick="openEditModal()" class="action-link w-full">
-                        <span class="text-gray-700">Edit Profile</span>
+                <div class="space-y-3">
+                    <button onclick="openEditModal()" class="settings-option">
+                        <div class="settings-option-icon">
+                            <i data-lucide="user" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Edit Profile</span>
+                            <span class="settings-option-desc">Update your personal information</span>
+                        </div>
                         <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
                     </button>
-                    <a href="#" class="action-link">
-                        <span class="text-gray-700">Change Password</span>
+                    <button onclick="openChangePasswordModal()" class="settings-option">
+                        <div class="settings-option-icon">
+                            <i data-lucide="lock" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Change Password</span>
+                            <span class="settings-option-desc">Update your account password</span>
+                        </div>
                         <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
-                    </a>
-                    <a href="{% url 'accounts:wishlist' %}" class="action-link">
-                        <span class="text-gray-700">My Wishlist</span>
-                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -411,6 +497,78 @@
             </div>
         </div>
         {% endif %}
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="changePasswordModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="lock" class="w-6 h-6"></i>
+                Change Password
+            </h2>
+            <button class="modal-close" onclick="closeChangePasswordModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="changePasswordForm" method="POST" class="auth-form" novalidate>
+            {% csrf_token %}
+
+            <!-- Old Password Field -->
+            <div class="form-group">
+                <label for="old_password" class="form-label">
+                    Current Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="old_password" 
+                       id="old_password"
+                       class="form-control" 
+                       placeholder="Enter your current password" 
+                       autocomplete="current-password" 
+                       required>
+                <div class="form-error" id="error-old_password" style="display: none;"></div>
+            </div>
+
+            <!-- New Password Field -->
+            <div class="form-group">
+                <label for="new_password1" class="form-label">
+                    New Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="new_password1" 
+                       id="new_password1"
+                       class="form-control" 
+                       placeholder="Enter your new password" 
+                       autocomplete="new-password" 
+                       required>
+                <div class="form-error" id="error-new_password1" style="display: none;"></div>
+                <small class="form-help">Password must be at least 8 characters long and contain at least one letter.</small>
+            </div>
+
+            <!-- Confirm New Password Field -->
+            <div class="form-group">
+                <label for="new_password2" class="form-label">
+                    Confirm New Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="new_password2" 
+                       id="new_password2"
+                       class="form-control" 
+                       placeholder="Confirm your new password" 
+                       autocomplete="new-password" 
+                       required>
+                <div class="form-error" id="error-new_password2" style="display: none;"></div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="mt-6">
+                <button type="submit" class="w-full btn-submit">
+                    Change Password
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -563,6 +721,77 @@
         </form>
     </div>
 </div>
+
+<!-- # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+<!-- Shopping Interest Modal -->
+<!--
+<div id="shoppingInterestModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="shopping-bag" class="w-6 h-6"></i>
+                Update Shopping Interest
+            </h2>
+            <button class="modal-close" onclick="closeShoppingInterestModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="shoppingInterestForm" class="p-6">
+            {% csrf_token %}
+            <div class="mb-6">
+                <p class="text-gray-600 mb-4">What are you most interested in shopping for?</p>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" class="shopping-tile" data-category="Electronics">
+                        <i data-lucide="laptop" class="w-6 h-6 mb-2"></i>
+                        <span class="text-sm font-medium">Electronics</span>
+                    </button>
+                    <button type="button" class="shopping-tile" data-category="Fashion - Men">
+                        <i data-lucide="shirt" class="w-6 h-6 mb-2"></i>
+                        <span class="text-sm font-medium">Men's Fashion</span>
+                    </button>
+                    <button type="button" class="shopping-tile" data-category="Fashion - Women">
+                        <i data-lucide="sparkles" class="w-6 h-6 mb-2"></i>
+                        <span class="text-sm font-medium">Women's Fashion</span>
+                    </button>
+                    <button type="button" class="shopping-tile" data-category="Home & Kitchen">
+                        <i data-lucide="home" class="w-6 h-6 mb-2"></i>
+                        <span class="text-sm font-medium">Home & Kitchen</span>
+                    </button>
+                    <button type="button" class="shopping-tile" data-category="Beauty & Personal Care">
+                        <i data-lucide="heart" class="w-6 h-6 mb-2"></i>
+                        <span class="text-sm font-medium">Beauty</span>
+                    </button>
+                    <button type="button" class="shopping-tile" data-category="Sports & Outdoors">
+                        <i data-lucide="dumbbell" class="w-6 h-6 mb-2"></i>
+                        <span class="text-sm font-medium">Sports</span>
+                    </button>
+                    <button type="button" class="shopping-tile" data-category="Books">
+                        <i data-lucide="book-open" class="w-6 h-6 mb-2"></i>
+                        <span class="text-sm font-medium">Books</span>
+                    </button>
+                    <button type="button" class="shopping-tile" data-category="Pet Supplies">
+                        <i data-lucide="paw-print" class="w-6 h-6 mb-2"></i>
+                        <span class="text-sm font-medium">Pets</span>
+                    </button>
+                </div>
+                
+                <input type="hidden" name="shopping_interest" id="selected_category" value="">
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="closeShoppingInterestModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" id="saveShoppingInterestBtn" class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-blue-600 transition">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+-->
 {% endblock %}
 
 {% block extra_js %}
@@ -588,11 +817,38 @@
         document.body.style.overflow = 'auto';
         
         // Clear errors
-        document.querySelectorAll('.form-error').forEach(el => {
+        document.querySelectorAll('#editProfileForm .form-error').forEach(el => {
             el.style.display = 'none';
             el.textContent = '';
         });
-        document.querySelectorAll('.form-control.error').forEach(el => {
+        document.querySelectorAll('#editProfileForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+    }
+
+    function openChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Initialize Lucide icons in modal
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.remove('active');
+        document.body.style.overflow = 'auto';
+        
+        // Clear form and errors
+        document.getElementById('changePasswordForm').reset();
+        document.querySelectorAll('#changePasswordForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#changePasswordForm .form-control.error').forEach(el => {
             el.classList.remove('error');
         });
     }
@@ -618,6 +874,36 @@
         }
     }
 
+    // # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+    // function openShoppingInterestModal() {
+    //     document.getElementById('shoppingInterestModal').classList.add('active');
+    //     document.body.style.overflow = 'hidden';
+    //     
+    //     // Highlight current selection if exists
+    //     const currentCategory = '{% if user.preferred_category %}{{ user.preferred_category.name }}{% endif %}';
+    //     if (currentCategory) {
+    //         document.querySelectorAll('.shopping-tile').forEach(tile => {
+    //             if (tile.dataset.category === currentCategory) {
+    //                 tile.classList.add('active');
+    //                 document.getElementById('selected_category').value = currentCategory;
+    //             }
+    //         });
+    //     }
+    //     
+    //     setTimeout(() => {
+    //         if (typeof lucide !== 'undefined') lucide.createIcons();
+    //     }, 100);
+    // }
+
+    // function closeShoppingInterestModal() {
+    //     document.getElementById('shoppingInterestModal').classList.remove('active');
+    //     document.body.style.overflow = '';
+    //     
+    //     // Reset selections
+    //     document.querySelectorAll('.shopping-tile').forEach(t => t.classList.remove('active'));
+    //     document.getElementById('selected_category').value = '';
+    // }
+
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
         // Close modal when clicking outside
@@ -633,6 +919,84 @@
             closeCompleteProfileModal();
         }
     });
+
+    // Close change password modal when clicking outside
+    document.getElementById('changePasswordModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeChangePasswordModal();
+        }
+    });
+
+    // # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+    // // Close shopping interest modal when clicking outside
+    // document.getElementById('shoppingInterestModal').addEventListener('click', function(e) {
+    //     if (e.target === this) {
+    //         closeShoppingInterestModal();
+    //     }
+    // });
+
+    // // Shopping interest tile selection
+    // document.querySelectorAll('.shopping-tile').forEach(tile => {
+    //     tile.addEventListener('click', function(e) {
+    //         e.preventDefault();
+    //         document.querySelectorAll('.shopping-tile').forEach(t => t.classList.remove('active'));
+    //         this.classList.add('active');
+    //         document.getElementById('selected_category').value = this.dataset.category;
+    //     });
+    // });
+
+    // // Shopping interest form submission
+    // document.getElementById('shoppingInterestForm').addEventListener('submit', async function(e) {
+    //     e.preventDefault();
+    //     
+    //     const category = document.getElementById('selected_category').value;
+    //     if (!category) {
+    //         if (window.toast) {
+    //             window.toast.error('Please select a shopping interest');
+    //         }
+    //         return;
+    //     }
+
+    //     const submitBtn = document.getElementById('saveShoppingInterestBtn');
+    //     submitBtn.disabled = true;
+    //     submitBtn.textContent = 'Saving...';
+
+    //     try {
+    //         const response = await fetch('/accounts/ajax/shopping-interest/', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/x-www-form-urlencoded',
+    //                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    //             },
+    //             body: `shopping_interest=${encodeURIComponent(category)}`
+    //         });
+
+    //         const data = await response.json();
+
+    //         if (data.success) {
+    //             if (window.toast) {
+    //                 window.toast.success(data.message);
+    //             }
+    //             // Update button text and reload to show new category
+    //             closeShoppingInterestModal();
+    //             setTimeout(() => {
+    //                 window.location.reload();
+    //             }, 500);
+    //         } else {
+    //             if (window.toast) {
+    //                 window.toast.error(data.message || 'Failed to update shopping interest');
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error:', error);
+    //         if (window.toast) {
+    //             window.toast.error('An error occurred. Please try again.');
+    //         }
+    //     } finally {
+    //         submitBtn.disabled = false;
+    //         submitBtn.textContent = 'Save Changes';
+    //     }
+    // });
 
     // Handle form submission
     document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
@@ -744,6 +1108,94 @@
         }
     });
 
+    // Handle change password form submission
+    document.getElementById('changePasswordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Changing...';
+        form.classList.add('loading');
+        
+        // Clear previous errors
+        document.querySelectorAll('#changePasswordForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#changePasswordForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('{% url "accounts:change_password" %}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show success toast
+                if (window.toast) {
+                    window.toast.success(data.message || 'Password changed successfully!');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Password changed successfully!', 'success');
+                }
+                
+                // Close modal
+                setTimeout(() => {
+                    closeChangePasswordModal();
+                }, 500);
+                
+            } else {
+                // Show error toast
+                if (window.toast) {
+                    window.toast.error(data.message || 'Please correct the errors below.');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Please correct the errors below.', 'error');
+                }
+                
+                // Display field errors
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorEl = document.getElementById(`error-${field}`);
+                        const inputEl = document.getElementById(field);
+                        
+                        if (errorEl && errors.length > 0) {
+                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.style.display = 'flex';
+                        }
+                        
+                        if (inputEl) {
+                            inputEl.classList.add('error');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            } else if (window.AuroraMart && window.AuroraMart.toast) {
+                window.AuroraMart.toast('An error occurred. Please try again.', 'error');
+            }
+        } finally {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+            form.classList.remove('loading');
+        }
+    });
+
     // Real-time validation
     document.querySelectorAll('.form-control').forEach(input => {
         input.addEventListener('blur', function() {
@@ -771,12 +1223,16 @@
     }
 
     // Calculate profile completion for ML recommendations
+    // Store previous percentage to detect when reaching 100%
+    let previousCompletionPercentage = null;
+    
     function calculateProfileCompletion() {
+        // Check each field - for boolean fields, check if not null (answered, whether true or false)
         const mlFields = {
             age_range: {{ user.age_range|yesno:"true,false" }},
             gender: {{ user.gender|yesno:"true,false" }},
             household_size: {{ user.household_size|yesno:"true,false" }},
-            has_children: {{ user.has_children|yesno:"true,false,false" }},
+            has_children: {{ user.has_children|yesno:"true,true,false" }},  // Count as complete if True OR False (not None)
             occupation: {{ user.occupation|yesno:"true,false" }},
             education: {{ user.education|yesno:"true,false" }},
             income_range: {{ user.income_range|yesno:"true,false" }},
@@ -797,16 +1253,40 @@
             progressBar.style.width = percentage + '%';
             percentageText.textContent = percentage + '%';
             
+            // Check if we just reached 100% (not on initial load)
+            const justReached100 = percentage === 100 && previousCompletionPercentage !== null && previousCompletionPercentage < 100;
+            
             // Update message based on completion
             if (percentage === 100) {
                 messageEl.textContent = '✓ Profile complete! Enjoying personalized recommendations';
-                // Hide banner when complete
-                banner.style.display = 'none';
+                
+                // Show success feedback when reaching 100%
+                if (justReached100) {
+                    // Show success message briefly before hiding
+                    if (window.toast) {
+                        window.toast.success('🎉 Congratulations! Your profile is now 100% complete! You\'ll receive personalized recommendations.');
+                    } else if (window.AuroraMart && window.AuroraMart.toast) {
+                        window.AuroraMart.toast('🎉 Congratulations! Your profile is now 100% complete! You\'ll receive personalized recommendations.', 'success');
+                    }
+                    
+                    // Show success message in banner for 2 seconds before hiding
+                    setTimeout(() => {
+                        if (banner) {
+                            banner.style.display = 'none';
+                        }
+                    }, 2000);
+                } else {
+                    // Hide banner immediately if already at 100%
+                    banner.style.display = 'none';
+                }
             } else {
                 banner.style.display = 'block';
                 messageEl.textContent = 'Get personalized product recommendations tailored just for you';
             }
         }
+        
+        // Update previous percentage
+        previousCompletionPercentage = percentage;
         
         return percentage;
     }

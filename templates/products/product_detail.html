@@ -474,8 +474,13 @@
             const emptyState = document.getElementById('recommendations-empty');
             
             // Fetch ML-powered recommendations
-            fetch(`/api/recommendations/similar-products/${productId}/?limit=4`)
-                .then(response => response.json())
+            fetch(`/recommendations/similar-products/${productId}/?limit=4`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     loadingState.classList.add('hidden');
                     
@@ -483,8 +488,12 @@
                         contentState.classList.remove('hidden');
                         
                         data.recommendations.forEach(product => {
-                            const productCard = createProductCard(product);
-                            recommendationsGrid.innerHTML += productCard;
+                            try {
+                                const productCard = createProductCard(product);
+                                recommendationsGrid.innerHTML += productCard;
+                            } catch (err) {
+                                // Silently handle errors
+                            }
                         });
                         
                         // Reinitialize Lucide icons for the new cards
@@ -496,7 +505,6 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading recommendations:', error);
                     loadingState.classList.add('hidden');
                     emptyState.classList.remove('hidden');
                 });

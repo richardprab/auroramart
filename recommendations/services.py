@@ -187,7 +187,7 @@ class PersonalizedRecommendations:
     def get_for_user(user, limit=10):
         """
         Get personalized product recommendations for a user.
-        Uses customer category prediction if user has demographic data.
+        Uses ML model prediction as primary method, with category filtering as fallback.
         """
         if not user.is_authenticated:
             return Product.objects.filter(
@@ -195,34 +195,89 @@ class PersonalizedRecommendations:
                 is_featured=True
             ).order_by('-rating')[:limit]
         
-        # Try to predict preferred category if user has demographic data
+        # PRIORITY 1: Use ML model to predict category based on demographics
         if user.age_range and user.gender:
             try:
-                predicted_category = CustomerCategoryPredictor.predict(user)
-                category = Category.objects.filter(name=predicted_category).first()
+                predicted_category_name = CustomerCategoryPredictor.predict(user)
                 
-                if category:
+                # Map ML model predictions to database category names
+                # The ML model might predict different names than what's in the database
+                category_name_mapping = {
+                    'Electronics': 'Electronics',
+                    'Fashion - Men': 'Fashion - Men',
+                    'Fashion - Women': 'Fashion - Women',
+                    "Men's Fashion": 'Fashion - Men',
+                    "Women's Fashion": 'Fashion - Women',
+                    'Home & Kitchen': 'Home & Kitchen',
+                    'Beauty & Personal Care': 'Beauty & Personal Care',
+                    'Sports & Outdoors': 'Sports & Outdoors',
+                    'Books': 'Books',
+                    'Groceries & Gourmet': 'Groceries & Gourmet',
+                    'Pet Supplies': 'Pet Supplies',
+                    'Automotive': 'Automotive',
+                    'Toys & Games': 'Toys & Games',
+                    'Health': 'Health',
+                }
+                
+                # Map the predicted name to database name
+                mapped_category_name = category_name_mapping.get(predicted_category_name, predicted_category_name)
+                
+                # Try to find the category (exact match, then case-insensitive, then partial)
+                predicted_category = Category.objects.filter(name=mapped_category_name, is_active=True).first()
+                
+                if not predicted_category:
+                    predicted_category = Category.objects.filter(
+                        name__iexact=mapped_category_name, 
+                        is_active=True
+                    ).first()
+                
+                if not predicted_category and mapped_category_name:
+                    # Try partial match on first word
+                    first_word = mapped_category_name.split()[0] if mapped_category_name.split() else mapped_category_name
+                    predicted_category = Category.objects.filter(
+                        name__icontains=first_word,
+                        is_active=True
+                    ).first()
+                
+                if predicted_category:
+                    # Get all category IDs to search (parent + all children/subcategories)
+                    category_ids = [predicted_category.id]
+                    if predicted_category.children.exists():
+                        category_ids.extend(
+                            predicted_category.children.values_list('id', flat=True)
+                        )
+                    
                     products = Product.objects.filter(
-                        category=category,
+                        category_id__in=category_ids,
                         is_active=True
                     ).order_by('-rating', '-created_at')[:limit]
                     
-                    if products.exists():
-                        return list(products)
+                    product_list = list(products)
+                    if product_list:
+                        return product_list
             except Exception:
                 pass
         
-        # Fallback to user's preferred category if set
-        if user.preferred_category:
-            products = Product.objects.filter(
-                category=user.preferred_category,
-                is_active=True
-            ).order_by('-rating', '-created_at')[:limit]
-            
-            if products.exists():
-                return list(products)
+        # # PRIORITY 2: Use user's manually selected preferred category as fallback
+        # # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+        # if user.preferred_category:
+        #     # Get all category IDs to search (parent + all children/subcategories)
+        #     category_ids = [user.preferred_category.id]
+        #     if user.preferred_category.children.exists():
+        #         category_ids.extend(
+        #             user.preferred_category.children.values_list('id', flat=True)
+        #         )
+        #     
+        #     products = Product.objects.filter(
+        #         category_id__in=category_ids,
+        #         is_active=True
+        #     ).order_by('-rating', '-created_at')[:limit]
+        #     
+        #     product_list = list(products)
+        #     if product_list:
+        #         return product_list
         
-        # Final fallback to featured products
+        # FINAL FALLBACK: Featured products
         return list(Product.objects.filter(
             is_active=True,
             is_featured=True

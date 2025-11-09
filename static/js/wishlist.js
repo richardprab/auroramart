@@ -308,7 +308,7 @@ const WishlistModule = {
             'X-CSRFToken': this.getCSRFToken()
         };
 
-        fetch('/api/wishlist/count/', {
+        fetch('/accounts/ajax/wishlist/count/', {
             headers: headers,
             credentials: 'same-origin'
         })
