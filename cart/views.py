@@ -177,9 +177,9 @@ def add_to_cart(request, product_id):
             if is_ajax:
                 return JsonResponse({
                     "success": False,
-                    "message": "Please select a product variant."
+                    "message": "Please select size and color"
                 })
-            messages.error(request, "Please select a product variant.")
+            # No toast, just redirect back
             return redirect("products:product_detail", slug=product.slug)
 
         variant = get_object_or_404(ProductVariant, id=variant_id, product=product)
@@ -189,9 +189,9 @@ def add_to_cart(request, product_id):
             if is_ajax:
                 return JsonResponse({
                     "success": False,
-                    "message": f"Only {variant.stock} items available in stock."
+                    "message": f"Only {variant.stock} left in stock"
                 })
-            messages.error(request, f"Only {variant.stock} items available in stock.")
+            # No toast, redirect back
             return redirect("products:product_detail", slug=product.slug)
 
         cart = get_or_create_cart(request)
@@ -211,11 +211,9 @@ def add_to_cart(request, product_id):
                 if is_ajax:
                     return JsonResponse({
                         "success": False,
-                        "message": f"Cannot add more. Only {variant.stock} items available."
+                        "message": f"Only {variant.stock} available"
                     })
-                messages.error(
-                    request, f"Cannot add more. Only {variant.stock} items available."
-                )
+                # No toast
                 return redirect("cart:cart_detail")
             cart_item.quantity = new_quantity
             cart_item.save()
@@ -225,12 +223,11 @@ def add_to_cart(request, product_id):
             cart_count = cart.items.count()
             return JsonResponse({
                 "success": True,
-                "message": f"{product.name} added to cart!",
+                "message": "Added to cart",
                 "cart_count": cart_count
             })
 
-        # Regular form submission (redirect to cart)
-        messages.success(request, f"{product.name} added to cart!")
+        # Regular form submission (redirect to cart) - no toast
         return redirect("cart:cart_detail")
 
     return redirect("products:product_list")
@@ -253,9 +250,9 @@ def update_cart(request, item_id):
                 if is_ajax:
                     return JsonResponse({
                         "success": False,
-                        "error": "Invalid cart item removed."
+                        "error": "Item removed - no longer available"
                     })
-                messages.error(request, "Invalid cart item removed.")
+                # No toast
                 return redirect("cart:cart_detail")
 
             quantity = int(request.POST.get("quantity", 1))
@@ -280,18 +277,16 @@ def update_cart(request, item_id):
                         "item_count": totals['item_count']
                     })
                 
-                messages.success(request, f"{product_name} removed from cart.")
+                # No toast for removed item
             else:
                 # Check stock
                 if quantity > item.product_variant.stock:
                     if is_ajax:
                         return JsonResponse({
                             "success": False,
-                            "error": f"Only {item.product_variant.stock} items available."
+                            "error": f"Only {item.product_variant.stock} available"
                         })
-                    messages.error(
-                        request, f"Only {item.product_variant.stock} items available."
-                    )
+                    # No toast
                     quantity = item.product_variant.stock
 
                 item.quantity = quantity
@@ -317,22 +312,22 @@ def update_cart(request, item_id):
                         "item_count": totals['item_count']
                     })
                 
-                messages.success(request, f"{item.product.name} quantity updated.")
+                # No toast for quantity update
                 
         except CartItem.DoesNotExist:
             if is_ajax:
                 return JsonResponse({
                     "success": False,
-                    "error": "Item not found in cart."
+                    "error": "Item not found"
                 })
-            messages.error(request, "Item not found in cart.")
+            # No toast
         except Exception as e:
             if is_ajax:
                 return JsonResponse({
                     "success": False,
-                    "error": f"Error updating cart: {str(e)}"
+                    "error": "Unable to update cart"
                 })
-            messages.error(request, f"Error updating cart: {str(e)}")
+            # No toast
 
     return redirect("cart:cart_detail")
 
@@ -363,14 +358,14 @@ def remove_from_cart(request, item_id):
                     "item_count": totals['item_count']
                 })
             
-            messages.success(request, f"{product_name} removed from cart.")
+            # No toast for removed item
         except CartItem.DoesNotExist:
             if is_ajax:
                 return JsonResponse({
                     "success": False,
-                    "error": "Item not found in cart."
+                    "error": "Item not found"
                 })
-            messages.error(request, "Item not found in cart.")
+            # No toast
 
     return redirect("cart:cart_detail")
 
@@ -381,7 +376,7 @@ def clear_cart(request):
         cart = get_or_create_cart(request)
         count = cart.items.count()
         cart.items.all().delete()
-        messages.success(request, f"Cart cleared! {count} item(s) removed.")
+        # No toast for clear cart
 
     return redirect("cart:cart_detail")
 

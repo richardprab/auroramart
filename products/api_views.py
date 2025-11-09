@@ -45,7 +45,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     lookup_field = 'slug'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['category', 'is_trending', 'is_bestseller', 'is_featured', 'brand']
+    filterset_fields = ['category', 'is_featured', 'brand']
     search_fields = ['name', 'description', 'sku', 'brand']
     ordering_fields = ['created_at', 'rating', 'name']
     ordering = ['-created_at']

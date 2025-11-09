@@ -360,19 +360,7 @@
                             
                             <!-- Banner Ribbons -->
                             {% with lowest_variant=product.get_lowest_priced_variant %}
-                            {% if product.is_bestseller %}
-                            <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
-                                <div class="absolute top-6 -left-8 w-40 bg-yellow-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
-                                    BESTSELLER
-                                </div>
-                            </div>
-                            {% elif product.is_trending %}
-                            <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
-                                <div class="absolute top-6 -left-8 w-40 bg-red-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
-                                    TRENDING
-                                </div>
-                            </div>
-                            {% elif lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+                            {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
                             <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
                                 <div class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
                                     SALE

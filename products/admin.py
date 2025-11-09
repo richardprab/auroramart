@@ -52,7 +52,7 @@ class ProductAdmin(admin.ModelAdmin):
     Customizes the Product display in the admin panel.
     """
     list_display = ('name', 'sku', 'category', 'rating', 'is_active')
-    list_filter = ('is_active', 'is_featured', 'is_trending', 'category')
+    list_filter = ('is_active', 'is_featured', 'category')
     search_fields = ('name', 'sku', 'category__name')
     prepopulated_fields = {'slug': ('name',)}
     inlines = [ProductImageInline, ProductVariantInline]

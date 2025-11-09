@@ -126,7 +126,7 @@ def product_list(request):
     elif sort_by == "name":
         products = products.order_by("name")
     else:  # featured
-        products = products.order_by("-is_featured", "-is_bestseller", "-created_at")
+        products = products.order_by("-is_featured", "-created_at")
     
     # Remove duplicates after all filtering and sorting
     products = products.distinct()
@@ -196,6 +196,15 @@ def product_list(request):
     paginator = Paginator(products, 12)
     page_number = request.GET.get("page", 1)
     page_obj = paginator.get_page(page_number)
+    
+    # Get user's wishlist items if authenticated
+    user_wishlist_ids = []
+    if request.user.is_authenticated:
+        from accounts.models import Wishlist
+        user_wishlist_ids = list(
+            Wishlist.objects.filter(user=request.user)
+            .values_list('product_id', flat=True)
+        )
 
     # Get all categories for sidebar
     categories = Category.objects.filter(
@@ -215,6 +224,7 @@ def product_list(request):
         "query": query,
         "sort_by": sort_by,
         "query_string": query_string,
+        "user_wishlist_ids": user_wishlist_ids,
         # Filter options
         "available_brands": available_brands,
         "available_colors": available_colors,
@@ -246,17 +256,6 @@ def product_detail(request, slug):
         is_active=True,
     )
 
-    related_products = (
-        Product.objects.filter(category=product.category, is_active=True)
-        .exclude(id=product.id)
-        .prefetch_related(
-            Prefetch(
-                "variants", queryset=ProductVariant.objects.filter(is_active=True)
-            ),
-            Prefetch("images", queryset=ProductImage.objects.order_by("display_order")),
-        )[:4]
-    )
-
     # Check if this is a fashion category
     fashion_slugs = ['fashion', 'men', 'women', 'kids', 'clothing', 'apparel']
     category_slug_lower = product.category.slug.lower()
@@ -274,13 +273,22 @@ def product_detail(request, slug):
         variants = product.variants.filter(is_active=True)
         available_colors = list(variants.exclude(color="").values_list("color", flat=True).distinct())
         available_sizes = list(variants.exclude(size="").values_list("size", flat=True).distinct())
+    
+    # Check if product is in user's wishlist
+    is_in_wishlist = False
+    if request.user.is_authenticated:
+        from accounts.models import Wishlist
+        is_in_wishlist = Wishlist.objects.filter(
+            user=request.user,
+            product=product
+        ).exists()
 
     context = {
         "product": product,
-        "related_products": related_products,
         "is_fashion_category": is_fashion_category,
         "available_colors": available_colors,
         "available_sizes": available_sizes,
+        "is_in_wishlist": is_in_wishlist,
     }
     return render(request, "products/product_detail.html", context)
 

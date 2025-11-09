@@ -20,3 +20,6 @@ env/
 # System
 .DS_Store
 Thumbs.dbstaticfiles/
+
+# ML Models (large files)
+recommendations/mlmodels/*.joblib

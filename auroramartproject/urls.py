@@ -20,6 +20,7 @@ urlpatterns = [
     path("orders/", include("orders.urls")),
     path("notifications/", include("notifications.urls")),
     path("chat/", include("chat.urls")),
+    path("recommendations/", include("recommendations.urls")),
 ]
 
 # Serve static and media files during development

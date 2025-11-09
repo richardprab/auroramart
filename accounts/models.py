@@ -22,10 +22,65 @@ class User(AbstractUser):
     ]
     
     # --- Demographic Fields (for personalization) ---
+    # Basic demographics (existing)
     age_range = models.CharField(max_length=50, null=True, blank=True)
     gender = models.CharField(max_length=50, null=True, blank=True)
     employment = models.CharField(max_length=100, null=True, blank=True)
     income_range = models.CharField(max_length=100, null=True, blank=True)
+    
+    # Extended demographics for ML recommendations (all optional)
+    age = models.IntegerField(
+        null=True, 
+        blank=True, 
+        help_text="Exact age for better personalization. Optional."
+    )
+    household_size = models.IntegerField(
+        null=True, 
+        blank=True, 
+        help_text="Number of people in household. Optional."
+    )
+    has_children = models.BooleanField(
+        null=True, 
+        blank=True, 
+        help_text="Has children. Optional."
+    )
+    occupation = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        choices=[
+            ('Tech', 'Technology/IT'),
+            ('Sales', 'Sales & Marketing'),
+            ('Service', 'Service Industry'),
+            ('Admin', 'Administrative'),
+            ('Education', 'Education'),
+            ('Skilled Trades', 'Skilled Trades'),
+            ('Healthcare', 'Healthcare'),
+            ('Finance', 'Finance & Banking'),
+            ('Other', 'Other'),
+        ],
+        help_text="Occupation type. Optional."
+    )
+    education = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        choices=[
+            ('Secondary', 'Secondary/High School'),
+            ('Diploma', 'Diploma/Certificate'),
+            ('Bachelor', 'Bachelor\'s Degree'),
+            ('Master', 'Master\'s Degree'),
+            ('Doctorate', 'Doctorate/PhD'),
+        ],
+        help_text="Highest education level. Optional."
+    )
+    monthly_income = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Monthly income in SGD. Optional, kept private."
+    )
 
     # --- Core Account Fields ---
     role = models.CharField(
@@ -82,6 +137,24 @@ class User(AbstractUser):
     def get_short_name(self):
         """Returns the user's first name."""
         return self.first_name
+    
+    def get_profile_completion_percentage(self):
+        """Calculate how complete the user's profile is for better recommendations."""
+        total_fields = 6  # age, household_size, has_children, occupation, education, monthly_income
+        completed_fields = sum([
+            self.age is not None,
+            self.household_size is not None,
+            self.has_children is not None,
+            bool(self.occupation),
+            bool(self.education),
+            self.monthly_income is not None,
+        ])
+        return int((completed_fields / total_fields) * 100)
+    
+    def has_complete_profile_for_ml(self):
+        """Check if user has enough data for ML recommendations."""
+        # At minimum, we need age and gender for reasonable predictions
+        return bool(self.age or self.age_range) and bool(self.gender)
 
 
 class Address(models.Model):

@@ -87,8 +87,8 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'slug', 'sku', 'category', 'category_name',
-            'brand', 'rating', 'review_count', 'is_trending',
-            'is_bestseller', 'is_featured', 'is_active',
+            'brand', 'rating', 'review_count',
+            'is_featured', 'is_active',
             'primary_image', 'price_range', 'lowest_variant'
         ]
         read_only_fields = ['slug', 'rating', 'review_count']
@@ -127,7 +127,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'sku', 'category', 'category_name',
             'description', 'size_guide', 'brand', 'rating', 'review_count',
-            'is_trending', 'is_bestseller', 'is_featured', 'is_active',
+            'is_featured', 'is_active',
             'is_available', 'images', 'variants', 'reviews', 'price_range',
             'created_at', 'updated_at'
         ]

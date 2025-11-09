@@ -19,21 +19,7 @@
         </a>
 
         <!-- Banner Ribbons -->
-        {% if product.is_bestseller %}
-        <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
-            <div
-                class="absolute top-6 -left-8 w-40 bg-yellow-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
-                BESTSELLER
-            </div>
-        </div>
-        {% elif product.is_trending %}
-        <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
-            <div
-                class="absolute top-6 -left-8 w-40 bg-red-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
-                TRENDING
-            </div>
-        </div>
-        {% elif lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+        {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
         <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
             <div
                 class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
@@ -44,10 +30,14 @@
 
         {% if user.is_authenticated %}
         <form method="POST" action="{% url 'accounts:add_to_wishlist' product_id=product.id %}"
-            class="absolute top-2 right-2 z-20">
+            class="absolute top-2 right-2 z-20" data-wishlist-toggle>
             {% csrf_token %}
-            <button type="submit" class="bg-white p-2 rounded-full shadow-md hover:bg-red-50 transition">
+            <button type="submit" class="bg-white p-2 rounded-full shadow-md hover:bg-red-50 transition" data-product-id="{{ product.id }}">
+                {% if product.id in user_wishlist_ids %}
+                <i data-lucide="heart" class="w-5 h-5 text-red-500 fill-current"></i>
+                {% else %}
                 <i data-lucide="heart" class="w-5 h-5 text-gray-600 hover:text-red-500"></i>
+                {% endif %}
             </button>
         </form>
         {% endif %}

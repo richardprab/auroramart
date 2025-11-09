@@ -61,6 +61,12 @@ class WishlistViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
     
+    @action(detail=False, methods=['get'])
+    def count(self, request):
+        """Get wishlist item count"""
+        count = Wishlist.objects.filter(user=request.user).count()
+        return Response({'count': count})
+    
     @action(detail=False, methods=['post'])
     def add_product(self, request):
         """Add a product to wishlist"""

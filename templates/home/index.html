@@ -20,44 +20,75 @@
             <p class="text-gray-600 text-lg">Browse our curated collections</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6 max-w-7xl mx-auto">
             {% for category in categories %}
             <a href="{% url 'products:product_list' %}?category={{ category.slug }}"
-                class="category-card reveal group relative bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 will-change-transform overflow-hidden">
+                class="category-card reveal group bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
                 {% if category.slug == 'electronics' %}
-                <div class="w-full h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                    <i data-lucide="laptop" class="w-24 h-24 text-white"></i>
+                <div class="w-full h-40 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="laptop" class="w-16 h-16 text-white"></i>
                 </div>
-                {% elif category.slug == 'fashion' %}
-                <div class="w-full h-48 bg-gradient-to-br from-pink-400 to-red-500 flex items-center justify-center">
-                    <i data-lucide="shirt" class="w-24 h-24 text-white"></i>
+                {% elif category.slug == 'fashion-men' %}
+                <div class="w-full h-40 bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="shirt" class="w-16 h-16 text-white"></i>
                 </div>
-                {% elif category.slug == 'home-garden' %}
-                <div
-                    class="w-full h-48 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
-                    <i data-lucide="home" class="w-24 h-24 text-white"></i>
+                {% elif category.slug == 'fashion-women' %}
+                <div class="w-full h-40 bg-gradient-to-br from-pink-400 to-red-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="sparkles" class="w-16 h-16 text-white"></i>
                 </div>
-                {% elif category.slug == 'sports' %}
-                <div class="w-full h-48 bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center">
-                    <i data-lucide="dumbbell" class="w-24 h-24 text-white"></i>
+                {% elif category.slug == 'home-kitchen' %}
+                <div class="w-full h-40 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="home" class="w-16 h-16 text-white"></i>
+                </div>
+                {% elif category.slug == 'sports-outdoors' %}
+                <div class="w-full h-40 bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="dumbbell" class="w-16 h-16 text-white"></i>
+                </div>
+                {% elif category.slug == 'beauty-personal-care' %}
+                <div class="w-full h-40 bg-gradient-to-br from-pink-300 to-purple-400 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="sparkle" class="w-16 h-16 text-white"></i>
+                </div>
+                {% elif category.slug == 'health' %}
+                <div class="w-full h-40 bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="heart-pulse" class="w-16 h-16 text-white"></i>
+                </div>
+                {% elif category.slug == 'groceries-gourmet' %}
+                <div class="w-full h-40 bg-gradient-to-br from-lime-400 to-green-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="shopping-basket" class="w-16 h-16 text-white"></i>
+                </div>
+                {% elif category.slug == 'toys-games' %}
+                <div class="w-full h-40 bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="gamepad-2" class="w-16 h-16 text-white"></i>
+                </div>
+                {% elif category.slug == 'books' %}
+                <div class="w-full h-40 bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="book-open" class="w-16 h-16 text-white"></i>
+                </div>
+                {% elif category.slug == 'automotive' %}
+                <div class="w-full h-40 bg-gradient-to-br from-slate-500 to-gray-700 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="car" class="w-16 h-16 text-white"></i>
+                </div>
+                {% elif category.slug == 'pet-supplies' %}
+                <div class="w-full h-40 bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="paw-print" class="w-16 h-16 text-white"></i>
                 </div>
                 {% else %}
-                <div class="w-full h-48 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center">
-                    <i data-lucide="box" class="w-24 h-24 text-white"></i>
+                <div class="w-full h-40 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="box" class="w-16 h-16 text-white"></i>
                 </div>
                 {% endif %}
-                <div class="p-4">
-                    <h3 class="text-xl font-semibold mb-1 group-hover:text-blue-600 transition-colors">
+                <div class="p-3 flex-1 flex flex-col justify-center">
+                    <h3 class="text-sm md:text-base font-semibold mb-1 group-hover:text-blue-600 transition-colors text-center line-clamp-2">
                         {{ category.name }}
                     </h3>
-                    <p class="text-gray-600 text-sm">
-                        {{ category.product_count }} product{{ category.product_count|pluralize }}
+                    <p class="text-gray-600 text-xs text-center">
+                        {{ category.product_count }} item{{ category.product_count|pluralize }}
                     </p>
                 </div>
             </a>
             {% empty %}
             <!-- Fallback if no categories exist -->
-            <div class="col-span-4 text-center py-12">
+            <div class="col-span-full text-center py-12">
                 <p class="text-gray-500">No categories available yet.</p>
             </div>
             {% endfor %}
@@ -65,33 +96,129 @@
     </div>
 </section>
 
-<!-- Featured Products Section -->
-<section class="py-16">
+<!-- ML-Powered Personalized Recommendations / Featured Products -->
+{% if featured_products or user.is_authenticated %}
+<section class="py-16 bg-white" id="personalized-recommendations-section">
     <div class="container mx-auto px-4">
-        <div class="flex items-center justify-between mb-12">
-            <h2 class="text-3xl font-bold">Featured Products</h2>
-            <a href="{% url 'products:product_list' %}"
-                class="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-2">
-                View All
-                <i data-lucide="arrow-right" class="w-5 h-5"></i>
-            </a>
+        <div class="mb-12">
+            <h2 class="text-3xl font-bold" id="recommendations-title">
+                {% if user.is_authenticated %}Recommended For You{% else %}Featured Products{% endif %}
+            </h2>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        
+        <!-- Show featured products by default -->
+        <div id="featured-fallback" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {% if featured_products %}
             {% for product in featured_products %}
             {% include 'products/product_card.html' with product=product %}
             {% endfor %}
             {% else %}
             <div class="col-span-full text-center py-12">
-                <i data-lucide="package-open" class="w-16 h-16 mx-auto text-gray-400 mb-4"></i>
-                <p class="text-xl text-gray-600 mb-6">No products available yet</p>
-                <a href="{% url 'products:product_list' %}" class="btn btn-primary inline-flex items-center gap-2">
-                    <i data-lucide="search" class="w-5 h-5"></i>
-                    Browse Products
-                </a>
+                <i data-lucide="inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4"></i>
+                <p class="text-gray-600">Building your recommendations...</p>
             </div>
             {% endif %}
         </div>
+        
+        <!-- ML recommendations (hidden by default, shown when available) -->
+        <div id="personalized-content" class="hidden">
+            <div id="personalized-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+        </div>
     </div>
 </section>
+{% endif %}
+
+<script>
+    // Fetch ML-powered personalized recommendations
+    document.addEventListener('DOMContentLoaded', function() {
+        const featuredFallback = document.getElementById('featured-fallback');
+        const contentState = document.getElementById('personalized-content');
+        const grid = document.getElementById('personalized-grid');
+        
+        // Try to load ML recommendations
+        fetch('/api/recommendations/personalized/?limit=8')
+            .then(response => response.json())
+            .then(data => {
+                // Only replace featured products if we have ML recommendations
+                if (data.recommendations && data.recommendations.length > 0) {
+                    // Hide featured products fallback
+                    featuredFallback.classList.add('hidden');
+                    
+                    // Show ML recommendations
+                    contentState.classList.remove('hidden');
+                    
+                    data.recommendations.forEach(product => {
+                        grid.innerHTML += createProductCard(product);
+                    });
+                    
+                    // Reinitialize Lucide icons
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }
+                // If no recommendations, keep featured products visible (do nothing)
+            })
+            .catch(error => {
+                console.error('Error loading personalized recommendations:', error);
+                // Keep featured products visible on error
+            });
+        
+        function createProductCard(product) {
+            const lowestVariant = product.lowest_variant || {};
+            const primaryImage = product.primary_image;
+            const price = lowestVariant.price || '0.00';
+            const comparePrice = lowestVariant.compare_price;
+            const hasDiscount = comparePrice && parseFloat(comparePrice) > parseFloat(price);
+            const discountPercent = hasDiscount ? Math.round(((parseFloat(comparePrice) - parseFloat(price)) / parseFloat(comparePrice)) * 100) : 0;
+            
+            return `
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 flex flex-col h-full">
+                    <div class="relative">
+                        <a href="/products/${product.slug}/" class="block">
+                            ${primaryImage && primaryImage.url ? 
+                                `<img src="${primaryImage.url}" alt="${primaryImage.alt_text || product.name}" class="w-full h-64 object-cover">` :
+                                `<div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                                    <i data-lucide="package" class="w-16 h-16 text-gray-400"></i>
+                                </div>`
+                            }
+                        </a>
+                        
+                        ${hasDiscount ?
+                            `<div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
+                                <div class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
+                                    SALE
+                                </div>
+                            </div>` : ''
+                        }
+                    </div>
+                    
+                    <div class="p-4 flex-1 flex flex-col">
+                        <a href="/products/${product.slug}/" class="hover:text-blue-600">
+                            <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
+                        </a>
+                        
+                        ${product.brand ? `<p class="text-sm text-gray-500 mb-2">${product.brand}</p>` : ''}
+                        
+                        <div class="flex items-center mb-2">
+                            <div class="flex text-yellow-400">
+                                ${'★'.repeat(Math.floor(product.rating || 0))}${'☆'.repeat(5 - Math.floor(product.rating || 0))}
+                            </div>
+                            <span class="text-sm text-gray-600 ml-2">(${product.review_count || 0})</span>
+                        </div>
+                        
+                        <div class="mt-auto">
+                            <div class="flex items-baseline gap-2 mb-3">
+                                <span class="text-2xl font-bold text-blue-600">$${parseFloat(price).toFixed(2)}</span>
+                                ${hasDiscount ? 
+                                    `<span class="text-sm text-gray-500 line-through">$${parseFloat(comparePrice).toFixed(2)}</span>
+                                    <span class="text-xs text-green-600 font-semibold">Save ${discountPercent}%</span>` : ''
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+</script>
 {% endblock %}

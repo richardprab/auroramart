@@ -294,3 +294,310 @@ class CustomUserCreationForm(UserCreationForm):
         if commit:
             user.save()
         return user
+
+
+class WelcomePersonalizationForm(forms.ModelForm):
+    """Quick personalization form shown after registration"""
+    
+    age_range = forms.ChoiceField(
+        required=False,
+        choices=[
+            ('', 'Select your age range'),
+            ('18-24', '18-24'),
+            ('25-34', '25-34'),
+            ('35-44', '35-44'),
+            ('45-54', '45-54'),
+            ('55-64', '55-64'),
+            ('65+', '65+'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    
+    gender = forms.ChoiceField(
+        required=False,
+        choices=[
+            ('', 'Select gender'),
+            ('Male', 'Male'),
+            ('Female', 'Female'),
+            ('Other', 'Prefer not to say'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    
+    shopping_interest = forms.ChoiceField(
+        required=False,
+        label="What brings you here?",
+        choices=[
+            ('', 'What are you interested in?'),
+            ('Electronics', 'Electronics & Gadgets'),
+            ('Fashion - Men', 'Men\'s Fashion'),
+            ('Fashion - Women', 'Women\'s Fashion'),
+            ('Home & Kitchen', 'Home & Kitchen'),
+            ('Beauty & Personal Care', 'Beauty & Personal Care'),
+            ('Sports & Outdoors', 'Sports & Outdoors'),
+            ('Books', 'Books'),
+            ('Groceries & Gourmet', 'Groceries'),
+            ('Pet Supplies', 'Pet Supplies'),
+            ('Automotive', 'Automotive'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    
+    class Meta:
+        model = User
+        fields = ['age_range', 'gender']
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        
+        # Map shopping interest to preferred category if provided
+        if self.cleaned_data.get('shopping_interest'):
+            from products.models import Category
+            category_name = self.cleaned_data['shopping_interest']
+            try:
+                category = Category.objects.get(name=category_name)
+                user.preferred_category = category
+            except Category.DoesNotExist:
+                pass
+        
+        if commit:
+            user.save()
+        return user
+
+
+class UserProfileForm(forms.ModelForm):
+    """Form for editing user profile information"""
+
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "your@email.com",
+                "autocomplete": "email",
+            }
+        ),
+        help_text="Required. Enter a valid email address.",
+        error_messages={
+            "required": "Email address is required.",
+            "invalid": "Please enter a valid email address.",
+        },
+    )
+
+    first_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Enter your first name",
+                "autocomplete": "given-name",
+            }
+        ),
+        help_text="Required. Enter your first name.",
+        error_messages={
+            "required": "First name is required.",
+        },
+    )
+
+    last_name = forms.CharField(
+        required=True,
+        max_length=150,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Enter your last name",
+                "autocomplete": "family-name",
+            }
+        ),
+        help_text="Required. Enter your last name.",
+        error_messages={
+            "required": "Last name is required.",
+        },
+    )
+
+    phone = forms.CharField(
+        required=False,
+        max_length=20,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "+1 (555) 123-4567",
+                "autocomplete": "tel",
+            }
+        ),
+        help_text="Optional. Enter your phone number.",
+    )
+
+    date_of_birth = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "type": "date",
+                "autocomplete": "bday",
+            }
+        ),
+        help_text="Optional. Enter your date of birth.",
+    )
+
+    class Meta:
+        model = User
+        fields = [
+            "first_name", 
+            "last_name", 
+            "email", 
+            "phone", 
+            "date_of_birth",
+            "age_range",
+            "gender",
+            "occupation",
+            "education",
+            "household_size",
+            "has_children",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+
+    def clean_email(self):
+        """Validate email - allow keeping same email, but prevent duplicates"""
+        email = self.cleaned_data.get("email")
+
+        if not email:
+            raise ValidationError("Email address is required.")
+
+        # Check if email already exists (excluding current user)
+        if self.user:
+            existing_user = User.objects.filter(email__iexact=email).exclude(
+                pk=self.user.pk
+            )
+            if existing_user.exists():
+                raise ValidationError(
+                    "This email address is already registered to another account."
+                )
+
+        # Validate email format
+        email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(email_regex, email):
+            raise ValidationError("Please enter a valid email address.")
+
+        return email.lower()
+
+    def clean_first_name(self):
+        """Validate first name"""
+        first_name = self.cleaned_data.get("first_name", "")
+
+        if not first_name:
+            raise ValidationError("First name is required.")
+
+        # Remove extra spaces
+        first_name = first_name.strip()
+
+        # Check minimum length
+        if len(first_name) < 2:
+            raise ValidationError("First name must be at least 2 characters long.")
+
+        # Check length
+        if len(first_name) > 150:
+            raise ValidationError("First name cannot be more than 150 characters.")
+
+        # Check for valid characters (letters, spaces, hyphens, apostrophes)
+        if not re.match(r"^[a-zA-Z\s\-']+$", first_name):
+            raise ValidationError(
+                "First name can only contain letters, spaces, hyphens, and apostrophes."
+            )
+
+        return first_name.strip()
+
+    def clean_last_name(self):
+        """Validate last name"""
+        last_name = self.cleaned_data.get("last_name", "")
+
+        if not last_name:
+            raise ValidationError("Last name is required.")
+
+        # Remove extra spaces
+        last_name = last_name.strip()
+
+        # Check minimum length
+        if len(last_name) < 2:
+            raise ValidationError("Last name must be at least 2 characters long.")
+
+        # Check length
+        if len(last_name) > 150:
+            raise ValidationError("Last name cannot be more than 150 characters.")
+
+        # Check for valid characters (letters, spaces, hyphens, apostrophes)
+        if not re.match(r"^[a-zA-Z\s\-']+$", last_name):
+            raise ValidationError(
+                "Last name can only contain letters, spaces, hyphens, and apostrophes."
+            )
+
+        return last_name.strip()
+
+    def clean_phone(self):
+        """Validate phone number"""
+        phone = self.cleaned_data.get("phone", "")
+
+        if not phone:
+            return ""
+
+        phone = phone.strip()
+
+        # Allow common phone formats
+        # Examples: +1234567890, (123) 456-7890, 123-456-7890
+        phone_regex = r"^[\+\(\)\-\s\d]+$"
+        if not re.match(phone_regex, phone):
+            raise ValidationError(
+                "Please enter a valid phone number (digits, spaces, +, -, () allowed)."
+            )
+
+        # Check length (at least 10 digits)
+        digits_only = re.sub(r"\D", "", phone)
+        if len(digits_only) < 10:
+            raise ValidationError("Phone number must contain at least 10 digits.")
+
+        if len(digits_only) > 15:
+            raise ValidationError("Phone number cannot be more than 15 digits.")
+
+        return phone
+
+    def clean_date_of_birth(self):
+        """Validate date of birth"""
+        dob = self.cleaned_data.get("date_of_birth")
+
+        if not dob:
+            return None
+
+        # Import date utilities
+        from datetime import date
+
+        # Check if date is not in the future
+        if dob > date.today():
+            raise ValidationError("Date of birth cannot be in the future.")
+
+        # Check if user is at least 13 years old (COPPA compliance)
+        age = (date.today() - dob).days // 365
+        if age < 13:
+            raise ValidationError("You must be at least 13 years old to register.")
+
+        # Check if date is reasonable (not more than 120 years ago)
+        if age > 120:
+            raise ValidationError("Please enter a valid date of birth.")
+
+        return dob
+
+    def save(self, commit=True):
+        """Save the user profile with cleaned data"""
+        user = super().save(commit=False)
+        user.email = self.cleaned_data["email"].lower()
+        user.first_name = self.cleaned_data["first_name"].strip()
+        user.last_name = self.cleaned_data["last_name"].strip()
+        user.phone = self.cleaned_data.get("phone", "").strip()
+        user.date_of_birth = self.cleaned_data.get("date_of_birth")
+
+        if commit:
+            user.save()
+        return user
