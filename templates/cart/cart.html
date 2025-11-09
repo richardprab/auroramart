@@ -197,18 +197,29 @@
     {% if cart_items %}
     <div class="mt-12">
         <div class="flex items-center gap-2 mb-6">
-            <h2 class="text-2xl font-bold">Complete Your Purchase</h2>
-            <span class="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full font-semibold">AI Powered</span>
+            <h2 class="text-2xl font-bold text-gray-900">Complete Your Purchase</h2>
+            <span class="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-3 py-1 rounded-full font-semibold">AI Powered</span>
         </div>
-        <div id="cart-recommendations-loading" class="flex items-center justify-center py-12 bg-white rounded-xl">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        
+        <!-- Loading State -->
+        <div id="cart-recommendations-loading" class="flex items-center justify-center py-12 bg-white rounded-xl border border-gray-200">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p class="text-gray-600">Finding perfect recommendations for you...</p>
+            </div>
         </div>
+        
+        <!-- Content State -->
         <div id="cart-recommendations-content" class="hidden">
             <div id="cart-recommendations-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
         </div>
-        <div id="cart-recommendations-empty" class="hidden text-center py-8 text-gray-500 bg-white rounded-xl">
-            <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 text-gray-400"></i>
-            <p>No recommendations available yet</p>
+        
+        <!-- Empty State -->
+        <div id="cart-recommendations-empty" class="hidden text-center py-12 bg-white rounded-xl border border-gray-200">
+            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="inbox" class="w-10 h-10 text-gray-400"></i>
+            </div>
+            <p class="text-gray-600">No recommendations available at the moment</p>
         </div>
     </div>
     {% endif %}
@@ -542,111 +553,202 @@
 
     // ML-Powered Cart Recommendations
     {% if cart_items %}
-    const cartItems = [
-        {% for item in cart_items %}
-        {
-            product_id: {{ item.product.id }},
-            variant_id: {{ item.product_variant.id }},
-            quantity: {{ item.quantity }}
-        }{% if not forloop.last %},{% endif %}
-        {% endfor %}
-    ];
-
-    // Fetch cart-based recommendations
-    fetch('/api/recommendations/cart-recommendations/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify({ cart_items: cartItems, limit: 4 })
-    })
-    .then(response => response.json())
-    .then(data => {
-        const loadingState = document.getElementById('cart-recommendations-loading');
-        const contentState = document.getElementById('cart-recommendations-content');
-        const emptyState = document.getElementById('cart-recommendations-empty');
-        
-        loadingState.classList.add('hidden');
-        
-        if (data.recommendations && data.recommendations.length > 0) {
-            contentState.classList.remove('hidden');
-            const grid = document.getElementById('cart-recommendations-grid');
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fetch cart-based recommendations
+        fetch('/api/recommendations/cart-recommendations/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ limit: 4 })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Recommendations response:', data);
+            const loadingState = document.getElementById('cart-recommendations-loading');
+            const contentState = document.getElementById('cart-recommendations-content');
+            const emptyState = document.getElementById('cart-recommendations-empty');
             
-            data.recommendations.forEach(product => {
-                grid.innerHTML += createProductCard(product);
-            });
+            loadingState.classList.add('hidden');
             
-            // Reinitialize Lucide icons
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
+            if (data.recommendations && data.recommendations.length > 0) {
+                contentState.classList.remove('hidden');
+                const grid = document.getElementById('cart-recommendations-grid');
+                
+                data.recommendations.forEach(product => {
+                    grid.innerHTML += createRecommendationCard(product);
+                });
+                
+                // Reinitialize Lucide icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            } else {
+                emptyState.classList.remove('hidden');
             }
-        } else {
-            emptyState.classList.remove('hidden');
-        }
-    })
-    .catch(error => {
-        console.error('Error loading cart recommendations:', error);
-        document.getElementById('cart-recommendations-loading').classList.add('hidden');
-        document.getElementById('cart-recommendations-empty').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error loading recommendations:', error);
+            document.getElementById('cart-recommendations-loading').classList.add('hidden');
+            document.getElementById('cart-recommendations-empty').classList.remove('hidden');
+        });
     });
 
-    function createProductCard(product) {
+    function createRecommendationCard(product) {
         const lowestVariant = product.lowest_variant || {};
         const primaryImage = product.primary_image;
         const price = lowestVariant.price || '0.00';
         const comparePrice = lowestVariant.compare_price;
         const hasDiscount = comparePrice && parseFloat(comparePrice) > parseFloat(price);
         const discountPercent = hasDiscount ? Math.round(((parseFloat(comparePrice) - parseFloat(price)) / parseFloat(comparePrice)) * 100) : 0;
-        
+        const stock = lowestVariant.stock || 0;
+        const variantId = lowestVariant.id;
+
         return `
-            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 flex flex-col h-full">
-                <div class="relative">
-                    <a href="/products/${product.slug}/" class="block">
-                        ${primaryImage && primaryImage.url ? 
-                            `<img src="${primaryImage.url}" alt="${primaryImage.alt_text || product.name}" class="w-full h-64 object-cover">` :
-                            `<div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                                <i data-lucide="package" class="w-16 h-16 text-gray-400"></i>
-                            </div>`
-                        }
-                    </a>
-                    
-                    ${hasDiscount ?
-                        `<div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
-                            <div class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
-                                SALE
-                            </div>
-                        </div>` : ''
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition duration-300 flex flex-col group">
+                <div class="relative overflow-hidden">
+                    ${primaryImage ? 
+                        `<img src="${primaryImage}" alt="${product.name}" class="w-full h-48 object-cover group-hover:scale-110 transition duration-500">` :
+                        `<div class="w-full h-48 bg-gray-100 flex items-center justify-center">
+                            <i data-lucide="image" class="w-16 h-16 text-gray-400"></i>
+                        </div>`
                     }
+                    ${hasDiscount ? `
+                        <div class="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                            -${discountPercent}%
+                        </div>
+                    ` : ''}
+                    ${stock > 0 && stock < 10 ? `
+                        <div class="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                            Only ${stock} left
+                        </div>
+                    ` : stock === 0 ? `
+                        <div class="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                            Out of Stock
+                        </div>
+                    ` : ''}
                 </div>
                 
                 <div class="p-4 flex-1 flex flex-col">
-                    <a href="/products/${product.slug}/" class="hover:text-blue-600">
-                        <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
+                    <a href="/products/${product.slug}/" class="hover:text-blue-600 transition">
+                        <h3 class="font-semibold text-base mb-2 line-clamp-2 min-h-[3rem]">${product.name}</h3>
                     </a>
                     
-                    ${product.brand ? `<p class="text-sm text-gray-500 mb-2">${product.brand}</p>` : ''}
+                    ${product.brand ? `<p class="text-xs text-gray-500 mb-2">${product.brand}</p>` : ''}
                     
-                    <div class="flex items-center mb-2">
-                        <div class="flex text-yellow-400">
+                    <div class="flex items-center mb-3">
+                        <div class="flex text-yellow-400 text-sm">
                             ${'★'.repeat(Math.floor(product.rating || 0))}${'☆'.repeat(5 - Math.floor(product.rating || 0))}
                         </div>
-                        <span class="text-sm text-gray-600 ml-2">(${product.review_count || 0})</span>
+                        <span class="text-xs text-gray-600 ml-2">(${product.review_count || 0})</span>
                     </div>
                     
                     <div class="mt-auto">
                         <div class="flex items-baseline gap-2 mb-3">
-                            <span class="text-2xl font-bold text-blue-600">$${parseFloat(price).toFixed(2)}</span>
+                            <span class="text-xl font-bold text-blue-600">$${parseFloat(price).toFixed(2)}</span>
                             ${hasDiscount ? 
-                                `<span class="text-sm text-gray-500 line-through">$${parseFloat(comparePrice).toFixed(2)}</span>
-                                <span class="text-xs text-green-600 font-semibold">Save ${discountPercent}%</span>` : ''
+                                `<span class="text-sm text-gray-400 line-through">$${parseFloat(comparePrice).toFixed(2)}</span>` : ''
                             }
                         </div>
+                        
+                        ${stock > 0 ? `
+                            <button onclick="quickAddToCart(${product.id}, ${variantId}, '${product.name.replace(/'/g, "\\'")}')" 
+                                    class="w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Quick Add
+                            </button>
+                        ` : `
+                            <button disabled class="w-full bg-gray-300 text-gray-500 px-4 py-2.5 rounded-lg font-semibold cursor-not-allowed">
+                                Out of Stock
+                            </button>
+                        `}
                     </div>
                 </div>
             </div>
         `;
     }
+
+    // Quick Add to Cart function
+    window.quickAddToCart = function(productId, variantId, productName) {
+        const formData = new FormData();
+        formData.append('variant_id', variantId);
+        formData.append('quantity', 1);
+
+        fetch(`/cart/add/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`${productName} added to cart!`, 'success');
+                
+                // Update cart count if CartModule exists
+                if (typeof CartModule !== 'undefined') {
+                    CartModule.updateCartCount();
+                }
+                
+                // Reload page after short delay
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showToast(data.message || 'Unable to add to cart', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('An error occurred. Please try again.', 'error');
+        });
+    };
+
+    // Toast notification helper
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+        const icon = type === 'success' ? 'check-circle' : 'x-circle';
+        
+        toast.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white z-50 flex items-center gap-3 ${bgColor} animate-slide-in`;
+        toast.innerHTML = `
+            <i data-lucide="${icon}" class="w-5 h-5"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+        
+        // Initialize icon
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
     {% endif %}
 </script>
+
+<style>
+@keyframes slide-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+    transition: all 0.3s ease-out;
+}
+</style>
 {% endblock %}

@@ -1,9 +1,14 @@
 import joblib
 import os
 import pandas as pd
+import warnings
+from sklearn.exceptions import InconsistentVersionWarning
 from django.apps import apps
 from products.models import Product, Category
 
+
+# Suppress scikit-learn version warnings
+warnings.filterwarnings('ignore', category=InconsistentVersionWarning)
 
 # Load models once at module level
 app_path = apps.get_app_config('recommendations').path
@@ -12,6 +17,30 @@ customer_model = joblib.load(model_path)
 model_path = os.path.join(app_path, 'mlmodels', 'b2c_products_500_transactions_50k.joblib')
 association_rules = joblib.load(model_path)
 
+# DEBUG: Print association rules info
+print("=" * 80)
+print("ASSOCIATION RULES MODEL INFO:")
+print(f"Type: {type(association_rules)}")
+if isinstance(association_rules, pd.DataFrame):
+    print(f"Shape: {association_rules.shape}")
+    print(f"Columns: {association_rules.columns.tolist()}")
+    print("\nFirst 3 rules:")
+    print(association_rules.head(3))
+    
+    # Extract all unique SKUs from the rules
+    all_skus = set()
+    for antecedents in association_rules['antecedents']:
+        all_skus.update(antecedents)
+    for consequents in association_rules['consequents']:
+        all_skus.update(consequents)
+    
+    print(f"\nTotal unique SKUs in model: {len(all_skus)}")
+    print(f"Sample SKUs (first 20): {list(all_skus)[:20]}")
+    
+    if len(association_rules) > 0:
+        print(f"\nAntecedents type: {type(association_rules.iloc[0]['antecedents'])}")
+print("=" * 80)
+
 
 class CustomerCategoryPredictor:
     """Predicts preferred product category based on customer demographics"""
@@ -19,74 +48,48 @@ class CustomerCategoryPredictor:
     @staticmethod
     def predict(user):
         """
-        Predict preferred category for a user.
-        Returns category name as string.
+        Predict user's preferred category based on their demographics.
+        
+        Args:
+            user: User object with age_range and gender attributes
+            
+        Returns:
+            str: Predicted category name
         """
-        features = CustomerCategoryPredictor._prepare_features(user)
-        prediction = customer_model.predict(features)
-        return prediction[0]
-    
-    @staticmethod
-    def _prepare_features(user):
-        """Convert user data to model input format"""
-        data = {
-            'age': CustomerCategoryPredictor._estimate_age(user.age_range),
-            'household_size': user.household_size or 2,
-            'has_children': 1 if user.has_children else 0,
-            'monthly_income_sgd': CustomerCategoryPredictor._estimate_income(user.income_range),
+        # Map age ranges to numeric values
+        age_map = {
+            '18-25': 21.5,
+            '26-35': 30.5,
+            '36-45': 40.5,
+            '46-55': 50.5,
+            '56+': 60
         }
         
-        # Add one-hot encoded gender
-        gender_value = user.gender or 'Male'
-        data['gender_Female'] = 1 if gender_value == 'Female' else 0
-        data['gender_Male'] = 1 if gender_value == 'Male' else 0
-        
-        # Add one-hot encoded employment status
-        employment = user.employment or 'Full-time'
-        data['employment_status_Full-time'] = 1 if employment == 'Full-time' else 0
-        data['employment_status_Part-time'] = 1 if employment == 'Part-time' else 0
-        data['employment_status_Retired'] = 1 if employment == 'Retired' else 0
-        data['employment_status_Self-employed'] = 1 if employment == 'Self-employed' else 0
-        data['employment_status_Student'] = 1 if employment == 'Student' else 0
-        
-        # Add one-hot encoded occupation
-        occupation = user.occupation or 'Service'
-        occupations = ['Admin', 'Education', 'Sales', 'Service', 'Skilled Trades', 'Tech']
-        for occ in occupations:
-            data[f'occupation_{occ}'] = 1 if occupation == occ else 0
-        
-        # Add one-hot encoded education
-        education = user.education or 'Bachelor'
-        educations = ['Bachelor', 'Diploma', 'Doctorate', 'Master', 'Secondary']
-        for edu in educations:
-            data[f'education_{edu}'] = 1 if education == edu else 0
-        
-        return pd.DataFrame([data])
-    
-    @staticmethod
-    def _estimate_age(age_range):
-        """Convert age range to midpoint"""
-        mapping = {
-            '18-24': 21,
-            '25-34': 29,
-            '35-44': 39,
-            '45-54': 49,
-            '55-64': 59,
-            '65+': 67,
+        # Map gender to numeric (1 for Male, 0 for Female)
+        gender_map = {
+            'male': 1,
+            'female': 0
         }
-        return mapping.get(age_range, 35)
-    
-    @staticmethod
-    def _estimate_income(income_range):
-        """Convert income range to estimated value"""
-        mapping = {
-            'Under $2000': 1500,
-            '$2000-$4999': 3500,
-            '$5000-$7999': 6500,
-            '$8000-$11999': 10000,
-            '$12000+': 15000,
-        }
-        return mapping.get(income_range, 5000)
+        
+        if not user.age_range or not user.gender:
+            raise ValueError("User must have age_range and gender set")
+        
+        age_numeric = age_map.get(user.age_range)
+        gender_numeric = gender_map.get(user.gender.lower())
+        
+        if age_numeric is None or gender_numeric is None:
+            raise ValueError("Invalid age_range or gender value")
+        
+        # Create feature array for prediction
+        features = pd.DataFrame({
+            'Age': [age_numeric],
+            'Gender': [gender_numeric]
+        })
+        
+        # Make prediction
+        predicted_category = customer_model.predict(features)[0]
+        
+        return predicted_category
 
 
 class ProductRecommender:
@@ -108,55 +111,130 @@ class ProductRecommender:
         if isinstance(product_skus, str):
             product_skus = [product_skus]
         
+        print(f"\nDEBUG get_recommendations: Input SKUs: {product_skus}")
+        print(f"DEBUG get_recommendations: Total rules in model: {len(association_rules)}")
+        
+        # Check if input SKUs exist in the model at all
+        all_model_skus = set()
+        for antecedents in association_rules['antecedents']:
+            all_model_skus.update(antecedents)
+        
+        for sku in product_skus:
+            if sku in all_model_skus:
+                print(f"DEBUG: SKU '{sku}' EXISTS in model")
+            else:
+                print(f"DEBUG: SKU '{sku}' NOT FOUND in model")
+                # Try to find similar SKUs
+                similar = [s for s in all_model_skus if sku[:8] in s]  # Match first 8 chars
+                if similar:
+                    print(f"DEBUG: Similar SKUs found: {similar[:5]}")
+        
         recommendations = set()
         
         for sku in product_skus:
+            print(f"DEBUG get_recommendations: Searching rules for SKU: {sku}")
+            
+            # Check if sku exists in any antecedents
             matched_rules = association_rules[
                 association_rules['antecedents'].apply(lambda x: sku in x)
             ]
             
+            print(f"DEBUG get_recommendations: Found {len(matched_rules)} matching rules for {sku}")
+            
             if not matched_rules.empty:
+                print(f"DEBUG get_recommendations: Top 2 matching rules:")
+                print(matched_rules.head(2)[['antecedents', 'consequents', metric]])
+                
                 top_rules = matched_rules.sort_values(by=metric, ascending=False).head(top_n)
                 
                 for _, row in top_rules.iterrows():
-                    recommendations.update(row['consequents'])
+                    consequents = row['consequents']
+                    print(f"DEBUG get_recommendations: Adding consequents: {consequents}")
+                    recommendations.update(consequents)
         
         # Remove items already in the input
         recommendations.difference_update(product_skus)
         
-        return list(recommendations)[:top_n]
+        final_recs = list(recommendations)[:top_n]
+        print(f"DEBUG get_recommendations: Final {len(final_recs)} recommendations: {final_recs}\n")
+        return final_recs
     
     @staticmethod
     def get_cart_recommendations(cart_items, top_n=5):
         """
         Get recommendations based on current cart contents.
+        CHANGED: Updated to work with CartItem model that has product_variant
         
         Args:
-            cart_items: QuerySet or list of cart items with product/variant
+            cart_items: QuerySet or list of CartItem objects
             top_n: Number of recommendations
             
         Returns:
             List of Product objects
         """
+        print(f"\n{'='*80}")
+        print(f"GET_CART_RECOMMENDATIONS called with top_n={top_n}")
+        print(f"{'='*80}")
+        
         cart_skus = []
+        
+        # Extract SKUs from cart items (handle both variant and product)
         for item in cart_items:
-            if hasattr(item, 'variant'):
-                cart_skus.append(item.variant.sku)
-            elif hasattr(item, 'product'):
-                cart_skus.append(item.product.sku)
+            if hasattr(item, 'product_variant') and item.product_variant:
+                sku = item.product_variant.sku
+                cart_skus.append(sku)
+                print(f"DEBUG: Added variant SKU: {sku}")
+            elif hasattr(item, 'product') and item.product:
+                sku = item.product.sku
+                cart_skus.append(sku)
+                print(f"DEBUG: Added product SKU: {sku}")
+        
+        print(f"DEBUG: Total cart SKUs collected: {cart_skus}")
         
         if not cart_skus:
+            print("DEBUG: No SKUs found in cart - returning empty list")
+            print(f"{'='*80}\n")
             return []
         
-        recommended_skus = ProductRecommender.get_recommendations(cart_skus, top_n=top_n)
+        # Get recommended SKUs using association rules
+        recommended_skus = ProductRecommender.get_recommendations(cart_skus, top_n=top_n * 2)
+        print(f"DEBUG: Recommended SKUs from association rules: {recommended_skus}")
         
-        # Convert SKUs to actual products
-        products = Product.objects.filter(
+        if not recommended_skus:
+            print("DEBUG: No recommendations from association rules - returning empty list")
+            print(f"{'='*80}\n")
+            return []
+        
+        # Convert SKUs to actual products (match both variant and product SKU)
+        from products.models import ProductVariant
+        
+        variant_products = Product.objects.filter(
+            variants__sku__in=recommended_skus,
+            is_active=True
+        ).distinct()
+        print(f"DEBUG: Found {variant_products.count()} products by variant SKU")
+        
+        product_sku_products = Product.objects.filter(
             sku__in=recommended_skus,
             is_active=True
-        ).select_related('category')[:top_n]
+        ).distinct()
+        print(f"DEBUG: Found {product_sku_products.count()} products by product SKU")
         
-        return list(products)
+        products = list(set(list(variant_products) + list(product_sku_products)))
+        print(f"DEBUG: Total unique products: {len(products)}")
+        
+        if products:
+            print("DEBUG: Product names:")
+            for p in products:
+                print(f"  - {p.name} (SKU: {p.sku})")
+        
+        products.sort(key=lambda p: (p.rating or 0, p.created_at), reverse=True)
+        
+        final_products = products[:top_n]
+        print(f"DEBUG: Returning top {len(final_products)} products")
+        print(f"{'='*80}\n")
+        
+        return final_products
     
     @staticmethod
     def get_similar_products(product, top_n=5):
@@ -189,7 +267,7 @@ class PersonalizedRecommendations:
         Get personalized product recommendations for a user.
         Uses customer category prediction if user has demographic data.
         """
-        if not user.is_authenticated:
+        if not user or not user.is_authenticated:
             return Product.objects.filter(
                 is_active=True,
                 is_featured=True
@@ -213,7 +291,7 @@ class PersonalizedRecommendations:
                 pass
         
         # Fallback to user's preferred category if set
-        if user.preferred_category:
+        if hasattr(user, 'preferred_category') and user.preferred_category:
             products = Product.objects.filter(
                 category=user.preferred_category,
                 is_active=True
