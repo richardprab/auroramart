@@ -259,7 +259,13 @@ def unique_value(model, field: str, base: str) -> str:
 def product_defaults(name: str, cat, parent_cat, idx: int) -> dict:
     base_slug = slugify(name)
     slug = unique_value(Product, "slug", base_slug)
-    base_sku = f"{cat.name[:3].upper()}-{idx:04d}"
+    
+    # Generate SKU in format matching the ML model: XXX-YYYYYYYY (12 chars total)
+    # XXX = 3-letter category code, YYYYYYYY = 8 random alphanumeric characters
+    import string
+    category_code = cat.name[:3].upper().ljust(3, 'X')  # Ensure 3 chars
+    random_part = ''.join(RNG.choices(string.ascii_uppercase + string.digits, k=8))
+    base_sku = f"{category_code}-{random_part}"
     sku = unique_value(Product, "sku", base_sku)
 
     # Get brand for this category
@@ -342,6 +348,10 @@ def seed(reset: bool = False, per_category: int = 3, variants_per_product: int =
                     fashion_categories = ['Fashion - Men', 'Fashion - Women']
                     is_fashion = parent.name in fashion_categories
                     
+                    # Define category code for variant SKU generation
+                    import string
+                    category_code = cat.name[:3].upper().ljust(3, 'X')
+                    
                     if is_fashion:
                         # Fashion products: multiple variants with colors and sizes
                         product_colors = RNG.sample(
@@ -360,10 +370,11 @@ def seed(reset: bool = False, per_category: int = 3, variants_per_product: int =
 
                             color = product_colors[v % len(product_colors)]
                             size = product_sizes[v % len(product_sizes)]
-                            sku_suffix = f"{color[:3].upper()}-{size}"
-
+                            
+                            # Generate variant SKU in same 12-char format: XXX-YYYYYYYY
+                            variant_code = ''.join(RNG.choices(string.ascii_uppercase + string.digits, k=8))
                             variant_sku = unique_value(
-                                ProductVariant, "sku", f"{product.sku}-{sku_suffix}"
+                                ProductVariant, "sku", f"{category_code}-{variant_code}"
                             )
 
                             ProductVariant.objects.create(
@@ -377,14 +388,16 @@ def seed(reset: bool = False, per_category: int = 3, variants_per_product: int =
                                 is_active=True,
                                 is_default=(v == 0),
                             )
-                            print(f"  → Created variant: {color} / {size} - ${price}")
+                            print(f"  → Created variant: {color} / {size} - ${price} (SKU: {variant_sku})")
                     else:
                         # Non-fashion products: single variant without color/size
                         base_price = Decimal(RNG.randint(low, high))
                         compare = base_price + Decimal(RNG.choice([0, 10, 20, 50, 100]))
                         
+                        # Generate variant SKU in same 12-char format
+                        variant_code = ''.join(RNG.choices(string.ascii_uppercase + string.digits, k=8))
                         variant_sku = unique_value(
-                            ProductVariant, "sku", f"{product.sku}-STD"
+                            ProductVariant, "sku", f"{category_code}-{variant_code}"
                         )
                         
                         ProductVariant.objects.create(
@@ -398,7 +411,7 @@ def seed(reset: bool = False, per_category: int = 3, variants_per_product: int =
                             is_active=True,
                             is_default=True,
                         )
-                        print(f"  → Created single variant: ${base_price}")
+                        print(f"  → Created single variant: ${base_price} (SKU: {variant_sku})")
 
     print(
         f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
