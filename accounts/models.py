@@ -15,24 +15,71 @@ class User(AbstractUser):
     including demographics, preferences, and app-specific settings.
     """
 
-    ROLE_CHOICES = [
-        ('customer', 'Customer'),
-        ('staff', 'Staff'),
-        ('admin', 'Admin'),
+    GENDER_CHOICES = [
+        ('Male', 'Male'),
+        ('Female', 'Female'),
     ]
     
-    # --- Demographic Fields (for personalization) ---
-    # Basic demographics (existing)
-    age_range = models.CharField(max_length=50, null=True, blank=True)
-    gender = models.CharField(max_length=50, null=True, blank=True)
-    employment = models.CharField(max_length=100, null=True, blank=True)
-    income_range = models.CharField(max_length=100, null=True, blank=True)
+    EMPLOYMENT_STATUS_CHOICES = [
+        ('Full-time', 'Full-time'),
+        ('Part-time', 'Part-time'),
+        ('Student', 'Student'),
+        ('Self-employed', 'Self-employed'),
+        ('Retired', 'Retired'),
+    ]
     
-    # Extended demographics for ML recommendations (all optional)
+    OCCUPATION_CHOICES = [
+        ('Tech', 'Technology/IT'),
+        ('Sales', 'Sales & Marketing'),
+        ('Service', 'Service Industry'),
+        ('Admin', 'Administrative'),
+        ('Education', 'Education'),
+        ('Skilled Trades', 'Skilled Trades'),
+        ('Healthcare', 'Healthcare'),
+        ('Finance', 'Finance & Banking'),
+        ('Other', 'Other'),
+    ]
+    
+    EDUCATION_CHOICES = [
+        ('Secondary', 'Secondary/High School'),
+        ('Diploma', 'Diploma/Certificate'),
+        ('Bachelor', 'Bachelor\'s Degree'),
+        ('Master', 'Master\'s Degree'),
+        ('Doctorate', 'Doctorate/PhD'),
+    ]
+    
     age = models.IntegerField(
         null=True, 
         blank=True, 
-        help_text="Exact age for better personalization. Optional."
+        help_text="Age in years."
+    )
+    gender = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        choices=GENDER_CHOICES,
+        help_text="Gender."
+    )
+    employment_status = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        choices=EMPLOYMENT_STATUS_CHOICES,
+        help_text="Employment status."
+    )
+    occupation = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        choices=OCCUPATION_CHOICES,
+        help_text="Occupation type. Optional."
+    )
+    education = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        choices=EDUCATION_CHOICES,
+        help_text="Highest education level."
     )
     household_size = models.IntegerField(
         null=True, 
@@ -44,37 +91,7 @@ class User(AbstractUser):
         blank=True, 
         help_text="Has children. Optional."
     )
-    occupation = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True,
-        choices=[
-            ('Tech', 'Technology/IT'),
-            ('Sales', 'Sales & Marketing'),
-            ('Service', 'Service Industry'),
-            ('Admin', 'Administrative'),
-            ('Education', 'Education'),
-            ('Skilled Trades', 'Skilled Trades'),
-            ('Healthcare', 'Healthcare'),
-            ('Finance', 'Finance & Banking'),
-            ('Other', 'Other'),
-        ],
-        help_text="Occupation type. Optional."
-    )
-    education = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        choices=[
-            ('Secondary', 'Secondary/High School'),
-            ('Diploma', 'Diploma/Certificate'),
-            ('Bachelor', 'Bachelor\'s Degree'),
-            ('Master', 'Master\'s Degree'),
-            ('Doctorate', 'Doctorate/PhD'),
-        ],
-        help_text="Highest education level. Optional."
-    )
-    monthly_income = models.DecimalField(
+    monthly_income_sgd = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         null=True,
@@ -83,42 +100,16 @@ class User(AbstractUser):
     )
 
     # --- Core Account Fields ---
-    role = models.CharField(
-        max_length=50,
-        choices=ROLE_CHOICES,
-        default="customer",
-        help_text="User role (e.g., customer, admin).",
-    )
     email = models.EmailField(
         unique=True, help_text="Required. Used for login and communication."
     )
     first_name = models.CharField(max_length=150, blank=False)
     last_name = models.CharField(max_length=150, blank=False)
 
-    # --- User Preferences ---
-    preferred_category = models.ForeignKey(
-        "products.Category",
-        on_delete=models.SET_NULL,  # Keep user if category is deleted
-        null=True,
-        blank=True,
-        related_name="preferred_by_users",
-        help_text="User's preferred category for personalization.",
-    )
-
     # --- Optional Profile Fields ---
     phone = models.CharField(max_length=20, blank=True, null=True)
-    date_of_birth = models.DateField(null=True, blank=True)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
 
-    # --- Notification & Marketing Toggles (from ERD) ---
-    allow_marketing_emails = models.BooleanField(
-        default=False, help_text="User has opted-in to marketing communications."
-    )
-    allow_sale_notifications = models.BooleanField(
-        default=False, help_text="User has opted-in to sale/stock alerts."
-    )
-
-    # --- Timestamps ---
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -140,21 +131,23 @@ class User(AbstractUser):
     
     def get_profile_completion_percentage(self):
         """Calculate how complete the user's profile is for better recommendations."""
-        total_fields = 6  # age, household_size, has_children, occupation, education, monthly_income
+        total_fields = 8  # age, gender, employment_status, occupation, education, household_size, has_children, monthly_income_sgd
         completed_fields = sum([
             self.age is not None,
-            self.household_size is not None,
-            self.has_children is not None,
+            bool(self.gender),
+            bool(self.employment_status),
             bool(self.occupation),
             bool(self.education),
-            self.monthly_income is not None,
+            self.household_size is not None,
+            self.has_children is not None,
+            self.monthly_income_sgd is not None,
         ])
         return int((completed_fields / total_fields) * 100)
     
     def has_complete_profile_for_ml(self):
         """Check if user has enough data for ML recommendations."""
         # At minimum, we need age and gender for reasonable predictions
-        return bool(self.age or self.age_range) and bool(self.gender)
+        return bool(self.age) and bool(self.gender)
 
 
 class Address(models.Model):
@@ -249,72 +242,20 @@ class SaleSubscription(models.Model):
 
 class BrowsingHistory(models.Model):
     """
-    Logs products a user has viewed.
-    Used for the "Personalized Recommendations" feature.
+    Tracks products a user has viewed with view count.
+    One entry per user-product pair, updates timestamp on each view.
+    Used for "Recently Viewed" feature and analytics.
     """
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='browsing_history')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='browsing_history')
-    viewed_at = models.DateTimeField(auto_now_add=True)
+    viewed_at = models.DateTimeField(auto_now=True)
+    view_count = models.IntegerField(default=1)
     
     class Meta:
         verbose_name_plural = 'Browsing Histories'
         ordering = ['-viewed_at']
+        unique_together = ('user', 'product')
 
     def __str__(self):
         return f"{self.user.username} viewed {self.product.name}"
-
-
-class ChatConversation(models.Model):
-    """
-    Represents a single conversation thread between a user and an admin,
-    usually regarding a specific product.
-    """
-
-    MESSAGE_TYPE_CHOICES = [
-        ('contact_us', 'Contact Us'),
-        ('product_chat', 'Product Chat'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('replied', 'Replied'),
-    ]
-    
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations')
-    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='chats')
-    admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_chats')
-    
-    # NEW FIELDS
-    subject = models.CharField(max_length=200, default='General Inquiry')
-    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, default='contact_us')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    
-    user_has_unread = models.BooleanField(default=False)
-    admin_has_unread = models.BooleanField(default=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['-updated_at']
-
-    def __str__(self):
-        return f"{self.user.username} - {self.subject}"
-
-
-class ChatMessage(models.Model):
-    """
-    An individual message within a ChatConversation.
-    """
-
-    conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='messages')
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['created_at']
-
-    def __str__(self):
-        return f"{self.sender.username}: {self.content[:50]}"

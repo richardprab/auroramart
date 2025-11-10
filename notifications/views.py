@@ -50,3 +50,22 @@ def get_unread_count(request):
     """API endpoint for navbar badge count"""
     count = request.user.notifications.filter(is_read=False).count()
     return JsonResponse({"count": count})
+
+
+@login_required
+def get_recent_notifications(request):
+    """API endpoint for dropdown - get recent notifications"""
+    notifications = request.user.notifications.all()[:10]  # Last 10 notifications
+    
+    data = []
+    for notif in notifications:
+        data.append({
+            'id': notif.id,
+            'message': notif.message,
+            'notification_type': notif.notification_type,
+            'is_read': notif.is_read,
+            'link': notif.link,
+            'created_at': notif.created_at.isoformat(),
+        })
+    
+    return JsonResponse({"notifications": data})

@@ -23,16 +23,17 @@ install:
 	pip install -r requirements.txt
 	@echo "✅ Dependencies installed successfully!"
 
-# Create migrations for all apps
+# Create migrations for all apps (in dependency order)
+# Note: accounts migrations include BrowsingHistory, Wishlist, Address, User, etc.
 migrations:
 	@echo "Creating migrations..."
-	python manage.py makemigrations accounts
 	python manage.py makemigrations products
+	python manage.py makemigrations accounts  # Includes BrowsingHistory (view_count, unique_together)
+	python manage.py makemigrations chat
 	python manage.py makemigrations cart
 	python manage.py makemigrations orders
 	python manage.py makemigrations notifications
-	python manage.py makemigrations home
-	python manage.py makemigrations chat
+	python manage.py makemigrations adminpanel
 	@echo "✅ Migrations created successfully!"
 
 # Apply migrations

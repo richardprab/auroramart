@@ -175,19 +175,59 @@
         font-size: 1rem;
     }
 
-    .action-link {
+    .settings-option {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem 1rem;
-        border-radius: 0.5rem;
-        transition: background-color 0.2s;
-        color: #374151;
-        text-decoration: none;
+        gap: 1rem;
+        width: 100%;
+        padding: 1rem;
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
     }
 
-    .action-link:hover {
-        background-color: #f9fafb;
+    .settings-option:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+
+    .settings-option-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.5rem;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .settings-option:nth-child(2) .settings-option-icon {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+
+    .settings-option-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .settings-option-title {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 0.95rem;
+    }
+
+    .settings-option-desc {
+        font-size: 0.8rem;
+        color: #6b7280;
     }
 
     /* Tile Button Styles for Complete Profile Modal */
@@ -219,6 +259,46 @@
         background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
         color: white;
         box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+
+    .shopping-tile {
+        padding: 1.5rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: white;
+        color: #374151;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100px;
+    }
+
+    .shopping-tile:hover {
+        border-color: #8b5cf6;
+        background: #faf5ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    }
+
+    .shopping-tile.active {
+        border-color: #8b5cf6;
+        background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type="number"] {
+        -moz-appearance: textfield;
     }
 </style>
 {% endblock %}
@@ -297,7 +377,7 @@
             <div class="flex items-start justify-between gap-4 mb-4">
                 <div class="flex items-start gap-3">
                     <div class="bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg p-2.5 flex-shrink-0">
-                        <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+                        <i data-lucide="user-check" class="w-5 h-5 text-white"></i>
                     </div>
                     <div class="flex-1">
                         <h3 class="text-lg font-bold text-gray-900 mb-1">Complete Your Shopping Profile</h3>
@@ -345,16 +425,6 @@
                         <label class="info-label">Phone</label>
                         <p class="info-value" id="display-phone">{{ user.phone|default:"Not provided" }}</p>
                     </div>
-                    <div>
-                        <label class="info-label">Date of Birth</label>
-                        <p class="info-value" id="display-dob">
-                            {% if user.date_of_birth %}
-                                {{ user.date_of_birth|date:"F d, Y" }}
-                            {% else %}
-                                Not provided
-                            {% endif %}
-                        </p>
-                    </div>
                 </div>
             </div>
 
@@ -364,19 +434,27 @@
                     <i data-lucide="settings" class="w-6 h-6 mr-2 text-blue-600"></i>
                     Account Settings
                 </h2>
-                <div class="space-y-2">
-                    <button onclick="openEditModal()" class="action-link w-full">
-                        <span class="text-gray-700">Edit Profile</span>
+                <div class="space-y-3">
+                    <button onclick="openEditModal()" class="settings-option">
+                        <div class="settings-option-icon">
+                            <i data-lucide="user" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Edit Profile</span>
+                            <span class="settings-option-desc">Update your personal information</span>
+                        </div>
                         <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
                     </button>
-                    <a href="#" class="action-link">
-                        <span class="text-gray-700">Change Password</span>
+                    <button onclick="openChangePasswordModal()" class="settings-option">
+                        <div class="settings-option-icon">
+                            <i data-lucide="lock" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Change Password</span>
+                            <span class="settings-option-desc">Update your account password</span>
+                        </div>
                         <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
-                    </a>
-                    <a href="{% url 'accounts:wishlist' %}" class="action-link">
-                        <span class="text-gray-700">My Wishlist</span>
-                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -411,6 +489,145 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- Recently Viewed -->
+        {% if viewing_history_page %}
+        <div class="info-card mt-6">
+            <div class="mb-4">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i data-lucide="eye" class="w-6 h-6 mr-2 text-blue-600"></i>
+                    Recently Viewed
+                </h2>
+                <p class="text-sm text-gray-500 mt-1 ml-8">
+                    Showing {{ viewing_history_page.start_index }} - {{ viewing_history_page.end_index }} of {{ viewing_history_page.paginator.count }} product{{ viewing_history_page.paginator.count|pluralize }}
+                </p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {% for history_item in viewing_history_page %}
+                <a href="{% url 'products:product_detail' slug=history_item.product.slug %}" class="group">
+                    <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200">
+                        <div class="relative h-48 bg-gray-100 overflow-hidden">
+                            {% if history_item.product.images.first %}
+                            <img src="{{ history_item.product.images.first.image.url }}" 
+                                 alt="{{ history_item.product.name }}" 
+                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                            {% else %}
+                            <div class="w-full h-full flex items-center justify-center">
+                                <i data-lucide="package" class="w-16 h-16 text-gray-400"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-semibold text-sm text-gray-800 line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">
+                                {{ history_item.product.name }}
+                            </h3>
+                            <p class="text-xs text-gray-500">{{ history_item.viewed_at|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if viewing_history_page.has_other_pages %}
+            <div class="flex justify-center items-center gap-2 mt-6">
+                {% if viewing_history_page.has_previous %}
+                <a href="?page={{ viewing_history_page.previous_page_number }}"
+                    class="w-10 h-10 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-500 flex items-center justify-center transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </a>
+                {% endif %}
+
+                <span class="px-4 py-2 text-gray-700 font-medium">
+                    Page {{ viewing_history_page.number }} of {{ viewing_history_page.paginator.num_pages }}
+                </span>
+
+                {% if viewing_history_page.has_next %}
+                <a href="?page={{ viewing_history_page.next_page_number }}"
+                    class="w-10 h-10 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-500 flex items-center justify-center transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="changePasswordModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="lock" class="w-6 h-6"></i>
+                Change Password
+            </h2>
+            <button class="modal-close" onclick="closeChangePasswordModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="changePasswordForm" method="POST" class="auth-form" novalidate>
+            {% csrf_token %}
+
+            <!-- Old Password Field -->
+            <div class="form-group">
+                <label for="old_password" class="form-label">
+                    Current Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="old_password" 
+                       id="old_password"
+                       class="form-control" 
+                       placeholder="Enter your current password" 
+                       autocomplete="current-password" 
+                       required>
+                <div class="form-error" id="error-old_password" style="display: none;"></div>
+            </div>
+
+            <!-- New Password Field -->
+            <div class="form-group">
+                <label for="new_password1" class="form-label">
+                    New Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="new_password1" 
+                       id="new_password1"
+                       class="form-control" 
+                       placeholder="Enter your new password" 
+                       autocomplete="new-password" 
+                       required>
+                <div class="form-error" id="error-new_password1" style="display: none;"></div>
+                <small class="form-help">Password must be at least 8 characters long and contain at least one letter.</small>
+            </div>
+
+            <!-- Confirm New Password Field -->
+            <div class="form-group">
+                <label for="new_password2" class="form-label">
+                    Confirm New Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="new_password2" 
+                       id="new_password2"
+                       class="form-control" 
+                       placeholder="Confirm your new password" 
+                       autocomplete="new-password" 
+                       required>
+                <div class="form-error" id="error-new_password2" style="display: none;"></div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="mt-6">
+                <button type="submit" class="w-full btn-submit">
+                    Change Password
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -533,26 +750,12 @@
                        id="{{ form.phone.id_for_label }}"
                        value="{{ form.phone.value|default:user.phone|default:'' }}"
                        class="form-control" 
-                       placeholder="+1 (555) 123-4567" 
+                       placeholder="+65" 
                        autocomplete="tel">
                 <div class="form-error" id="error-phone" style="display: none;"></div>
                 <small class="form-help">{{ form.phone.help_text }}</small>
             </div>
 
-            <!-- Date of Birth Field -->
-            <div class="form-group">
-                <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">
-                    Date of Birth
-                </label>
-                <input type="date" 
-                       name="{{ form.date_of_birth.name }}" 
-                       id="{{ form.date_of_birth.id_for_label }}"
-                       value="{% if user.date_of_birth %}{{ user.date_of_birth|date:'Y-m-d' }}{% endif %}"
-                       class="form-control" 
-                       autocomplete="bday">
-                <div class="form-error" id="error-date_of_birth" style="display: none;"></div>
-                <small class="form-help">{{ form.date_of_birth.help_text }}</small>
-            </div>
 
             <!-- Submit Button -->
             <div class="mt-6">
@@ -563,6 +766,7 @@
         </form>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -588,11 +792,38 @@
         document.body.style.overflow = 'auto';
         
         // Clear errors
-        document.querySelectorAll('.form-error').forEach(el => {
+        document.querySelectorAll('#editProfileForm .form-error').forEach(el => {
             el.style.display = 'none';
             el.textContent = '';
         });
-        document.querySelectorAll('.form-control.error').forEach(el => {
+        document.querySelectorAll('#editProfileForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+    }
+
+    function openChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Initialize Lucide icons in modal
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.remove('active');
+        document.body.style.overflow = 'auto';
+        
+        // Clear form and errors
+        document.getElementById('changePasswordForm').reset();
+        document.querySelectorAll('#changePasswordForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#changePasswordForm .form-control.error').forEach(el => {
             el.classList.remove('error');
         });
     }
@@ -618,6 +849,7 @@
         }
     }
 
+
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
         // Close modal when clicking outside
@@ -633,6 +865,67 @@
             closeCompleteProfileModal();
         }
     });
+
+    // Close change password modal when clicking outside
+    document.getElementById('changePasswordModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeChangePasswordModal();
+        }
+    });
+
+
+    // // Shopping interest form submission
+    // document.getElementById('shoppingInterestForm').addEventListener('submit', async function(e) {
+    //     e.preventDefault();
+    //     
+    //     const category = document.getElementById('selected_category').value;
+    //     if (!category) {
+    //         if (window.toast) {
+    //             window.toast.error('Please select a shopping interest');
+    //         }
+    //         return;
+    //     }
+
+    //     const submitBtn = document.getElementById('saveShoppingInterestBtn');
+    //     submitBtn.disabled = true;
+    //     submitBtn.textContent = 'Saving...';
+
+    //     try {
+    //         const response = await fetch('/accounts/ajax/shopping-interest/', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/x-www-form-urlencoded',
+    //                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    //             },
+    //             body: `shopping_interest=${encodeURIComponent(category)}`
+    //         });
+
+    //         const data = await response.json();
+
+    //         if (data.success) {
+    //             if (window.toast) {
+    //                 window.toast.success(data.message);
+    //             }
+    //             // Update button text and reload to show new category
+    //             closeShoppingInterestModal();
+    //             setTimeout(() => {
+    //                 window.location.reload();
+    //             }, 500);
+    //         } else {
+    //             if (window.toast) {
+    //                 window.toast.error(data.message || 'Failed to update shopping interest');
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error:', error);
+    //         if (window.toast) {
+    //             window.toast.error('An error occurred. Please try again.');
+    //         }
+    //     } finally {
+    //         submitBtn.disabled = false;
+    //         submitBtn.textContent = 'Save Changes';
+    //     }
+    // });
 
     // Handle form submission
     document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
@@ -684,13 +977,6 @@
                     document.getElementById('display-email').textContent = data.user.email;
                     document.getElementById('display-phone').textContent = data.user.phone || 'Not provided';
                     
-                    if (data.user.date_of_birth) {
-                        const date = new Date(data.user.date_of_birth);
-                        const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                        document.getElementById('display-dob').textContent = date.toLocaleDateString('en-US', options);
-                    } else {
-                        document.getElementById('display-dob').textContent = 'Not provided';
-                    }
                     
                     // Update header
                     document.querySelectorAll('h1').forEach(el => {
@@ -744,6 +1030,94 @@
         }
     });
 
+    // Handle change password form submission
+    document.getElementById('changePasswordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Changing...';
+        form.classList.add('loading');
+        
+        // Clear previous errors
+        document.querySelectorAll('#changePasswordForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#changePasswordForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('{% url "accounts:change_password" %}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show success toast
+                if (window.toast) {
+                    window.toast.success(data.message || 'Password changed successfully!');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Password changed successfully!', 'success');
+                }
+                
+                // Close modal
+                setTimeout(() => {
+                    closeChangePasswordModal();
+                }, 500);
+                
+            } else {
+                // Show error toast
+                if (window.toast) {
+                    window.toast.error(data.message || 'Please correct the errors below.');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Please correct the errors below.', 'error');
+                }
+                
+                // Display field errors
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorEl = document.getElementById(`error-${field}`);
+                        const inputEl = document.getElementById(field);
+                        
+                        if (errorEl && errors.length > 0) {
+                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.style.display = 'flex';
+                        }
+                        
+                        if (inputEl) {
+                            inputEl.classList.add('error');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            } else if (window.AuroraMart && window.AuroraMart.toast) {
+                window.AuroraMart.toast('An error occurred. Please try again.', 'error');
+            }
+        } finally {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+            form.classList.remove('loading');
+        }
+    });
+
     // Real-time validation
     document.querySelectorAll('.form-control').forEach(input => {
         input.addEventListener('blur', function() {
@@ -771,16 +1145,20 @@
     }
 
     // Calculate profile completion for ML recommendations
+    // Store previous percentage to detect when reaching 100%
+    let previousCompletionPercentage = null;
+    
     function calculateProfileCompletion() {
+        // Check each field - for boolean fields, check if not null (answered, whether true or false)
         const mlFields = {
-            age_range: {{ user.age_range|yesno:"true,false" }},
+            age: {{ user.age|yesno:"true,false" }},
             gender: {{ user.gender|yesno:"true,false" }},
-            household_size: {{ user.household_size|yesno:"true,false" }},
-            has_children: {{ user.has_children|yesno:"true,false,false" }},
+            employment_status: {{ user.employment_status|yesno:"true,false" }},
             occupation: {{ user.occupation|yesno:"true,false" }},
             education: {{ user.education|yesno:"true,false" }},
-            income_range: {{ user.income_range|yesno:"true,false" }},
-            employment: {{ user.employment|yesno:"true,false" }}
+            household_size: {{ user.household_size|yesno:"true,false" }},
+            has_children: {{ user.has_children|yesno:"true,true,false" }},  // Count as complete if True OR False (not None)
+            monthly_income_sgd: {{ user.monthly_income_sgd|yesno:"true,false" }}
         };
         
         const totalFields = Object.keys(mlFields).length;
@@ -797,16 +1175,40 @@
             progressBar.style.width = percentage + '%';
             percentageText.textContent = percentage + '%';
             
+            // Check if we just reached 100% (not on initial load)
+            const justReached100 = percentage === 100 && previousCompletionPercentage !== null && previousCompletionPercentage < 100;
+            
             // Update message based on completion
             if (percentage === 100) {
                 messageEl.textContent = '✓ Profile complete! Enjoying personalized recommendations';
-                // Hide banner when complete
+                
+                // Show success feedback when reaching 100%
+                if (justReached100) {
+                    // Show success message briefly before hiding
+                    if (window.toast) {
+                        window.toast.success('🎉 Congratulations! Your profile is now 100% complete! You\'ll receive personalized recommendations.');
+                    } else if (window.AuroraMart && window.AuroraMart.toast) {
+                        window.AuroraMart.toast('🎉 Congratulations! Your profile is now 100% complete! You\'ll receive personalized recommendations.', 'success');
+                    }
+                    
+                    // Show success message in banner for 2 seconds before hiding
+                    setTimeout(() => {
+                        if (banner) {
                 banner.style.display = 'none';
+                        }
+                    }, 2000);
+                } else {
+                    // Hide banner immediately if already at 100%
+                    banner.style.display = 'none';
+                }
             } else {
                 banner.style.display = 'block';
                 messageEl.textContent = 'Get personalized product recommendations tailored just for you';
             }
         }
+        
+        // Update previous percentage
+        previousCompletionPercentage = percentage;
         
         return percentage;
     }
@@ -817,45 +1219,79 @@
     // Step-by-Step Questionnaire System - Initialize state
     window.questionnaireState.questions = [
         {
-            id: 'age_range',
-            title: "What's your age range?",
+            id: 'age',
+            title: "What's your age?",
             icon: 'calendar',
-            type: 'tiles',
-            options: [
-                { value: '18-24', label: '18-24' },
-                { value: '25-34', label: '25-34' },
-                { value: '35-44', label: '35-44' },
-                { value: '45-54', label: '45-54' },
-                { value: '55-64', label: '55-64' },
-                { value: '65+', label: '65+' }
-            ],
-            cols: 3
+            type: 'number',
+            placeholder: 'Enter your age',
+            min: 13,
+            max: 120
         },
         {
             id: 'gender',
-            title: "How do you identify?",
+            title: "What's your gender?",
             icon: 'users',
             type: 'tiles',
             options: [
                 { value: 'Male', label: 'Male' },
-                { value: 'Female', label: 'Female' },
-                { value: 'Other', label: 'Other' }
+                { value: 'Female', label: 'Female' }
             ],
-            cols: 3
+            cols: 2
+        },
+        {
+            id: 'employment_status',
+            title: "What's your employment status?",
+            icon: 'building',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select employment status' },
+                { value: 'Full-time', label: 'Full-time' },
+                { value: 'Part-time', label: 'Part-time' },
+                { value: 'Student', label: 'Student' },
+                { value: 'Self-employed', label: 'Self-employed' },
+                { value: 'Retired', label: 'Retired' }
+            ]
+        },
+        {
+            id: 'occupation',
+            title: "What's your occupation?",
+            icon: 'briefcase',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select occupation' },
+                { value: 'Tech', label: 'Technology/IT' },
+                { value: 'Sales', label: 'Sales & Marketing' },
+                { value: 'Service', label: 'Service Industry' },
+                { value: 'Admin', label: 'Administrative' },
+                { value: 'Education', label: 'Education' },
+                { value: 'Skilled Trades', label: 'Skilled Trades' },
+                { value: 'Healthcare', label: 'Healthcare' },
+                { value: 'Finance', label: 'Finance & Banking' },
+                { value: 'Other', label: 'Other' }
+            ]
+        },
+        {
+            id: 'education',
+            title: "What's your education level?",
+            icon: 'graduation-cap',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select education level' },
+                { value: 'Secondary', label: 'Secondary/High School' },
+                { value: 'Diploma', label: 'Diploma/Certificate' },
+                { value: 'Bachelor', label: 'Bachelor\'s Degree' },
+                { value: 'Master', label: 'Master\'s Degree' },
+                { value: 'Doctorate', label: 'Doctorate/PhD' }
+            ]
         },
         {
             id: 'household_size',
             title: "What's your household size?",
             icon: 'home',
-            type: 'tiles',
-            options: [
-                { value: '1', label: '1' },
-                { value: '2', label: '2' },
-                { value: '3', label: '3' },
-                { value: '4', label: '4' },
-                { value: '5+', label: '5+' }
-            ],
-            cols: 5
+            type: 'number',
+            placeholder: 'Number of people in household',
+            min: 1,
+            max: 20
         },
         {
             id: 'has_children',
@@ -869,77 +1305,26 @@
             cols: 2
         },
         {
-            id: 'occupation',
-            title: "What's your occupation?",
-            icon: 'briefcase',
-            type: 'select',
-            options: [
-                { value: '', label: 'Select occupation' },
-                { value: 'Student', label: 'Student' },
-                { value: 'Professional', label: 'Professional' },
-                { value: 'Self-Employed', label: 'Self-Employed' },
-                { value: 'Homemaker', label: 'Homemaker' },
-                { value: 'Retired', label: 'Retired' },
-                { value: 'Other', label: 'Other' }
-            ]
-        },
-        {
-            id: 'education',
-            title: "What's your education level?",
-            icon: 'graduation-cap',
-            type: 'select',
-            options: [
-                { value: '', label: 'Select education level' },
-                { value: 'High School', label: 'High School' },
-                { value: 'Associate Degree', label: 'Associate Degree' },
-                { value: "Bachelor's Degree", label: "Bachelor's Degree" },
-                { value: "Master's Degree", label: "Master's Degree" },
-                { value: 'Doctorate', label: 'Doctorate' },
-                { value: 'Other', label: 'Other' }
-            ]
-        },
-        {
-            id: 'employment',
-            title: "What's your employment status?",
-            icon: 'building',
-            type: 'select',
-            options: [
-                { value: '', label: 'Select employment status' },
-                { value: 'Full-time', label: 'Full-time' },
-                { value: 'Part-time', label: 'Part-time' },
-                { value: 'Self-Employed', label: 'Self-Employed' },
-                { value: 'Unemployed', label: 'Unemployed' },
-                { value: 'Student', label: 'Student' },
-                { value: 'Retired', label: 'Retired' }
-            ]
-        },
-        {
-            id: 'income_range',
-            title: "What's your annual income range?",
+            id: 'monthly_income_sgd',
+            title: "What's your monthly income (SGD)?",
             icon: 'dollar-sign',
-            type: 'select',
-            options: [
-                { value: '', label: 'Select income range' },
-                { value: 'Under $25k', label: 'Under $25,000' },
-                { value: '$25k-$50k', label: '$25,000 - $50,000' },
-                { value: '$50k-$75k', label: '$50,000 - $75,000' },
-                { value: '$75k-$100k', label: '$75,000 - $100,000' },
-                { value: '$100k-$150k', label: '$100,000 - $150,000' },
-                { value: 'Over $150k', label: 'Over $150,000' }
-            ]
+            type: 'number',
+            placeholder: 'Enter monthly income in SGD',
+            min: 0,
+            step: 0.01
         }
     ];
 
     window.questionnaireState.currentStep = 0;
     window.questionnaireState.userAnswers = {
-        age_range: "{{ user.age_range|default:'' }}",
+        age: "{{ user.age|default:'' }}",
         gender: "{{ user.gender|default:'' }}",
-        household_size: "{{ user.household_size|default:'' }}",
-        has_children: "{{ user.has_children|yesno:'true,false,' }}",
+        employment_status: "{{ user.employment_status|default:'' }}",
         occupation: "{{ user.occupation|default:'' }}",
         education: "{{ user.education|default:'' }}",
-        employment: "{{ user.employment|default:'' }}",
-        income_range: "{{ user.income_range|default:'' }}"
+        household_size: "{{ user.household_size|default:'' }}",
+        has_children: "{{ user.has_children|yesno:'true,false,' }}",
+        monthly_income_sgd: "{{ user.monthly_income_sgd|default:'' }}"
     };
 
     window.openCompleteProfileModal = function() {
@@ -1004,6 +1389,20 @@
                 html += `<option value="${opt.value}" ${isSelected ? 'selected' : ''}>${opt.label}</option>`;
             });
             html += `</select>`;
+        } else if (question.type === 'number') {
+            const currentValue = window.questionnaireState.userAnswers[question.id] || '';
+            html += `
+                <input type="number" 
+                       id="${question.id}-input"
+                       value="${currentValue}"
+                       placeholder="${question.placeholder || ''}"
+                       min="${question.min || ''}"
+                       max="${question.max || ''}"
+                       step="${question.step || '1'}"
+                       onchange="window.questionnaireState.selectNumberAnswer('${question.id}', this.value)"
+                       onblur="window.questionnaireState.selectNumberAnswer('${question.id}', this.value)"
+                       class="form-control text-base md:text-lg p-3 md:p-4 w-full">
+            `;
         }
 
         html += `</div>`;
@@ -1035,6 +1434,13 @@
         }
     };
 
+    window.questionnaireState.selectNumberAnswer = function(field, value) {
+        if (value && value.trim() !== '') { // Only save if not empty
+            window.questionnaireState.userAnswers[field] = value;
+            window.questionnaireState.saveAnswer(field, value);
+        }
+    };
+
     window.questionnaireState.saveAnswer = function(field, value) {
         // Auto-save via AJAX
         const formData = new FormData();
@@ -1060,7 +1466,7 @@
                     badge.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
                     if (typeof lucide !== 'undefined') lucide.createIcons();
                     setTimeout(() => {
-                        badge.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i>';
+                        badge.innerHTML = '<i data-lucide="user-check" class="w-4 h-4"></i>';
                         if (typeof lucide !== 'undefined') lucide.createIcons();
                     }, 1000);
                 }
@@ -1124,6 +1530,11 @@
         } else if (window.AuroraMart && window.AuroraMart.toast) {
             window.AuroraMart.toast('Profile updated successfully!', 'success');
         }
+        
+        // Refresh the page after a short delay to show updated data
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     }
 
     // Add CSS animation only once

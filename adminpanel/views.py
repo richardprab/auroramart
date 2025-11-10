@@ -11,7 +11,6 @@ from accounts.models import ChatConversation, ChatMessage, User
 from orders.models import Order
 from .forms import ProductSearchForm, OrderSearchForm
 
-# ==================== HELPER FUNCTIONS ====================
 
 def get_next_assigned_staff():
     """

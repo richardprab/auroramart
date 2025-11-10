@@ -56,29 +56,14 @@
 
         <!-- Product Info -->
         <div>
-            <h1 class="text-3xl font-bold mb-4">{{ product.name }}</h1>
+            <h1 class="text-3xl font-bold mb-0">{{ product.name }}</h1>
 
             <!-- Rating -->
-            <div class="flex items-center mb-4">
-                <div class="flex text-yellow-400">
-                    {% with rating=product.rating|floatformat:0|add:0 %}
-                    {% for i in "12345" %}
-                    {% if forloop.counter <= rating %} <svg xmlns="http://www.w3.org/2000/svg"
-                        class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                        <path
-                            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                        {% else %}
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <path
-                                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                        {% endif %}
-                        {% endfor %}
-                        {% endwith %}
+            <div class="flex items-center mb-4 mt-1">
+                <div class="flex text-yellow-400 product-rating-stars" data-rating="{{ product.rating }}">
+                    <!-- Stars will be rendered by JavaScript -->
                 </div>
-                <span class="text-gray-600 ml-2">({{ product.review_count }} reviews)</span>
+                <span class="text-gray-600 ml-2">{{ product.rating|floatformat:1 }}</span>
             </div>
 
             <!-- Price -->
@@ -134,7 +119,7 @@
             </div>
 
             <!-- Variant Selector (Fashion Items Only) -->
-            {% if is_fashion_category and available_colors %}
+            {% if is_fashion_category and product.variants.exists %}
             <div class="mb-6 space-y-4">
                 <!-- Color Selector -->
                 {% if available_colors %}
@@ -143,9 +128,9 @@
                     <div class="flex flex-wrap gap-2">
                         {% for color in available_colors %}
                         <button type="button" 
-                            class="variant-color-btn px-4 py-2 border-2 rounded-lg transition hover:border-blue-600 focus:outline-none focus:border-blue-600"
+                            class="variant-color-btn px-4 py-2 border-2 rounded-lg transition hover:border-blue-600 focus:outline-none focus:border-blue-600 {% if selected_color == color %}border-blue-600 bg-blue-50{% else %}border-gray-300{% endif %}"
                             data-color="{{ color }}">
-                            {{ color }}
+                            {{ color|default:"Default" }}
                         </button>
                         {% endfor %}
                     </div>
@@ -159,9 +144,9 @@
                     <div class="flex flex-wrap gap-2">
                         {% for size in available_sizes %}
                         <button type="button" 
-                            class="variant-size-btn px-4 py-2 border-2 rounded-lg transition hover:border-blue-600 focus:outline-none focus:border-blue-600"
+                            class="variant-size-btn px-4 py-2 border-2 rounded-lg transition hover:border-blue-600 focus:outline-none focus:border-blue-600 {% if selected_size == size %}border-blue-600 bg-blue-50{% else %}border-gray-300{% endif %}"
                             data-size="{{ size }}">
-                            {{ size }}
+                            {{ size|default:"One Size" }}
                         </button>
                         {% endfor %}
                     </div>
@@ -197,17 +182,28 @@
                 {% endif %}
 
                 {% if user.is_authenticated %}
-                <form action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" method="post" data-wishlist-toggle>
-                    {% csrf_token %}
-                    <button type="submit" data-product-id="{{ product.id }}"
-                        class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition">
-                        {% if is_in_wishlist %}
-                        <i data-lucide="heart" class="w-6 h-6 text-red-500 fill-current"></i>
-                        {% else %}
-                        <i data-lucide="heart" class="w-6 h-6"></i>
-                        {% endif %}
+                <div class="flex gap-2">
+                    <form action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" method="post" data-wishlist-toggle>
+                        {% csrf_token %}
+                        <button type="submit" data-product-id="{{ product.id }}"
+                            class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition">
+                            {% if is_in_wishlist %}
+                            <i data-lucide="heart" class="w-6 h-6 text-red-500 fill-current"></i>
+                            {% else %}
+                            <i data-lucide="heart" class="w-6 h-6"></i>
+                            {% endif %}
+                        </button>
+                    </form>
+                    <button type="button" 
+                        id="chat-with-seller-btn"
+                        data-product-id="{{ product.id }}"
+                        data-product-url="{% url 'products:product_detail' slug=product.slug %}"
+                        data-product-name="{{ product.name }}"
+                        class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
+                        title="Chat with Seller">
+                        <i data-lucide="message-circle" class="w-6 h-6"></i>
                     </button>
-                </form>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -247,6 +243,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Get available colors and sizes count from DOM
+            const availableColors = document.querySelectorAll('.variant-color-btn');
+            const availableSizes = document.querySelectorAll('.variant-size-btn');
+            
             // Build variants array from DOM data-* attributes to avoid embedding template tags inside JS code
             const variants = Array.from(document.querySelectorAll('.variant-data')).map(el => ({
                 id: Number(el.dataset.id),
@@ -258,8 +258,9 @@
                 sku: el.dataset.sku || ""
             }));
 
-            let selectedColor = null;
-            let selectedSize = null;
+            // Initialize selected color and size from template (already selected on page load)
+            let selectedColor = "{{ selected_color|default:'' }}";
+            let selectedSize = "{{ selected_size|default:'' }}";
 
             function updateAvailability() {
                 // Reset all strikethrough styles
@@ -439,26 +440,49 @@
             }
 
             // Auto-select the variant that matches the displayed price on page load
+            // If there's only one variant, auto-select it
             const displayedPrice = parseFloat(document.getElementById('current-price').textContent.replace('$', ''));
-            const firstVariantMatch = variants.find(v => Math.abs(v.price - displayedPrice) < 0.01);
+            let firstVariantMatch = variants.find(v => Math.abs(v.price - displayedPrice) < 0.01);
+            
+            // If no match found but there's only one variant, use that
+            if (!firstVariantMatch && variants.length === 1) {
+                firstVariantMatch = variants[0];
+            }
             
             if (firstVariantMatch) {
-                // Find and click the color button
-                const colorBtn = document.querySelector(`.variant-color-btn[data-color="${firstVariantMatch.color}"]`);
+                // Auto-select color if available
+                const colorValue = firstVariantMatch.color || "";
+                const colorBtn = document.querySelector(`.variant-color-btn[data-color="${colorValue}"]`);
                 if (colorBtn) {
                     colorBtn.classList.add('border-blue-600', 'bg-blue-50');
-                    selectedColor = firstVariantMatch.color;
+                    selectedColor = colorValue;
+                } else if (variants.length === 1 && availableColors.length === 1) {
+                    // If only one color option, auto-select it
+                    const singleColorBtn = availableColors[0];
+                    if (singleColorBtn) {
+                        singleColorBtn.classList.add('border-blue-600', 'bg-blue-50');
+                        selectedColor = singleColorBtn.dataset.color || "";
+                    }
                 }
                 
-                // Find and click the size button
-                const sizeBtn = document.querySelector(`.variant-size-btn[data-size="${firstVariantMatch.size}"]`);
+                // Auto-select size if available
+                const sizeValue = firstVariantMatch.size || "";
+                const sizeBtn = document.querySelector(`.variant-size-btn[data-size="${sizeValue}"]`);
                 if (sizeBtn) {
                     sizeBtn.classList.add('border-blue-600', 'bg-blue-50');
-                    selectedSize = firstVariantMatch.size;
+                    selectedSize = sizeValue;
+                } else if (variants.length === 1 && availableSizes.length === 1) {
+                    // If only one size option, auto-select it
+                    const singleSizeBtn = availableSizes[0];
+                    if (singleSizeBtn) {
+                        singleSizeBtn.classList.add('border-blue-600', 'bg-blue-50');
+                        selectedSize = singleSizeBtn.dataset.size || "";
+                    }
                 }
                 
-                // Update availability after setting initial selection
+                // Update availability and variant after setting initial selection
                 updateAvailability();
+                updateVariant();
             }
         });
     </script>
@@ -474,8 +498,13 @@
             const emptyState = document.getElementById('recommendations-empty');
             
             // Fetch ML-powered recommendations
-            fetch(`/api/recommendations/similar-products/${productId}/?limit=4`)
-                .then(response => response.json())
+            fetch(`/recommendations/similar-products/${productId}/?limit=4`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     loadingState.classList.add('hidden');
                     
@@ -483,8 +512,12 @@
                         contentState.classList.remove('hidden');
                         
                         data.recommendations.forEach(product => {
+                            try {
                             const productCard = createProductCard(product);
                             recommendationsGrid.innerHTML += productCard;
+                            } catch (err) {
+                                // Silently handle errors
+                            }
                         });
                         
                         // Reinitialize Lucide icons for the new cards
@@ -496,7 +529,6 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading recommendations:', error);
                     loadingState.classList.add('hidden');
                     emptyState.classList.remove('hidden');
                 });

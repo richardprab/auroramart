@@ -1,13 +1,16 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate, get_user_model
+from django.contrib.auth import login, authenticate, get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.core.paginator import Paginator
 from products.models import Product
 from .models import Wishlist
-from .forms import CustomUserCreationForm, UserProfileForm, WelcomePersonalizationForm
-from django.contrib.auth.forms import AuthenticationForm
+from .forms import CustomUserCreationForm, UserProfileForm
 from django.contrib.auth import logout
+from decimal import Decimal
 import json
 
 User = get_user_model()
@@ -58,8 +61,8 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            # Redirect to welcome personalization screen without toast
-            return redirect("accounts:welcome")
+            # Redirect to home after registration
+            return redirect("home:index")
         else:
             # Don't show generic error message, let form errors show
             pass
@@ -73,36 +76,34 @@ def register(request):
 
 
 @login_required
-def welcome_personalization(request):
-    """Welcome screen for new users to personalize their experience"""
-    # If user already has preferences set, skip to home
-    if request.user.age_range and request.user.gender:
-        return redirect("home:index")
-    
-    if request.method == "POST":
-        form = WelcomePersonalizationForm(request.POST, instance=request.user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Profile personalized! Enjoy your shopping experience.")
-            return redirect("home:index")
-    else:
-        form = WelcomePersonalizationForm(instance=request.user)
-    
-    return render(request, "accounts/welcome.html", {"form": form})
-
-
-@login_required
 def profile(request):
     """User profile page with edit functionality"""
     # Get user statistics
     total_orders = 0
     wishlist_count = Wishlist.objects.filter(user=request.user).count()
     recent_orders = []
+    viewing_history = []
     
     try:
         from orders.models import Order
         total_orders = Order.objects.filter(user=request.user).count()
         recent_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
+    except:
+        pass
+    
+    # Get viewing history with pagination (10 per page)
+    viewing_history_list = []
+    viewing_history_page = None
+    try:
+        from .models import BrowsingHistory
+        viewing_history_list = BrowsingHistory.objects.filter(
+            user=request.user
+        ).select_related('product').prefetch_related('product__images').order_by('-viewed_at')
+        
+        # Paginate viewing history (8 items per page)
+        paginator = Paginator(viewing_history_list, 8)
+        page_number = request.GET.get('page', 1)
+        viewing_history_page = paginator.get_page(page_number)
     except:
         pass
 
@@ -121,7 +122,6 @@ def profile(request):
                     'full_name': request.user.get_full_name(),
                     'email': request.user.email,
                     'phone': request.user.phone or '',
-                    'date_of_birth': request.user.date_of_birth.strftime('%Y-%m-%d') if request.user.date_of_birth else '',
                 }
             })
         else:
@@ -153,6 +153,7 @@ def profile(request):
         "total_orders": total_orders,
         "wishlist_count": wishlist_count,
         "recent_orders": recent_orders,
+        "viewing_history_page": viewing_history_page,
     }
     return render(request, "accounts/profile.html", context)
 
@@ -164,22 +165,22 @@ def update_demographics(request):
         user = request.user
         
         # Update demographic fields
-        if request.POST.get('age_range'):
-            user.age_range = request.POST.get('age_range')
+        if request.POST.get('age'):
+            user.age = int(request.POST.get('age'))
         if request.POST.get('gender'):
             user.gender = request.POST.get('gender')
-        if request.POST.get('household_size'):
-            user.household_size = request.POST.get('household_size')
-        if request.POST.get('has_children'):
-            user.has_children = request.POST.get('has_children') == 'true'
+        if request.POST.get('employment_status'):
+            user.employment_status = request.POST.get('employment_status')
         if request.POST.get('occupation'):
             user.occupation = request.POST.get('occupation')
         if request.POST.get('education'):
             user.education = request.POST.get('education')
-        if request.POST.get('employment'):
-            user.employment = request.POST.get('employment')
-        if request.POST.get('income_range'):
-            user.income_range = request.POST.get('income_range')
+        if request.POST.get('household_size'):
+            user.household_size = int(request.POST.get('household_size'))
+        if request.POST.get('has_children') is not None:
+            user.has_children = request.POST.get('has_children') == 'true'
+        if request.POST.get('monthly_income_sgd'):
+            user.monthly_income_sgd = Decimal(request.POST.get('monthly_income_sgd'))
         
         user.save()
         
@@ -260,7 +261,18 @@ def remove_from_wishlist(request, product_id):
     """Remove product from wishlist"""
     if request.method == "POST":
         product = get_object_or_404(Product, id=product_id)
-        wishlist_item = get_object_or_404(Wishlist, user=request.user, product=product)
+        try:
+            wishlist_item = Wishlist.objects.get(user=request.user, product=product)
+        except Wishlist.DoesNotExist:
+            wishlist_item = Wishlist.objects.filter(
+                user=request.user, 
+                product_variant__product=product
+            ).first()
+            if not wishlist_item:
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return JsonResponse({"success": False, "message": "Item not in wishlist"}, status=404)
+                return redirect("accounts:wishlist")
+        
         wishlist_item.delete()
 
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -355,3 +367,51 @@ def move_to_cart(request, wishlist_id):
         return redirect("accounts:wishlist")
     
     return redirect("accounts:wishlist")
+
+@require_http_methods(["GET"])
+@login_required
+def get_wishlist_count(request):
+    """Get the count of wishlist items"""
+    count = Wishlist.objects.filter(user=request.user).count()
+    return JsonResponse({'count': count})
+@require_http_methods(["POST"])
+@login_required
+def change_password(request):
+    """Change user password"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        
+        if form.is_valid():
+            user = form.save()
+            # Update session to prevent logout
+            update_session_auth_hash(request, user)
+            return JsonResponse({
+                'success': True,
+                'message': 'Password changed successfully!'
+            })
+        else:
+            # Return validation errors
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            
+            return JsonResponse({
+                'success': False,
+                'message': 'Please correct the errors below.',
+                'errors': errors
+            }, status=400)
+    
+    # Fallback for non-AJAX requests
+    if request.method == "POST":
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Password changed successfully!')
+            return redirect('accounts:profile')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    
+    return redirect('accounts:profile')
+
+

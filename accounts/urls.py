@@ -6,11 +6,11 @@ app_name = "accounts"
 
 urlpatterns = [
     path("register/", views.register, name="register"),
-    path("welcome/", views.welcome_personalization, name="welcome"),
     path('login/', views.user_login, name='login'),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("profile/", views.profile, name="profile"),
     path("profile/update-demographics/", views.update_demographics, name="update_demographics"),
+    path("profile/change-password/", views.change_password, name="change_password"),
     path("wishlist/", views.wishlist, name="wishlist"),
     path(
         "wishlist/add/<int:product_id>/", views.add_to_wishlist, name="add_to_wishlist"
@@ -25,4 +25,9 @@ urlpatterns = [
         views.move_to_cart,
         name="move_to_cart",
     ),
+    
+    # AJAX endpoints (JSON responses)
+    path("ajax/wishlist/count/", views.get_wishlist_count, name="ajax_wishlist_count"),
+    # # COMMENTED OUT: Preferred category is redundant - ML model should be primary
+    # path("ajax/shopping-interest/", views.update_shopping_interest, name="update_shopping_interest"),
 ]

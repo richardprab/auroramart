@@ -1,45 +1,57 @@
 from django.db import models
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from django.conf import settings
 
 
-class ChatSession(models.Model):
-    """A chat session between a user and admin"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_sessions')
-    title = models.CharField(max_length=200, default="New Chat")
+class ChatConversation(models.Model):
+    """
+    Represents a single conversation thread between a user and an admin,
+    usually regarding a specific product.
+    """
+
+    MESSAGE_TYPE_CHOICES = [
+        ('contact_us', 'Contact Us'),
+        ('product_chat', 'Product Chat'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('replied', 'Replied'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations')
+    product = models.ForeignKey('products.Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='chats')
+    admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_chats')
+    
+    # NEW FIELDS
+    subject = models.CharField(max_length=200, default='General Inquiry')
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, default='contact_us')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    user_has_unread = models.BooleanField(default=False)
+    admin_has_unread = models.BooleanField(default=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
     
     class Meta:
         ordering = ['-updated_at']
-    
+
     def __str__(self):
-        return f"Chat #{self.id} - {self.user.username}"
-    
-    @property
-    def unread_count(self):
-        """Count unread messages for the user"""
-        return self.messages.filter(is_read=False, is_from_admin=True).count()
-    
-    @property
-    def last_message(self):
-        """Get the last message in this session"""
-        return self.messages.order_by('-created_at').first()
+        return f"{self.user.username} - {self.subject}"
 
 
 class ChatMessage(models.Model):
-    """Individual chat messages"""
-    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages')
-    message = models.TextField()
-    is_from_admin = models.BooleanField(default=False)
-    is_read = models.BooleanField(default=False)
+    """
+    An individual message within a ChatConversation.
+    """
+
+    conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         ordering = ['created_at']
-    
+
     def __str__(self):
-        sender = "Admin" if self.is_from_admin else self.session.user.username
-        return f"{sender}: {self.message[:50]}"
+        return f"{self.sender.username}: {self.content[:50]}"

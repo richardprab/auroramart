@@ -25,7 +25,8 @@
                     {% if query %}
                     <input type="hidden" name="q" value="{{ query }}">
                     {% endif %}
-                    <input type="hidden" name="sort" value="{{ sort_by }}">
+                    <input type="hidden" name="sort" value="{{ sort_field }}">
+                    <input type="hidden" name="direction" value="{{ sort_direction }}">
 
                     <!-- Category Filter -->
                     <div class="mb-6">
@@ -37,16 +38,20 @@
                             class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition">
                             <option value="">All Categories</option>
                             {% for category in categories %}
-                                <optgroup label="{{ category.name }}">
+                                {% if category.product_count > 0 %}
+                                <optgroup label="{{ category.name }} ({{ category.product_count }})">
                                     <option value="{{ category.slug }}" {% if selected_category and selected_category.slug == category.slug %}selected{% endif %}>
-                                        All {{ category.name }}
+                                        All {{ category.name }} ({{ category.product_count }})
                                     </option>
-                                    {% for child in category.children.all %}
+                                    {% for child in category.children_with_counts %}
+                                        {% if child.product_count > 0 %}
                                         <option value="{{ child.slug }}" {% if selected_category and selected_category.slug == child.slug %}selected{% endif %}>
-                                            {{ child.name }}
+                                            {{ child.name }} ({{ child.product_count }})
                                         </option>
+                                        {% endif %}
                                     {% endfor %}
                                 </optgroup>
+                                {% endif %}
                             {% endfor %}
                         </select>
                     </div>
@@ -59,10 +64,10 @@
                         </h3>
                         <div class="space-y-3">
                             <div class="flex gap-2">
-                                <input type="number" name="min_price" value="{{ min_price }}" 
+                                <input type="number" name="min_price" value="{{ selected_min_price }}" 
                                     placeholder="Min" min="0" step="0.01"
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition">
-                                <input type="number" name="max_price" value="{{ max_price }}" 
+                                <input type="number" name="max_price" value="{{ selected_max_price }}" 
                                     placeholder="Max" min="0" step="0.01"
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition">
                             </div>
@@ -84,11 +89,14 @@
                         </h3>
                         <div class="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
                             {% for brand in available_brands %}
-                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
-                                <input type="checkbox" name="brand" value="{{ brand }}" 
-                                    {% if brand in selected_brands %}checked{% endif %}
+                            <label class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="brand" value="{{ brand.name }}" 
+                                        {% if brand.name in selected_brands %}checked{% endif %}
                                     class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 transition">
-                                <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900">{{ brand }}</span>
+                                    <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900">{{ brand.name }}</span>
+                                </div>
+                                <span class="text-xs text-gray-500">({{ brand.count }})</span>
                             </label>
                             {% endfor %}
                         </div>
@@ -104,11 +112,14 @@
                         </h3>
                         <div class="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
                             {% for color in available_colors %}
-                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
-                                <input type="checkbox" name="color" value="{{ color }}" 
-                                    {% if color in selected_colors %}checked{% endif %}
+                            <label class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="color" value="{{ color.name }}" 
+                                        {% if color.name in selected_colors %}checked{% endif %}
                                     class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 transition">
-                                <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900">{{ color }}</span>
+                                    <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900">{{ color.name }}</span>
+                                </div>
+                                <span class="text-xs text-gray-500">({{ color.count }})</span>
                             </label>
                             {% endfor %}
                         </div>
@@ -124,11 +135,14 @@
                         </h3>
                         <div class="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
                             {% for size in available_sizes %}
-                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
-                                <input type="checkbox" name="size" value="{{ size }}" 
-                                    {% if size in selected_sizes %}checked{% endif %}
+                            <label class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition group">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="size" value="{{ size.name }}" 
+                                        {% if size.name in selected_sizes %}checked{% endif %}
                                     class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 transition">
-                                <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900">{{ size }}</span>
+                                    <span class="ml-3 text-sm text-gray-700 group-hover:text-gray-900">{{ size.name }}</span>
+                                </div>
+                                <span class="text-xs text-gray-500">({{ size.count }})</span>
                             </label>
                             {% endfor %}
                         </div>
@@ -241,38 +255,68 @@
                     </p>
                 </div>
 
-                <!-- Sort Dropdown -->
-                <form method="get" action="" class="inline-block">
-                    {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
-                    {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category.slug }}">{% endif %}
-                    {% for brand in selected_brands %}<input type="hidden" name="brand" value="{{ brand }}">{% endfor %}
-                    {% for color in selected_colors %}<input type="hidden" name="color" value="{{ color }}">{% endfor %}
-                    {% for size in selected_sizes %}<input type="hidden" name="size" value="{{ size }}">{% endfor %}
-                    {% if min_price %}<input type="hidden" name="min_price" value="{{ min_price }}">{% endif %}
-                    {% if max_price %}<input type="hidden" name="max_price" value="{{ max_price }}">{% endif %}
-                    {% if selected_rating %}<input type="hidden" name="rating" value="{{ selected_rating }}">{% endif %}
-                    {% if selected_on_sale %}<input type="hidden" name="on_sale" value="{{ selected_on_sale }}">{% endif %}
-                    
+                <!-- Sort Controls -->
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-600 flex items-center gap-1">
+                        <i data-lucide="arrow-up-down" class="w-4 h-4"></i>
+                        Sort by:
+                    </span>
                     <div class="flex items-center gap-2">
-                        <label for="sort-select" class="text-sm text-gray-600 whitespace-nowrap flex items-center gap-1">
-                            <i data-lucide="arrow-up-down" class="w-4 h-4"></i>
-                            Sort by:
-                        </label>
-                        <select id="sort-select" name="sort" onchange="this.form.submit()" 
-                            class="px-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition">
-                            <option value="featured" {% if sort_by == 'featured' %}selected{% endif %}>Featured</option>
-                            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
-                            <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
-                            <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
-                            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name: A-Z</option>
-                        </select>
+                        <!-- Sort Field Buttons -->
+                        <a href="?sort=name&direction={% if sort_field == 'name' and sort_direction == 'asc' %}desc{% else %}asc{% endif %}{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category.slug }}{% endif %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% for color in selected_colors %}&color={{ color }}{% endfor %}{% for size in selected_sizes %}&size={{ size }}{% endfor %}{% if selected_min_price %}&min_price={{ selected_min_price }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}{% if selected_rating %}&rating={{ selected_rating }}{% endif %}{% if selected_on_sale %}&on_sale={{ selected_on_sale }}{% endif %}"
+                            class="px-4 py-2 text-sm border rounded-lg transition flex items-center gap-1.5 {% if sort_field == 'name' %}bg-blue-50 border-blue-500 text-blue-700 font-medium{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">
+                            Name
+                            {% if sort_field == 'name' %}
+                                {% if sort_direction == 'asc' %}
+                                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                                {% else %}
+                                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                                {% endif %}
+                            {% endif %}
+                        </a>
+                        
+                        <a href="?sort=price&direction={% if sort_field == 'price' and sort_direction == 'asc' %}desc{% else %}asc{% endif %}{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category.slug }}{% endif %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% for color in selected_colors %}&color={{ color }}{% endfor %}{% for size in selected_sizes %}&size={{ size }}{% endfor %}{% if selected_min_price %}&min_price={{ selected_min_price }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}{% if selected_rating %}&rating={{ selected_rating }}{% endif %}{% if selected_on_sale %}&on_sale={{ selected_on_sale }}{% endif %}"
+                            class="px-4 py-2 text-sm border rounded-lg transition flex items-center gap-1.5 {% if sort_field == 'price' %}bg-blue-50 border-blue-500 text-blue-700 font-medium{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">
+                            Price
+                            {% if sort_field == 'price' %}
+                                {% if sort_direction == 'asc' %}
+                                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                                {% else %}
+                                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                                {% endif %}
+                            {% endif %}
+                        </a>
+                        
+                        <a href="?sort=rating&direction={% if sort_field == 'rating' and sort_direction == 'desc' %}asc{% else %}desc{% endif %}{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category.slug }}{% endif %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% for color in selected_colors %}&color={{ color }}{% endfor %}{% for size in selected_sizes %}&size={{ size }}{% endfor %}{% if selected_min_price %}&min_price={{ selected_min_price }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}{% if selected_rating %}&rating={{ selected_rating }}{% endif %}{% if selected_on_sale %}&on_sale={{ selected_on_sale }}{% endif %}"
+                            class="px-4 py-2 text-sm border rounded-lg transition flex items-center gap-1.5 {% if sort_field == 'rating' %}bg-blue-50 border-blue-500 text-blue-700 font-medium{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">
+                            Rating
+                            {% if sort_field == 'rating' %}
+                                {% if sort_direction == 'asc' %}
+                                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                                {% else %}
+                                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                                {% endif %}
+                            {% endif %}
+                        </a>
+                        
+                        <a href="?sort=created&direction={% if sort_field == 'created' and sort_direction == 'desc' %}asc{% else %}desc{% endif %}{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category.slug }}{% endif %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% for color in selected_colors %}&color={{ color }}{% endfor %}{% for size in selected_sizes %}&size={{ size }}{% endfor %}{% if selected_min_price %}&min_price={{ selected_min_price }}{% endif %}{% if selected_max_price %}&max_price={{ selected_max_price }}{% endif %}{% if selected_rating %}&rating={{ selected_rating }}{% endif %}{% if selected_on_sale %}&on_sale={{ selected_on_sale }}{% endif %}"
+                            class="px-4 py-2 text-sm border rounded-lg transition flex items-center gap-1.5 {% if sort_field == 'created' %}bg-blue-50 border-blue-500 text-blue-700 font-medium{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">
+                            Newest
+                            {% if sort_field == 'created' %}
+                                {% if sort_direction == 'asc' %}
+                                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                                {% else %}
+                                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                                {% endif %}
+                            {% endif %}
+                        </a>
                     </div>
-                </form>
+                </div>
             </div>
 
             <!-- Active Filters Display -->
             <div class="active-filters-container">
-            {% if selected_brands or selected_colors or selected_sizes or min_price or max_price or selected_rating or selected_on_sale %}
+            {% if selected_brands or selected_colors or selected_sizes or selected_min_price or selected_max_price or selected_rating or selected_on_sale %}
             <div class="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="text-sm font-semibold text-gray-700 flex items-center gap-1">
@@ -306,10 +350,10 @@
                         </button>
                     </span>
                     {% endfor %}
-                    {% if min_price or max_price %}
+                    {% if selected_min_price or selected_max_price %}
                     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium transition hover:bg-yellow-200">
                         <i data-lucide="dollar-sign" class="w-3 h-3"></i>
-                        ${{ min_price|default:"0" }} - ${{ max_price|default:"∞" }}
+                        ${{ selected_min_price|default:"0" }} - ${{ selected_max_price|default:"∞" }}
                         <button onclick="removeFilter('price', null)" class="hover:text-yellow-900 transition">
                             <i data-lucide="x" class="w-3 h-3"></i>
                         </button>
@@ -344,8 +388,10 @@
             {% if page_obj %}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {% for product in page_obj %}
-                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition group relative">
-                    <a href="{% url 'products:product_detail' product.slug %}">
+                {% with lowest_variant=product.get_lowest_priced_variant %}
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition group relative flex flex-col h-full">
+                    <!-- Product Image (clickable) -->
+                    <a href="{% url 'products:product_detail' product.slug %}" class="block relative shrink-0">
                         <div class="relative h-64 bg-gray-100">
                             {% if product.images.first %}
                             <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}"
@@ -359,65 +405,112 @@
                             {% endif %}
                             
                             <!-- Banner Ribbons -->
-                            {% with lowest_variant=product.get_lowest_priced_variant %}
-                            {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+                            {% if lowest_variant and lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
                             <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
                                 <div class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
                                     SALE
                                 </div>
                             </div>
                             {% endif %}
-                            {% endwith %}
-                        </div>
-                        <div class="p-4">
-                            <p class="text-sm text-gray-500 mb-1">{{ product.category.name }}</p>
-                            <h3 class="font-semibold text-lg mb-2 line-clamp-2">{{ product.name }}</h3>
-                            {% if product.brand %}
-                            <p class="text-xs text-gray-600 mb-2">{{ product.brand }}</p>
-                            {% endif %}
-                            
-                            <!-- Rating with Stars -->
-                            {% if product.review_count > 0 %}
-                            <div class="flex items-center gap-1 mb-3">
-                                <div class="flex text-yellow-400">
-                                    {% with rating=product.rating|floatformat:0|add:0 %}
-                                    {% for i in "12345" %}
-                                    {% if forloop.counter <= rating %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 fill-current" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                                    </svg>
-                                    {% else %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                                    </svg>
-                                    {% endif %}
-                                    {% endfor %}
-                                    {% endwith %}
-                                </div>
-                                <span class="text-sm text-gray-600">({{ product.review_count }})</span>
-                            </div>
-                            {% endif %}
-                            
-                            {% with lowest_variant=product.get_lowest_priced_variant %}
-                            {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
-                            <!-- Price with Discount -->
-                            <div class="mt-2 flex items-center gap-2">
-                                <span class="text-2xl font-bold text-gray-900">${{ lowest_variant.price|floatformat:2 }}</span>
-                                <span class="text-sm text-gray-500 line-through">${{ lowest_variant.compare_price|floatformat:2 }}</span>
-                                <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold">
-                                    -{{ lowest_variant.discount_percentage }}% OFF
-                                </span>
-                            </div>
-                            {% else %}
-                            <!-- Price without Discount -->
-                            <div class="mt-2">
-                                <span class="text-2xl font-bold text-gray-900">${{ lowest_variant.price|floatformat:2 }}</span>
-                            </div>
-                            {% endif %}
-                            {% endwith %}
                         </div>
                     </a>
+                    
+                    <!-- Product Info -->
+                    <div class="p-4 flex flex-col grow">
+                        <p class="text-xs text-gray-500 mb-1">{{ product.category.name }}</p>
+                            {% if product.brand %}
+                        <p class="text-xs text-gray-500 mb-1 uppercase tracking-wide">{{ product.brand }}</p>
+                            {% endif %}
+                        
+                        <a href="{% url 'products:product_detail' product.slug %}" class="block">
+                            <h3 class="font-semibold text-lg line-clamp-2 min-h-[3.5rem] hover:text-blue-600 transition">{{ product.name }}</h3>
+                        </a>
+                            
+                            <!-- Rating with Stars -->
+                        {% if product.rating > 0 %}
+                        <div class="flex items-center gap-1 mt-1 mb-2 h-6">
+                                <div class="flex text-yellow-400 product-rating-stars" data-rating="{{ product.rating }}">
+                                    <!-- Stars will be rendered by JavaScript -->
+                                </div>
+                            <span class="text-sm font-medium text-gray-700">{{ product.rating|floatformat:1 }}</span>
+                            {% if product.review_count > 0 %}
+                            <span class="text-xs text-gray-500">({{ product.review_count }})</span>
+                                    {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                        <!-- Bottom section with price and add to cart -->
+                        {% if lowest_variant %}
+                        <div class="mt-auto pt-3 border-t border-gray-100">
+                            <!-- Price, Save Badge, and Stock Status - All in one row -->
+                            <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                                <!-- Left: Price and Save Badge -->
+                                <div class="flex items-center gap-2 flex-wrap">
+                            {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+                                    <div class="flex items-baseline gap-1">
+                                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price|floatformat:2 }}</span>
+                                        <span class="text-sm text-gray-400 line-through">${{ lowest_variant.compare_price|floatformat:2 }}</span>
+                                    </div>
+                                    <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold whitespace-nowrap">
+                                        -{{ lowest_variant.discount_percentage }}%
+                                </span>
+                                    {% else %}
+                                    <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price|floatformat:2 }}</span>
+                                    {% endif %}
+                            </div>
+                                
+                                <!-- Right: Stock Status -->
+                                <div class="ml-auto">
+                                    {% if lowest_variant.stock and lowest_variant.stock > 0 %}
+                                    <span class="text-xs text-green-600 flex items-center gap-1 whitespace-nowrap">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                        </svg>
+                                        In Stock
+                                    </span>
+                            {% else %}
+                                    <span class="text-xs text-red-600 flex items-center gap-1 whitespace-nowrap">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                                        </svg>
+                                        Out of Stock
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Add to Cart Button -->
+                            <form method="POST" action="{% url 'cart:add_to_cart' product_id=product.id %}" class="ajax-add-to-cart">
+                                {% csrf_token %}
+                                <input type="hidden" name="quantity" value="1">
+                                <input type="hidden" name="variant_id" value="{{ lowest_variant.id }}">
+                                <button type="submit"
+                                    class="btn btn-primary w-full flex items-center justify-center gap-2 {% if not lowest_variant.stock %}opacity-50 cursor-not-allowed{% endif %}"
+                                    {% if not lowest_variant.stock %}disabled{% endif %}
+                                    data-add-to-cart data-product-id="{{ product.id }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2">
+                                        <circle cx="9" cy="21" r="1"></circle>
+                                        <circle cx="20" cy="21" r="1"></circle>
+                                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                                    </svg>
+                                    Add to Cart
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <div class="mt-auto pt-3 border-t border-gray-100">
+                            <p class="text-sm text-gray-500 text-center py-2">No variants available</p>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
+                {% endwith %}
                 {% endfor %}
             </div>
 
@@ -497,6 +590,12 @@
 </style>
 
 <script>
+// Use StarRating module to render stars (already initialized in base.html)
+// Re-render if needed after AJAX updates
+if (typeof StarRating !== 'undefined') {
+    StarRating.render();
+}
+
 // Initialize Lucide icons
 if (typeof lucide !== 'undefined') {
     lucide.createIcons();

@@ -1,243 +1,258 @@
 from django.shortcuts import render, get_object_or_404
+from django.db.models import Q, Min, Prefetch
 from django.core.paginator import Paginator
-from django.db.models import Q, Min, Max, Prefetch, F
-from decimal import Decimal
-from .models import Product, Category, ProductVariant, ProductImage
+from products.models import (
+    Product,
+    ProductVariant,
+    ProductImage,
+    Category,
+)
+from django.http import JsonResponse
 
 
 def product_list(request):
-    """Display list of products with advanced filtering"""
-    products = (
-        Product.objects.filter(is_active=True)
-        .select_related("category")
-        .prefetch_related("images", "variants")
-    )
-
-    # Category filter
+    """Product list page with filtering"""
+    # Get query parameters
     category_slug = request.GET.get("category")
-    selected_category = None
-    if category_slug:
-        try:
-            selected_category = Category.objects.get(slug=category_slug, is_active=True)
-            # Get all descendant categories (including self)
-            category_ids = [selected_category.id]
-            if selected_category.parent is None:
-                child_categories = Category.objects.filter(parent=selected_category)
-                category_ids.extend(child_categories.values_list("id", flat=True))
-            products = products.filter(category_id__in=category_ids)
-        except Category.DoesNotExist:
-            pass
-
-    # Search query
-    query = request.GET.get("q", "")
-    if query:
-        products = products.filter(
-            Q(name__icontains=query)
-            | Q(description__icontains=query)
-            | Q(category__name__icontains=query)
-            | Q(brand__icontains=query)
-        )
-
-    # Price range filter
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")
-    
-    # Build price filter conditions
-    price_conditions = None
-    if min_price:
-        try:
-            min_price_decimal = Decimal(min_price)
-            if price_conditions is None:
-                price_conditions = Q(variants__price__gte=min_price_decimal)
-            else:
-                price_conditions &= Q(variants__price__gte=min_price_decimal)
-        except (ValueError, TypeError):
-            min_price = None
-    
-    if max_price:
-        try:
-            max_price_decimal = Decimal(max_price)
-            if price_conditions is None:
-                price_conditions = Q(variants__price__lte=max_price_decimal)
-            else:
-                price_conditions &= Q(variants__price__lte=max_price_decimal)
-        except (ValueError, TypeError):
-            max_price = None
-    
-    # Apply price filter if any price condition exists
-    if price_conditions is not None:
-        products = products.filter(price_conditions & Q(variants__is_active=True))
-
-    # Brand filter
-    brands = request.GET.getlist("brand")
-    if brands:
-        products = products.filter(brand__in=brands)
-
-    # Color filter
-    colors = request.GET.getlist("color")
-    if colors:
-        products = products.filter(variants__color__in=colors, variants__is_active=True)
-
-    # Size filter
-    sizes = request.GET.getlist("size")
-    if sizes:
-        products = products.filter(variants__size__in=sizes, variants__is_active=True)
-
-    # Rating filter
-    min_rating = request.GET.get("rating")
-    if min_rating:
-        try:
-            min_rating_decimal = Decimal(min_rating)
-            # Only show products with reviews (review_count > 0) and rating >= selected
-            # Also ensure rating is not 0.0
-            products = products.filter(
-                review_count__gt=0
-            ).filter(
-                rating__gte=min_rating_decimal
-            ).exclude(
-                rating=0.0
-            )
-        except (ValueError, TypeError):
-            min_rating = None
-
-    # On Sale filter
+    sort_field = request.GET.get("sort", "created")  # Default field: created
+    sort_direction = request.GET.get("direction", "desc")  # Default direction: descending
     on_sale = request.GET.get("on_sale")
-    if on_sale == "true":
-        products = products.filter(
-            variants__compare_price__isnull=False,
-            variants__compare_price__gt=F("variants__price"),
-            variants__is_active=True
-        )
+    query = request.GET.get("q", "").strip()  # Search query
 
-    # Sort
-    sort_by = request.GET.get("sort", "featured")
-    if sort_by == "price_low":
-        # Annotate with lowest variant price (already discounted in the price field)
-        products = products.annotate(
-            lowest_price=Min("variants__price", filter=Q(variants__is_active=True))
-        ).order_by("lowest_price")
-    elif sort_by == "price_high":
-        # Annotate with highest variant price
-        products = products.annotate(
-            highest_price=Max("variants__price", filter=Q(variants__is_active=True))
-        ).order_by("-highest_price")
-    elif sort_by == "newest":
-        products = products.order_by("-created_at")
-    elif sort_by == "name":
-        products = products.order_by("name")
-    else:  # featured
-        products = products.order_by("-is_featured", "-created_at")
-    
-    # Remove duplicates after all filtering and sorting
-    products = products.distinct()
+    # Base queryset - only show products with at least one active variant
+    products = Product.objects.filter(
+        is_active=True,
+        variants__is_active=True
+    ).distinct().prefetch_related(
+        Prefetch("variants", queryset=ProductVariant.objects.filter(is_active=True)),
+        Prefetch("images", queryset=ProductImage.objects.order_by("display_order")),
+    )
 
-    # Get filter options 
-    filter_products = Product.objects.filter(is_active=True)
-    
-    # Apply same category filter to get relevant options
-    if selected_category:
-        filter_products = filter_products.filter(category_id__in=category_ids)
-    
-    # Apply search filter
+    # Filter by search query
     if query:
-        filter_products = filter_products.filter(
+        products = products.filter(
             Q(name__icontains=query)
             | Q(description__icontains=query)
-            | Q(category__name__icontains=query)
             | Q(brand__icontains=query)
+            | Q(category__name__icontains=query)
+            | Q(sku__icontains=query)
         )
 
-    # Get available brands from filtered products
-    available_brands = (
-        filter_products.exclude(brand="")
-        .values_list("brand", flat=True)
-        .distinct()
-        .order_by("brand")
+    # Filter by category
+    selected_category = None
+    if category_slug:
+        selected_category = get_object_or_404(Category, slug=category_slug)
+        # Include subcategories
+        category_ids = [selected_category.id]
+        category_ids.extend(
+            selected_category.children.values_list("id", flat=True)
+        )
+        products = products.filter(category_id__in=category_ids)
+
+    # Filter by price range
+    if min_price:
+        try:
+            min_price = float(min_price)
+            products = products.annotate(
+                min_variant_price=Min("variants__price")
+            ).filter(min_variant_price__gte=min_price)
+        except (ValueError, TypeError):
+            pass
+    if max_price:
+        try:
+            max_price = float(max_price)
+            products = products.annotate(
+                max_variant_price=Min("variants__price")
+            ).filter(max_variant_price__lte=max_price)
+        except (ValueError, TypeError):
+            pass
+
+    # Filter by on sale
+    if on_sale == "true":
+        products = products.filter(variants__compare_price__isnull=False).distinct()
+
+    # Filter by rating
+    rating = request.GET.get("rating")
+    if rating:
+        try:
+            rating_value = float(rating)
+            products = products.filter(rating__gte=rating_value)
+        except (ValueError, TypeError):
+            pass
+
+    # Get all parent categories for filter with product counts
+    categories = list(
+        Category.objects.filter(parent__isnull=True, is_active=True)
+        .prefetch_related('children')
     )
     
-    # Check if this is a fashion category to show color/size filters
-    available_colors = []
-    available_sizes = []
-    is_fashion_category = False
+    # Add product counts to each category (including subcategories)
+    for category in categories:
+        # Fetch children into a list so we can add attributes to them
+        children_list = list(category.children.filter(is_active=True))
+
+        # Get this category and all its children IDs
+        cat_ids = [category.id]
+        cat_ids.extend([child.id for child in children_list])
+        
+        # Count products with active variants for parent (includes all children)
+        category.product_count = Product.objects.filter(
+            is_active=True,
+            category_id__in=cat_ids,
+            variants__is_active=True
+        ).distinct().count()
+
+        # Add counts to each child category
+        for child in children_list:
+            child.product_count = Product.objects.filter(
+                is_active=True,
+                category_id=child.id,
+                variants__is_active=True
+            ).distinct().count()
+        
+        # Replace the queryset with our list that has counts
+        category.children_with_counts = children_list
+
+    # Get filter parameters
+    selected_brands = request.GET.getlist("brand", [])
+    selected_colors = request.GET.getlist("color", [])
+    selected_sizes = request.GET.getlist("size", [])
     
+    # Check if fashion category
+    is_fashion_category = False
     if selected_category:
-        # Check if current category or its parent is Fashion-related
         fashion_slugs = ['fashion', 'men', 'women', 'kids', 'clothing', 'apparel']
         category_slug_lower = selected_category.slug.lower()
         parent_slug_lower = selected_category.parent.slug.lower() if selected_category.parent else ''
-        
         is_fashion_category = (
             category_slug_lower in fashion_slugs or 
             parent_slug_lower in fashion_slugs
         )
-    
-    if is_fashion_category:
-        available_colors = (
-            ProductVariant.objects.filter(product__in=filter_products, color__isnull=False)
-            .exclude(color="")
-            .values_list("color", flat=True)
-            .distinct()
-            .order_by("color")
-        )
-        available_sizes = (
-            ProductVariant.objects.filter(product__in=filter_products, size__isnull=False)
-            .exclude(size="")
-            .values_list("size", flat=True)
-            .distinct()
-            .order_by("size")
-        )
 
-    # Get price range
-    price_range = filter_products.aggregate(
-        min_price=Min("variants__price"), max_price=Max("variants__price")
+    # Get available brands with counts based on currently filtered products
+    # This ensures brands are contextual to the selected category
+    from django.db.models import Count
+    
+    # Start with the current product queryset (which already has category filter applied)
+    brand_query = products
+    
+    # Get brand counts from filtered products
+    brand_counts = (
+        brand_query
+        .exclude(brand='')
+        .values('brand')
+        .annotate(count=Count('id', distinct=True))
+        .order_by('brand')
     )
+    
+    # Convert to list of dicts with brand and count, filter out 0 counts
+    available_brands = [
+        {'name': item['brand'], 'count': item['count']} 
+        for item in brand_counts
+        if item['count'] > 0
+    ]
+    
+    # Filter products by selected brands if any
+    if selected_brands:
+        products = products.filter(brand__in=selected_brands)
+    
+    # Get available colors and sizes for fashion categories (based on current filters)
+    available_colors = []
+    available_sizes = []
+    if is_fashion_category:
+        # Get from current filtered products (before applying color/size filters)
+        color_size_query = products
+        
+        variant_qs = ProductVariant.objects.filter(
+            product__in=color_size_query, 
+            is_active=True
+        )
+        
+        # Get colors with counts
+        color_counts = (
+            variant_qs.exclude(color='')
+            .values('color')
+            .annotate(count=Count('product', distinct=True))
+            .order_by('color')
+        )
+        available_colors = [
+            {'name': item['color'], 'count': item['count']}
+            for item in color_counts
+            if item['count'] > 0
+        ]
+        
+        # Get sizes with counts
+        size_counts = (
+            variant_qs.exclude(size='')
+            .values('size')
+            .annotate(count=Count('product', distinct=True))
+            .order_by('size')
+        )
+        available_sizes = [
+            {'name': item['size'], 'count': item['count']}
+            for item in size_counts
+            if item['count'] > 0
+        ]
+        
+        # Filter by selected colors/sizes
+        if selected_colors:
+            products = products.filter(variants__color__in=selected_colors).distinct()
+        if selected_sizes:
+            products = products.filter(variants__size__in=selected_sizes).distinct()
+
+    # Sorting - build order based on field and direction
+    sort_field_map = {
+        "name": "name",
+        "price": "variants__price",
+        "created": "created_at",
+        "rating": "rating",
+    }
+    
+    # Get the field to sort by
+    order_field = sort_field_map.get(sort_field, "created_at")
+    
+    # Apply direction (asc or desc)
+    if sort_direction == "asc":
+        order_by = order_field
+    else:  # desc
+        order_by = f"-{order_field}"
+    
+    products = products.order_by(order_by).distinct()
 
     # Pagination
-    paginator = Paginator(products, 12)
-    page_number = request.GET.get("page", 1)
+    paginator = Paginator(products, 12)  # 12 products per page
+    page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
-    
-    # Get user's wishlist items if authenticated
-    user_wishlist_ids = []
-    if request.user.is_authenticated:
-        from accounts.models import Wishlist
-        user_wishlist_ids = list(
-            Wishlist.objects.filter(user=request.user)
-            .values_list('product_id', flat=True)
-        )
-
-    # Get all categories for sidebar
-    categories = Category.objects.filter(
-        parent__isnull=True, is_active=True
-    ).prefetch_related("children")
 
     # Build query string for pagination
     query_params = request.GET.copy()
-    if "page" in query_params:
-        query_params.pop("page")
+    if 'page' in query_params:
+        del query_params['page']
     query_string = query_params.urlencode()
 
     context = {
         "page_obj": page_obj,
+        "products": products,  # Keep for backwards compatibility
         "categories": categories,
         "selected_category": selected_category,
-        "query": query,
-        "sort_by": sort_by,
-        "query_string": query_string,
-        "user_wishlist_ids": user_wishlist_ids,
-        # Filter options
+        "sort_field": sort_field,
+        "sort_direction": sort_direction,
+        "selected_min_price": min_price or "",
+        "selected_max_price": max_price or "",
+        "selected_on_sale": on_sale or "",
+        "selected_rating": rating or "",
+        "selected_brands": selected_brands,
+        "selected_colors": selected_colors,
+        "selected_sizes": selected_sizes,
+        "query": query,  # Add search query to context
+        "is_fashion_category": is_fashion_category,
         "available_brands": available_brands,
         "available_colors": available_colors,
         "available_sizes": available_sizes,
-        "is_fashion_category": is_fashion_category,  # Flag for fashion categories
-        "selected_brands": brands,
-        "selected_colors": colors,
-        "selected_sizes": sizes,
-        "min_price": min_price or "",
-        "max_price": max_price or "",
-        "price_range": price_range,
-        "selected_rating": min_rating or "",
-        "selected_on_sale": on_sale or "",
+        "price_range": None,  # Can be calculated if needed
+        "query_string": query_string,
     }
 
     return render(request, "products/product_list.html", context)
@@ -256,23 +271,90 @@ def product_detail(request, slug):
         is_active=True,
     )
 
+    # Track product view for authenticated users
+    if request.user.is_authenticated:
+        from accounts.models import BrowsingHistory
+        from django.db.models import F
+        
+        browsing_history, created = BrowsingHistory.objects.get_or_create(
+            user=request.user,
+            product=product
+        )
+        if not created:
+            # Increment view count if entry already exists
+            browsing_history.view_count = F('view_count') + 1
+            browsing_history.save(update_fields=['view_count', 'viewed_at'])
+
     # Check if this is a fashion category
     fashion_slugs = ['fashion', 'men', 'women', 'kids', 'clothing', 'apparel']
     category_slug_lower = product.category.slug.lower()
     parent_slug_lower = product.category.parent.slug.lower() if product.category.parent else ''
     
+    # Check if category or parent slug contains any fashion keyword
     is_fashion_category = (
-        category_slug_lower in fashion_slugs or 
-        parent_slug_lower in fashion_slugs
+        any(keyword in category_slug_lower for keyword in fashion_slugs) or
+        any(keyword in parent_slug_lower for keyword in fashion_slugs)
     )
 
     # Get available colors and sizes for fashion products
+    # Always show the selected color and size from the current variant
     available_colors = []
     available_sizes = []
+    selected_color = None
+    selected_size = None
+    
     if is_fashion_category:
         variants = product.variants.filter(is_active=True)
-        available_colors = list(variants.exclude(color="").values_list("color", flat=True).distinct())
-        available_sizes = list(variants.exclude(size="").values_list("size", flat=True).distinct())
+        
+        # Get the current variant (lowest priced variant)
+        lowest_variant = product.get_lowest_priced_variant()
+        if lowest_variant:
+            selected_color = lowest_variant.color or ""
+            selected_size = lowest_variant.size or ""
+        
+        # Always show variant selectors if variants exist
+        if variants.exists():
+            # Get all distinct colors (including empty strings) - use set to ensure uniqueness
+            color_set = set()
+            for variant in variants:
+                color = variant.color if variant.color else ""
+                color_set.add(color)
+            color_list = sorted(list(color_set))  # Sort for consistent display
+            
+            # Always include the selected color
+            if selected_color is not None:
+                selected_color_str = selected_color if selected_color else ""
+                if selected_color_str not in color_list:
+                    available_colors = [selected_color_str] + color_list
+                else:
+                    available_colors = color_list if color_list else [""]
+            elif color_list:
+                available_colors = color_list
+            else:
+                # If no colors but variants exist, show empty string as option
+                available_colors = [""]
+            
+            # Get all distinct sizes (including empty strings) - use set to ensure uniqueness
+            size_set = set()
+            for variant in variants:
+                size = variant.size if variant.size else ""
+                size_set.add(size)
+            # Sort sizes in a logical order
+            size_order = ["XS", "S", "M", "L", "XL", "XXL", ""]
+            size_list = sorted(list(size_set), key=lambda x: (size_order.index(x) if x in size_order else 999, x))
+            
+            # Always include the selected size
+            if selected_size is not None:
+                selected_size_str = selected_size if selected_size else ""
+                if selected_size_str not in size_list:
+                    available_sizes = [selected_size_str] + size_list
+                else:
+                    available_sizes = size_list if size_list else [""]
+            elif size_list:
+                available_sizes = size_list
+            else:
+                # If no sizes but variants exist, show empty string as option
+                available_sizes = [""]
     
     # Check if product is in user's wishlist
     is_in_wishlist = False
@@ -288,32 +370,30 @@ def product_detail(request, slug):
         "is_fashion_category": is_fashion_category,
         "available_colors": available_colors,
         "available_sizes": available_sizes,
+        "selected_color": selected_color,
+        "selected_size": selected_size,
         "is_in_wishlist": is_in_wishlist,
     }
+
     return render(request, "products/product_detail.html", context)
 
 
 def category_list(request, slug):
-    """List products by category"""
-    category = get_object_or_404(Category, slug=slug)
-    products = Product.objects.filter(
-        category=category, is_active=True
-    ).prefetch_related(
-        Prefetch("variants", queryset=ProductVariant.objects.filter(is_active=True)),
-        Prefetch("images", queryset=ProductImage.objects.order_by("display_order")),
-    )
+    """Category page"""
+    category = get_object_or_404(Category, slug=slug, is_active=True)
 
-    context = {
-        "category": category,
-        "products": products,
-    }
-    return render(request, "products/category_list.html", context)
+    # Redirect to product list with category filter
+    from django.shortcuts import redirect
+    return redirect(f"/products/?category={slug}")
 
 
 def search(request):
     """Search products"""
     query = request.GET.get("q", "")
-    products = Product.objects.filter(is_active=True).prefetch_related(
+    products = Product.objects.filter(
+        is_active=True,
+        variants__is_active=True
+    ).distinct().prefetch_related(
         Prefetch("variants", queryset=ProductVariant.objects.filter(is_active=True)),
         Prefetch("images", queryset=ProductImage.objects.order_by("display_order")),
     )
@@ -330,3 +410,48 @@ def search(request):
         "query": query,
     }
     return render(request, "products/search.html", context)
+
+
+def product_detail_ajax(request, product_id):
+    """AJAX endpoint for product quick view (replacing DRF API)"""
+    try:
+        product = Product.objects.get(id=product_id, is_active=True)
+        default_variant = product.get_lowest_priced_variant()
+        image = product.get_primary_image()
+        
+        # Get all variants
+        variants_data = []
+        for variant in product.variants.filter(is_active=True):
+            variants_data.append({
+                'id': variant.id,
+                'sku': variant.sku,
+                'color': variant.color,
+                'size': variant.size,
+                'price': float(variant.price),
+                'compare_price': float(variant.compare_price) if variant.compare_price else None,
+                'stock': variant.stock,
+            })
+        
+        data = {
+            'id': product.id,
+            'name': product.name,
+            'slug': product.slug,
+            'sku': product.sku,
+            'brand': product.brand,
+            'description': product.description,
+            'image': image.image.url if image else None,
+            'price': float(default_variant.price) if default_variant else 0.0,
+            'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
+            'variants': variants_data,
+            'category': {
+                'id': product.category.id,
+                'name': product.category.name,
+                'slug': product.category.slug,
+            } if product.category else None,
+        }
+        
+        return JsonResponse(data)
+    except Product.DoesNotExist:
+        return JsonResponse({'error': 'Product not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

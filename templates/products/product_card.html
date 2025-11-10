@@ -32,7 +32,7 @@
         <form method="POST" action="{% url 'accounts:add_to_wishlist' product_id=product.id %}"
             class="absolute top-2 right-2 z-20" data-wishlist-toggle>
             {% csrf_token %}
-            <button type="submit" class="bg-white p-2 rounded-full shadow-md hover:bg-red-50 transition" data-product-id="{{ product.id }}">
+            <button type="submit" class="bg-white p-2 rounded-full shadow-md hover:bg-red-50 transition {% if product.id in user_wishlist_ids %}in-wishlist{% endif %}" data-product-id="{{ product.id }}">
                 {% if product.id in user_wishlist_ids %}
                 <i data-lucide="heart" class="w-5 h-5 text-red-500 fill-current"></i>
                 {% else %}
@@ -45,78 +45,75 @@
 
     <!-- Product Info -->
     <div class="p-4 flex flex-col grow">
-        <a href="{% url 'products:product_detail' slug=product.slug %}" class="block mb-2">
-            <h3 class="text-lg font-semibold text-gray-800 hover:text-blue-600 transition">
+        <!-- Brand (if exists) -->
+        {% if product.brand %}
+        <p class="text-xs text-gray-500 mb-1 uppercase tracking-wide">{{ product.brand }}</p>
+        {% endif %}
+        
+        <a href="{% url 'products:product_detail' slug=product.slug %}" class="block">
+            <h3 class="text-lg font-semibold text-gray-800 hover:text-blue-600 transition line-clamp-2 min-h-[3.5rem]">
                 {{ product.name }}
             </h3>
         </a>
 
-        <p class="text-gray-600 text-sm mb-3 line-clamp-2">
-            {{ product.description|truncatewords:15 }}
-        </p>
+        <!-- Rating with Stars (fixed height to prevent layout shift) -->
+        <div class="mt-1 mb-2 h-6">
+            {% if product.rating > 0 %}
+            <div class="flex items-center gap-1">
+                <div class="flex text-yellow-400 product-rating-stars" data-rating="{{ product.rating }}">
 
-        <!-- Rating with Stars -->
-        {% if product.review_count > 0 %}
-        <div class="flex items-center gap-1 mb-3">
-            <div class="flex text-yellow-400">
-                {% with rating=product.rating|floatformat:0|add:0 %}
-                {% for i in "12345" %}
-                {% if forloop.counter <= rating %} <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 fill-current"
-                    viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                    {% else %}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2">
-                        <path
-                            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                    {% endif %}
-                    {% endfor %}
-                    {% endwith %}
+                </div>
+                <span class="text-sm font-medium text-gray-700">{{ product.rating|floatformat:1 }}</span>
+                {% if product.review_count > 0 %}
+                <span class="text-xs text-gray-500">({{ product.review_count }})</span>
+                {% endif %}
             </div>
-            <span class="text-sm text-gray-600">({{ product.review_count }})</span>
+            {% endif %}
         </div>
-        {% endif %}
 
         <!-- Bottom section anchored to card bottom -->
-        <div class="mt-auto">
+        <div class="mt-auto pt-3 border-t border-gray-100">
             {% if lowest_variant %}
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex flex-col">
+            <!-- Price, Save Badge, and Stock Status - All in one row -->
+            <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <!-- Left: Price and Save Badge -->
+                <div class="flex items-center gap-2 flex-wrap">
                     {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
-                    <span class="text-sm text-gray-500 line-through">${{ lowest_variant.compare_price }}</span>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-baseline gap-1">
                         <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price }}</span>
-                        <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold">
-                            -{{ lowest_variant.discount_percentage }}% OFF
-                        </span>
+                        <span class="text-sm text-gray-400 line-through">${{ lowest_variant.compare_price }}</span>
                     </div>
+                    <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold whitespace-nowrap">
+                        -{{ lowest_variant.discount_percentage }}%
+                    </span>
                     {% else %}
                     <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price }}</span>
                     {% endif %}
                 </div>
-                {% if lowest_variant.stock and lowest_variant.stock > 0 %}
-                <span class="text-sm text-green-600 flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    In Stock
-                </span>
-                {% else %}
-                <span class="text-sm text-red-600 flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="15" y1="9" x2="9" y2="15"></line>
-                        <line x1="9" y1="9" x2="15" y2="15"></line>
-                    </svg>
-                    Out of Stock
-                </span>
-                {% endif %}
+                
+                <!-- Right: Stock Status -->
+                <div class="ml-auto">
+                    {% if lowest_variant.stock and lowest_variant.stock > 0 %}
+                    <span class="text-xs text-green-600 flex items-center gap-1 whitespace-nowrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        In Stock
+                    </span>
+                    {% else %}
+                    <span class="text-xs text-red-600 flex items-center gap-1 whitespace-nowrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        Out of Stock
+                    </span>
+                    {% endif %}
+                </div>
             </div>
 
             <form method="POST" action="{% url 'cart:add_to_cart' product_id=product.id %}" class="ajax-add-to-cart">
