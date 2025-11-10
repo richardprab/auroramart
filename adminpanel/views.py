@@ -1,17 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import JsonResponse
-from django.db.models import Q, Count, Sum
-from django.utils import timezone
+from django.http import HttpResponse
+from django.db.models import Q
 from django.core.files.base import ContentFile
-from datetime import timedelta
-import base64
+from django.template.loader import render_to_string
 import requests
 
 from products.models import Product, ProductVariant, ProductImage, Category
-from accounts.models import User
-from chat.models import ChatConversation, ChatMessage
-from orders.models import Order, OrderItem
+from accounts.models import ChatConversation, ChatMessage, User
+from orders.models import Order
+from .forms import ProductSearchForm, OrderSearchForm
 
 
 def get_next_assigned_staff():
@@ -156,86 +154,302 @@ def chat_conversation(request, conversation_id):
 @staff_member_required
 def product_management(request):
     """Product search and management page"""
-    return render(request, 'adminpanel/products.html')
+    # Initialize form with query from GET parameters if present
+    # Support both 'q' and 'query' for backward compatibility
+    initial_query = request.GET.get('query', request.GET.get('q', ''))
+    form = ProductSearchForm(initial={'query': initial_query})
+    
+    # Load initial products if query is provided, otherwise show all
+    products_data = []
+    if initial_query:
+        # Use the search logic from search_product view
+        search_q = (
+            Q(name__icontains=initial_query) | 
+            Q(slug__icontains=initial_query) | 
+            Q(sku__icontains=initial_query) | 
+            Q(variants__sku__icontains=initial_query) |
+            Q(description__icontains=initial_query) |
+            Q(category__name__icontains=initial_query)
+        )
+        all_products = Product.objects.filter(search_q).distinct().prefetch_related(
+            'images', 'category', 'reviews__user', 'variants'
+        )[:100]
+        
+        # Sort by relevance (simplified version)
+        def get_relevance_score(product):
+            query_lower = initial_query.lower().strip()
+            product_sku_lower = (product.sku.lower() if product.sku else '').strip()
+            product_name_lower = (product.name.lower() if product.name else '').strip()
+            variant_skus = [v.sku.lower().strip() for v in product.variants.all() if v.sku and v.sku.strip()]
+            
+            if product_sku_lower == query_lower or query_lower in variant_skus:
+                return 5
+            if product_sku_lower and product_sku_lower.startswith(query_lower):
+                return 4
+            if any(sku.startswith(query_lower) for sku in variant_skus):
+                return 4
+            if product_name_lower and product_name_lower.startswith(query_lower):
+                return 3
+            if product_name_lower == query_lower:
+                return 2
+            return 1
+        
+        all_products = sorted(all_products, key=lambda p: (-get_relevance_score(p), p.name.lower()))
+        products = list(all_products)[:50]
+    else:
+        products = Product.objects.all().prefetch_related(
+            'images', 'category', 'reviews__user', 'variants'
+        ).order_by('name')[:50]
+    
+    # Prepare product data for template
+    for product in products:
+        try:
+            primary_image_url = ''
+            try:
+                primary_image = product.images.filter(is_primary=True).first()
+                if primary_image and primary_image.image:
+                    primary_image_url = primary_image.image.url
+                else:
+                    first_image = product.images.first()
+                    if first_image and first_image.image:
+                        primary_image_url = first_image.image.url
+            except Exception:
+                pass
+            
+            total_stock = sum(variant.stock for variant in product.variants.all())
+            reviews = product.reviews.select_related('user').all()[:5]
+            
+            rating_stars = ''
+            if product.rating and product.rating > 0:
+                rating_int = int(round(float(product.rating)))
+                rating_stars = '★' * rating_int + '☆' * (5 - rating_int)
+            
+            products_data.append({
+                'product': product,
+                'primary_image_url': primary_image_url,
+                'total_stock': total_stock,
+                'reviews': reviews,
+                'rating_stars': rating_stars,
+            })
+        except Exception:
+            continue
+    
+    context = {
+        'form': form,
+        'search_query': initial_query,
+        'products_data': products_data,
+    }
+    return render(request, 'adminpanel/products.html', context)
 
 @staff_member_required
 def search_product(request):
-    """AJAX endpoint to search for products"""
-    query = request.GET.get('query', '')
+    """AJAX endpoint to search for products and return HTML table rendered server-side"""
+    query = request.GET.get('query', '').strip()
     
-    if not query:
-        return JsonResponse({'error': 'No search query provided'}, status=400)
-    
-    # Search by slug, name, or SKU
-    products = Product.objects.filter(
-        Q(slug__icontains=query) | 
-
-        Q(variants__sku__icontains=query)
-    ).distinct().prefetch_related('variants__main_image', 'images', 'category')[:10]  # FIXED: Use main_image
-    
-    results = []
-    for product in products:
-        # Get product images
-        product_images = []
-        for img in product.images.all():
-            product_images.append({
-                'id': img.id,
-                'url': img.image.url if img.image else '',
-                'is_primary': img.is_primary,
-            })
-        
-        # Get variants
-        variants = []
-        for variant in product.variants.all():
-            variant_images = []
-            # Variants use main_image (single ForeignKey to ProductImage)
-            if variant.main_image:
-                variant_images.append({
-                    'id': variant.main_image.id,
-                    'url': variant.main_image.image.url if variant.main_image.image else '',
-                })
+    try:
+        # If empty query, return all products
+        if not query:
+            all_products = Product.objects.all().prefetch_related(
+                'images', 
+                'category',
+                'reviews__user',
+                'variants'
+            ).order_by('name')[:50]
+        else:
+            # Build search query with priority for exact matches
+            # Priority order:
+            # 1. Exact SKU match (product or variant) - highest priority (5)
+            # 2. SKU starts with query (4)
+            # 3. Name starts with query (3) - NEW - this fixes "Car" search
+            # 4. Exact name/slug match (2)
+            # 5. Partial matches/contains (1)
             
-            variants.append({
-                'id': variant.id,
-                'sku': variant.sku,
-                'name': variant.sku,  # Variants don't have 'name', use SKU or product name
-                'stock': variant.stock,
-                'price': str(variant.price),
-                'images': variant_images,
-            })
+            # Get all products that match any condition
+            search_q = (
+                Q(name__icontains=query) | 
+                Q(slug__icontains=query) | 
+                Q(sku__icontains=query) | 
+                Q(variants__sku__icontains=query) |
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query)
+            )
+            
+            # Get all matching products
+            all_products = Product.objects.filter(
+                search_q
+            ).distinct().prefetch_related(
+                'images', 
+                'category',
+                'reviews__user',
+                'variants'
+            )[:100]  # Get more to sort, then limit
+            
+            # Sort products by relevance
+            def get_relevance_score(product):
+                query_lower = query.lower().strip()
+                product_sku_lower = (product.sku.lower() if product.sku else '').strip()
+                product_name_lower = (product.name.lower() if product.name else '').strip()
+                product_slug_lower = (product.slug.lower() if product.slug else '').strip()
+                
+                # Check variant SKUs - need to access prefetched variants
+                variant_skus = []
+                try:
+                    variant_skus = [v.sku.lower().strip() for v in product.variants.all() if v.sku and v.sku.strip()]
+                except Exception:
+                    pass
+                
+                # Priority 5: Exact SKU match (product or variant) - highest priority
+                if product_sku_lower == query_lower:
+                    return 5
+                if query_lower in variant_skus:
+                    return 5
+                
+                # Priority 4: SKU starts with query
+                if product_sku_lower and product_sku_lower.startswith(query_lower):
+                    return 4
+                if any(sku.startswith(query_lower) for sku in variant_skus):
+                    return 4
+                
+                # Priority 3: Name starts with query - THIS FIXES "Car" search issue
+                if product_name_lower and product_name_lower.startswith(query_lower):
+                    return 3
+                
+                # Priority 2: Exact name or slug match
+                if product_name_lower == query_lower or product_slug_lower == query_lower:
+                    return 2
+                
+                # Priority 1: Partial match (contains but doesn't start with)
+                return 1
+            
+            # Sort by relevance (higher first), then by name
+            all_products = sorted(all_products, key=lambda p: (-get_relevance_score(p), p.name.lower()))
         
-        results.append({
-            'id': product.id,
-            'name': product.name,
-            'slug': product.slug,
-            'description': product.description,
-            'category': product.category.name if product.category else '',
-            'category_id': product.category.id if product.category else None,
-            'images': product_images,
-            'variants': variants,
-        })
+        products = list(all_products)[:50]
+        
+        # Prepare product data for template
+        products_data = []
+        for product in products:
+            try:
+                # Get primary image URL
+                primary_image_url = ''
+                try:
+                    primary_image = product.images.filter(is_primary=True).first()
+                    if primary_image and primary_image.image:
+                        primary_image_url = primary_image.image.url
+                    else:
+                        first_image = product.images.first()
+                        if first_image and first_image.image:
+                            primary_image_url = first_image.image.url
+                except Exception:
+                    pass
+                
+                # Get total stock from variants
+                total_stock = sum(variant.stock for variant in product.variants.all())
+                
+                # Get reviews (limit to 5 most recent)
+                reviews = product.reviews.select_related('user').all()[:5]
+                
+                # Compute rating stars for display
+                rating_stars = ''
+                if product.rating and product.rating > 0:
+                    rating_int = int(round(float(product.rating)))
+                    rating_stars = '★' * rating_int + '☆' * (5 - rating_int)
+                
+                products_data.append({
+                    'product': product,
+                    'primary_image_url': primary_image_url,
+                    'total_stock': total_stock,
+                    'reviews': reviews,
+                    'rating_stars': rating_stars,
+                })
+            except Exception as e:
+                # Skip products that cause errors
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error processing product {product.id}: {str(e)}")
+                continue
+        
+        # Render table HTML using Django template
+        table_html = render_to_string(
+            'adminpanel/includes/product_table.html',
+            {
+                'products': products_data,
+                'search_query': query,
+            },
+            request=request
+        )
+        
+        # Return HTML response
+        return HttpResponse(table_html)
     
-    return JsonResponse({'products': results})
+    except Exception as e:
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in search_product: {str(e)}\n{traceback.format_exc()}")
+        return HttpResponse(
+            '<div class="error-message">❌ An error occurred while searching products. Please try again.</div>',
+            status=500
+        )
+
+@staff_member_required
+def edit_product(request, product_id):
+    """Display product edit form"""
+    product = get_object_or_404(
+        Product.objects.prefetch_related('images', 'variants', 'category', 'reviews__user'),
+        id=product_id
+    )
+    
+    # Get search query from request if coming from search page
+    search_query = request.GET.get('q', '')
+    
+    # Get primary image
+    primary_image = product.images.filter(is_primary=True).first()
+    primary_image_url = ''
+    try:
+        if primary_image and primary_image.image:
+            primary_image_url = primary_image.image.url
+    except Exception:
+        # If image doesn't exist or can't be accessed, use empty string
+        pass
+    
+    # Get all categories for dropdown
+    categories = Category.objects.all().order_by('name')
+    
+    context = {
+        'product': product,
+        'primary_image_url': primary_image_url,
+        'categories': categories,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'adminpanel/edit_product.html', context)
 
 @staff_member_required
 def update_product(request):
-    """Update product details"""
+    """Update product details and redirect"""
     if request.method != 'POST':
-        return JsonResponse({'error': 'Invalid request method'}, status=400)
+        return redirect('adminpanel:products')
     
     try:
         product_id = request.POST.get('product_id')
         product = get_object_or_404(Product, id=product_id)
+        
+        # Get search query to preserve it in redirect
+        search_query = request.POST.get('search_query', '')
         
         # Update basic product info
         product.name = request.POST.get('name', product.name)
         product.description = request.POST.get('description', product.description)
         
         # Update category if provided
-        category_name = request.POST.get('category')
-        if category_name:
-            category, created = Category.objects.get_or_create(name=category_name)
-            product.category = category
+        category_id = request.POST.get('category_id')
+        if category_id:
+            try:
+                category = Category.objects.get(id=category_id)
+                product.category = category
+            except Category.DoesNotExist:
+                pass
         
         product.save()
         
@@ -255,11 +469,8 @@ def update_product(request):
                     image=product_image_file,
                     is_primary=True
                 )
-        elif product_image_url and product_image_url.startswith('http'):  # ADDED: Check if URL starts with http
+        elif product_image_url and product_image_url.startswith('http'):
             # URL provided - download and save
-            from django.core.files.base import ContentFile
-            import requests
-            
             try:
                 response = requests.get(product_image_url, timeout=10)
                 if response.status_code == 200:
@@ -281,7 +492,6 @@ def update_product(request):
                 variant = ProductVariant.objects.get(id=variant_id)
                 
                 # Update variant fields
-                variant_name = request.POST.get(f'variant_name_{index}')
                 variant_stock = request.POST.get(f'variant_stock_{index}')
                 variant_price = request.POST.get(f'variant_price_{index}')
                 
@@ -291,43 +501,6 @@ def update_product(request):
                     variant.price = float(variant_price)
                 
                 variant.save()
-                
-                # Handle variant image
-                variant_image_url = request.POST.get(f'variant_image_url_{index}', '').strip()
-                variant_image_file = request.FILES.get(f'variant_image_file_{index}')
-                
-                if variant_image_file:
-                    # File upload takes priority
-                    if variant.main_image:
-                        variant.main_image.image = variant_image_file
-                        variant.main_image.save()
-                    else:
-                        new_image = ProductImage.objects.create(
-                            product=product,
-                            image=variant_image_file,
-                            is_primary=False
-                        )
-                        variant.main_image = new_image
-                        variant.save()
-                        
-                elif variant_image_url and variant_image_url.startswith('http'):  # ADDED: Check if URL starts with http
-                    # URL provided - download and save
-                    from django.core.files.base import ContentFile
-                    import requests
-                    
-                    try:
-                        response = requests.get(variant_image_url, timeout=10)
-                        if response.status_code == 200:
-                            file_name = variant_image_url.split('/')[-1]
-                            if variant.main_image:
-                                variant.main_image.image.save(file_name, ContentFile(response.content), save=True)
-                            else:
-                                new_image = ProductImage.objects.create(product=product, is_primary=False)
-                                new_image.image.save(file_name, ContentFile(response.content), save=True)
-                                variant.main_image = new_image
-                                variant.save()
-                    except Exception as e:
-                        print(f"Error downloading variant image: {e}")
                         
             except ProductVariant.DoesNotExist:
                 continue
@@ -335,79 +508,252 @@ def update_product(request):
                 print(f"Error updating variant {variant_id}: {e}")
                 continue
         
-        return JsonResponse({'success': True, 'message': 'Product updated successfully'})
+        # Redirect back to products page with search query if provided
+        from django.urls import reverse
+        if search_query:
+            products_url = reverse('adminpanel:products')
+            return redirect(f'{products_url}?q={search_query}')
+        else:
+            return redirect('adminpanel:products')
         
     except Exception as e:
         print(f"Error in update_product: {e}")
         import traceback
         traceback.print_exc()
-        return JsonResponse({'error': str(e)}, status=500)
+        # Redirect to edit page with error message
+        from django.contrib import messages
+        messages.error(request, f'Error updating product: {str(e)}')
+        return redirect('adminpanel:edit_product', product_id=product_id)
 
 # ==================== ORDER MANAGEMENT ====================
 
 @staff_member_required
 def order_management(request):
     """Order search and management page"""
+    # Initialize form with query from GET parameters if present
+    # Support both 'q' and 'query' for backward compatibility
+    initial_query = request.GET.get('query', request.GET.get('q', ''))
+    form = OrderSearchForm(initial={'query': initial_query})
     
-    search_query = request.GET.get('search', '').strip()
-    order_data = None
-    customer_orders = None
-    search_type = None
-    
-    if search_query:
-        # Try to determine if it's an order number or customer username
-        if search_query.upper().startswith('ORD'):
-            # Search for specific order by order_number
-            try:
-                # Search by order_number field (e.g., ORD-A1B2C3D4)
-                order = Order.objects.select_related('user', 'address').prefetch_related('items__variant__product').get(order_number__iexact=search_query)
-                order_data = order
-                search_type = 'order'
-            except Order.DoesNotExist:
-                pass
+    # Load initial orders if query is provided, otherwise show recent orders
+    orders_data = []
+    if initial_query:
+        query_upper = initial_query.upper()
         
+        # Determine if query looks like an order number
+        is_likely_order_number = query_upper.startswith('ORD') or (len(initial_query) >= 4 and initial_query.replace('-', '').replace('_', '').isalnum())
+        
+        if is_likely_order_number:
+            # Search by order number
+            search_q = Q(order_number__icontains=initial_query)
+            if not query_upper.startswith('ORD'):
+                search_q |= Q(order_number__icontains=f'ORD-{initial_query}')
+            
+            matching_orders = Order.objects.filter(search_q).select_related('user').prefetch_related('items__variant__product').distinct()[:100]
+            
+            # Sort by relevance
+            def get_relevance_score(order):
+                order_num_upper = order.order_number.upper()
+                if order_num_upper == query_upper or order_num_upper == f'ORD-{query_upper}':
+                    return 5
+                if order_num_upper.startswith(query_upper) or order_num_upper.startswith(f'ORD-{query_upper}'):
+                    return 4
+                if query_upper in order_num_upper:
+                    return 3
+                return 2
+            
+            matching_orders = sorted(matching_orders, key=lambda o: (-get_relevance_score(o), -o.created_at.timestamp()))
+            orders = list(matching_orders)[:50]
+            
+            for order in orders:
+                orders_data.append({
+                    'order': order,
+                    'search_type': 'order',
+                })
         else:
-            # Try searching by order_number (without ORD prefix) or username
-            try:
-                # Try as order number (with or without ORD prefix)
-                order = Order.objects.select_related('user', 'address').prefetch_related('items__variant__product').get(
-                    Q(order_number__iexact=search_query) | 
-                    Q(order_number__iexact=f'ORD-{search_query}')
-                )
-                order_data = order
-                search_type = 'order'
-            except Order.DoesNotExist:
-                # Try as username
-                try:
-                    customer = User.objects.get(username__iexact=search_query)
-                    customer_orders = Order.objects.filter(user=customer).select_related('user').order_by('-created_at')
-                    search_type = 'customer'
-                except User.DoesNotExist:
-                    pass
+            # Search by customer
+            matching_users = User.objects.filter(
+                Q(username__icontains=initial_query) | 
+                Q(email__icontains=initial_query) |
+                Q(first_name__icontains=initial_query) |
+                Q(last_name__icontains=initial_query)
+            ).distinct()[:20]
+            
+            for user in matching_users:
+                user_orders = Order.objects.filter(user=user).select_related('user').prefetch_related('items__variant__product').order_by('-created_at')[:10]
+                for order in user_orders:
+                    orders_data.append({
+                        'order': order,
+                        'search_type': 'customer',
+                    })
+            
+            # Sort by created_at (most recent first)
+            orders_data.sort(key=lambda x: x['order'].created_at, reverse=True)
+            orders_data = orders_data[:50]
+    else:
+        # Show recent orders
+        orders = Order.objects.select_related('user').prefetch_related('items__variant__product').order_by('-created_at')[:50]
+        for order in orders:
+            orders_data.append({
+                'order': order,
+                'search_type': 'order',
+            })
+    
+    context = {
+        'form': form,
+        'search_query': initial_query,
+        'orders_data': orders_data,
+    }
+    return render(request, 'adminpanel/order_management.html', context)
+
+@staff_member_required
+def search_order(request):
+    """AJAX endpoint to search for orders and return HTML table rendered server-side"""
+    query = request.GET.get('query', '').strip()
+    
+    try:
+        orders_data = []
+        
+        if not query:
+            # If empty query, return recent orders (limit to 50)
+            orders = Order.objects.select_related('user').prefetch_related('items__variant__product').order_by('-created_at')[:50]
+            for order in orders:
+                orders_data.append({
+                    'order': order,
+                    'search_type': 'order',
+                })
+        else:
+            query_upper = query.upper()
+            
+            # Determine if query looks like an order number (starts with ORD or is alphanumeric)
+            is_likely_order_number = query_upper.startswith('ORD') or (len(query) >= 4 and query.replace('-', '').replace('_', '').isalnum())
+            
+            if is_likely_order_number:
+                # Search by order number with fuzzy matching
+                search_q = Q(order_number__icontains=query)
+                
+                # Try with ORD prefix if query doesn't have it
+                if not query_upper.startswith('ORD'):
+                    search_q |= Q(order_number__icontains=f'ORD-{query}')
+                
+                matching_orders = Order.objects.filter(
+                    search_q
+                ).select_related('user').prefetch_related('items__variant__product').distinct()[:100]
+                
+                # Sort by relevance
+                def get_relevance_score(order):
+                    order_num_upper = order.order_number.upper()
+                    
+                    # Priority 5: Exact match
+                    if order_num_upper == query_upper:
+                        return 5
+                    if order_num_upper == f'ORD-{query_upper}':
+                        return 5
+                    
+                    # Priority 4: Starts with query
+                    if order_num_upper.startswith(query_upper):
+                        return 4
+                    if order_num_upper.startswith(f'ORD-{query_upper}'):
+                        return 4
+                    
+                    # Priority 3: Contains query
+                    if query_upper in order_num_upper:
+                        return 3
+                    
+                    # Priority 2: Partial match
+                    return 2
+                
+                # Sort by relevance (higher first), then by created_at (newest first)
+                matching_orders = sorted(matching_orders, key=lambda o: (-get_relevance_score(o), -o.created_at.timestamp()))
+                
+                for order in matching_orders[:50]:  # Limit to 50 results
+                    orders_data.append({
+                        'order': order,
+                        'search_type': 'order',
+                    })
+            else:
+                # Search by customer username
+                # Get all users matching the query
+                matching_users = User.objects.filter(
+                    Q(username__icontains=query) | 
+                    Q(email__icontains=query) |
+                    Q(first_name__icontains=query) |
+                    Q(last_name__icontains=query)
+                ).distinct()[:20]  # Limit to 20 users
+                
+                # For each user, get their most recent orders
+                for user in matching_users:
+                    user_orders = Order.objects.filter(user=user).select_related('user').prefetch_related('items__variant__product').order_by('-created_at')[:10]
+                    
+                    for order in user_orders:
+                        orders_data.append({
+                            'order': order,
+                            'search_type': 'customer',
+                        })
+                
+                # Sort by created_at (most recent first)
+                orders_data.sort(key=lambda x: x['order'].created_at, reverse=True)
+                orders_data = orders_data[:50]  # Limit to 50 results
+        
+        # Render table HTML using Django template
+        table_html = render_to_string(
+            'adminpanel/includes/order_table.html',
+            {
+                'orders': orders_data,
+                'search_query': query,
+            },
+            request=request
+        )
+        
+        # Return HTML response
+        return HttpResponse(table_html)
+    
+    except Exception as e:
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in search_order: {str(e)}\n{traceback.format_exc()}")
+        return HttpResponse(
+            '<div class="error-message">❌ An error occurred while searching orders. Please try again.</div>',
+            status=500
+        )
+
+@staff_member_required
+def edit_order(request, order_id):
+    """Display order edit form"""
+    order = get_object_or_404(
+        Order.objects.select_related('user', 'address').prefetch_related('items__variant__product'),
+        id=order_id
+    )
+    
+    # Get search query from request if coming from search page
+    # Support both 'q' and 'query' for backward compatibility
+    search_query = request.GET.get('q', request.GET.get('query', ''))
     
     # Get all available variants for order editing
     all_variants = ProductVariant.objects.filter(stock__gt=0).select_related('product')
     
     context = {
+        'order': order,
         'search_query': search_query,
-        'order': order_data,
-        'customer_orders': customer_orders,
-        'search_type': search_type,
         'all_variants': all_variants,
         'location_choices': Order.LOCATION_CHOICES,
         'status_choices': Order.STATUS_CHOICES,
     }
     
-    return render(request, 'adminpanel/order_management.html', context)
+    return render(request, 'adminpanel/edit_order.html', context)
 
 @staff_member_required
 def update_order(request, order_id):
-    """Update order details via AJAX"""
+    """Update order details and redirect"""
     if request.method != 'POST':
-        return JsonResponse({'error': 'Invalid request method'}, status=400)
+        return redirect('adminpanel:order_management')
     
     try:
         order = get_object_or_404(Order, id=order_id)
+        
+        # Get search query to preserve it in redirect
+        search_query = request.POST.get('search_query', '')
         
         # Update current location
         current_location = request.POST.get('current_location')
@@ -431,10 +777,22 @@ def update_order(request, order_id):
         
         order.save()
         
-        return JsonResponse({'success': True, 'message': 'Order updated successfully'})
+        # Redirect back to order management page with search query if provided
+        from django.urls import reverse
+        if search_query:
+            orders_url = reverse('adminpanel:order_management')
+            return redirect(f'{orders_url}?q={search_query}')
+        else:
+            return redirect('adminpanel:order_management')
         
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        print(f"Error in update_order: {e}")
+        import traceback
+        traceback.print_exc()
+        # Redirect to edit page with error message
+        from django.contrib import messages
+        messages.error(request, f'Error updating order: {str(e)}')
+        return redirect('adminpanel:edit_order', order_id=order_id)
 
 # ==================== ANALYTICS ====================
 

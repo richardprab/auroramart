@@ -1,147 +1,145 @@
 {% extends 'adminpanel/base.html' %}
 
-{% block title %}Customer Assistance{% endblock %}
+{% block admin_title %}Customer Assistance{% endblock %}
 
-{% block extra_css %}
+{% block admin_extra_css %}
 <style>
     .filter-tabs {
         display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
+        gap: 0.625rem;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
     }
 
     .filter-tab {
-        padding: 10px 20px;
-        background: #f8f9fa;
+        padding: 0.625rem 1.25rem;
+        background: #f3f4f6;
         border: none;
-        border-radius: 8px;
+        border-radius: 0.5rem;
         cursor: pointer;
-        font-size: 14px;
-        transition: all 0.3s;
+        font-size: 0.875rem;
+        transition: all 0.2s;
         text-decoration: none;
-        color: #333;
+        color: #374151;
+        font-weight: 500;
     }
 
     .filter-tab:hover {
-        background: #e9ecef;
+        background: #e5e7eb;
     }
 
     .filter-tab.active {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
         color: white;
         font-weight: 600;
     }
 
-    .messages-grid {
-        display: grid;
-        gap: 15px;
-    }
-
     .message-card {
         background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 20px;
-        transition: all 0.3s;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        transition: all 0.2s;
         cursor: pointer;
         text-decoration: none;
         color: inherit;
         display: block;
+        margin-bottom: 1rem;
     }
 
     .message-card:hover {
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         transform: translateY(-2px);
+        border-color: #3b82f6;
     }
 
     .message-header {
         display: flex;
         justify-content: space-between;
         align-items: start;
-        margin-bottom: 15px;
-    }
-
-    .message-customer {
-        flex: 1;
+        margin-bottom: 1rem;
     }
 
     .message-customer h4 {
-        font-size: 16px;
-        color: #333;
-        margin-bottom: 8px;
+        font-size: 1rem;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
     }
 
     .message-meta {
-        font-size: 13px;
-        color: #666;
+        font-size: 0.813rem;
+        color: #6b7280;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 0.25rem;
     }
 
     .message-meta-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 0.5rem;
     }
 
-    .search-icon {
-        color: #667eea;
+    .search-link {
+        color: #3b82f6;
         cursor: pointer;
         transition: transform 0.2s;
+        text-decoration: none;
     }
 
-    .search-icon:hover {
+    .search-link:hover {
         transform: scale(1.2);
+        color: #2563eb;
     }
 
     .message-status {
         display: flex;
-        gap: 10px;
+        gap: 0.625rem;
         align-items: center;
     }
 
     .status-badge {
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 12px;
+        padding: 0.375rem 0.75rem;
+        border-radius: 1.25rem;
+        font-size: 0.75rem;
         font-weight: 600;
     }
 
     .status-pending {
-        background: #fff3cd;
-        color: #856404;
+        background: #fef3c7;
+        color: #92400e;
     }
 
     .status-replied {
-        background: #d4edda;
-        color: #155724;
+        background: #d1fae5;
+        color: #065f46;
     }
 
     .message-type-badge {
-        padding: 4px 10px;
-        border-radius: 15px;
-        font-size: 11px;
-        background: #e9ecef;
-        color: #495057;
+        padding: 0.25rem 0.625rem;
+        border-radius: 0.938rem;
+        font-size: 0.688rem;
+        background: #e5e7eb;
+        color: #374151;
     }
 
     .message-type-product {
-        background: #cce5ff;
-        color: #004085;
+        background: #dbeafe;
+        color: #1e40af;
     }
 
     .message-subject {
-        font-size: 14px;
-        color: #333;
+        font-size: 0.875rem;
+        color: #1f2937;
         font-weight: 500;
-        margin-bottom: 8px;
+        margin-bottom: 0.5rem;
     }
 
     .message-preview {
-        font-size: 13px;
-        color: #666;
-        margin-bottom: 12px;
+        font-size: 0.813rem;
+        color: #6b7280;
+        margin-bottom: 0.75rem;
         overflow: hidden;
         text-overflow: ellipsis;
         display: -webkit-box;
@@ -153,35 +151,35 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 12px;
-        color: #999;
+        font-size: 0.75rem;
+        color: #9ca3af;
     }
 
     .assigned-staff {
-        font-size: 12px;
-        color: #667eea;
+        font-size: 0.75rem;
+        color: #3b82f6;
     }
 
     .no-messages {
         text-align: center;
-        padding: 60px 20px;
-        color: #999;
+        padding: 3.75rem 1.25rem;
+        color: #6b7280;
     }
 
     .no-messages-icon {
-        font-size: 60px;
-        margin-bottom: 15px;
+        font-size: 4rem;
+        margin-bottom: 1rem;
     }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="content-header">
+{% block admin_content %}
+<div class="admin-content-header">
     <h2>Customer Assistance</h2>
     <p>Messages assigned to you</p>
 </div>
 
-<div class="content-body">
+<div class="admin-content-body">
     <div class="filter-tabs">
         <a href="?status=all" class="filter-tab {% if filter_status == 'all' %}active{% endif %}">
             All Messages
@@ -194,39 +192,49 @@
         </a>
     </div>
 
-    <div class="messages-grid">
+    <div class="space-y-4">
         {% for conv in conversations %}
         <a href="{% url 'adminpanel:chat_conversation' conv.id %}" class="message-card">
             <div class="message-header">
-                <div class="message-customer">
+                <div class="message-customer flex-1">
                     <h4>{{ conv.user.get_full_name|default:conv.user.username }}</h4>
                     <div class="message-meta">
                         <div class="message-meta-item">
-                            <span>👤 Customer ID: {{ conv.user.username|upper }}</span>
+                            <i data-lucide="user" class="w-4 h-4"></i>
+                            <span>Customer ID: {{ conv.user.username|upper }}</span>
                             <a href="{% url 'adminpanel:order_management' %}?search={{ conv.user.username }}" 
-                               class="search-icon" 
+                               class="search-link" 
                                onclick="event.stopPropagation();" 
-                               title="Search Customer Orders">🔍</a>
+                               title="Search Customer Orders">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </a>
                         </div>
                         <div class="message-meta-item">
-                            <span>📧 Email: {{ conv.user.email }}</span>
+                            <i data-lucide="mail" class="w-4 h-4"></i>
+                            <span>Email: {{ conv.user.email }}</span>
                         </div>
                         {% if conv.product %}
                         <div class="message-meta-item">
-                            <span>📦 Product: {{ conv.product.slug|upper }}</span>
+                            <i data-lucide="package" class="w-4 h-4"></i>
+                            <span>Product: {{ conv.product.slug|upper }}</span>
                             <a href="{% url 'adminpanel:products' %}?search={{ conv.product.slug }}" 
-                               class="search-icon" 
+                               class="search-link" 
                                onclick="event.stopPropagation();" 
-                               title="View Product">🔍</a>
+                               title="View Product">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </a>
                         </div>
                         {% endif %}
                         {% if conv.latest_order %}
                         <div class="message-meta-item">
-                            <span>📋 Order: ORD{{ conv.latest_order.id }}</span>
+                            <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                            <span>Order: ORD{{ conv.latest_order.id }}</span>
                             <a href="{% url 'adminpanel:order_management' %}?search=ORD{{ conv.latest_order.id }}" 
-                               class="search-icon" 
+                               class="search-link" 
                                onclick="event.stopPropagation();" 
-                               title="View Order">🔍</a>
+                               title="View Order">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </a>
                         </div>
                         {% endif %}
                     </div>
@@ -254,16 +262,22 @@
             {% endwith %}
 
             <div class="message-footer">
-                <span>{{ conv.created_at|date:"M d, Y - h:i A" }}</span>
-                <span class="assigned-staff">👤 Assigned to: {{ conv.admin.username|upper }}</span>
+                <span><i data-lucide="clock" class="w-3 h-3 inline"></i> {{ conv.created_at|date:"M d, Y - h:i A" }}</span>
+                <span class="assigned-staff"><i data-lucide="user" class="w-3 h-3 inline"></i> Assigned to: {{ conv.admin.username|upper }}</span>
             </div>
         </a>
         {% empty %}
         <div class="no-messages">
             <div class="no-messages-icon">📭</div>
-            <p>No messages assigned to you</p>
+            <p class="text-lg font-semibold">No messages assigned to you</p>
         </div>
         {% endfor %}
     </div>
 </div>
+
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>
 {% endblock %}

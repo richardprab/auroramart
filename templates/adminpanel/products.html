@@ -1,459 +1,435 @@
 {% extends 'adminpanel/base.html' %}
 
-{% block title %}Product Management{% endblock %}
+{% block admin_title %}Product Management{% endblock %}
 
-{% block extra_css %}
+{% block admin_extra_css %}
 <style>
-    .search-section {
-        margin-bottom: 30px;
-    }
-
-    .search-form {
-        display: flex;
-        gap: 10px;
-    }
-
     .search-input {
-        flex: 1;
-        padding: 12px 20px;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        font-size: 15px;
+        width: 100%;
+        padding: 0.875rem 1.25rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        background: white;
+        color: #2d3748;
     }
 
     .search-input:focus {
         outline: none;
-        border-color: #667eea;
+        border-color: #a78bfa;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.1);
+        background: #fafafa;
     }
 
-    .btn-search {
-        padding: 12px 30px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 15px;
+    .search-input::placeholder {
+        color: #a0aec0;
+    }
+
+    .products-table-container {
+        display: block;
+    }
+
+    .products-table-wrapper {
+        background: rgba(237, 233, 254, 0.4);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(196, 181, 253, 0.3);
+    }
+
+    .products-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 0;
+        background: transparent;
+    }
+
+    .products-table thead {
+        background: rgba(237, 233, 254, 0.6);
+        border-radius: 0.75rem 0.75rem 0 0;
+    }
+
+    .products-table thead th:first-child {
+        border-top-left-radius: 0.75rem;
+    }
+
+    .products-table thead th:last-child {
+        border-top-right-radius: 0.75rem;
+    }
+
+    .products-table th {
+        padding: 1rem 1.25rem;
+        text-align: left;
         font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
+        color: #5b21b6;
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid rgba(196, 181, 253, 0.4);
     }
 
-    .btn-search:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    .products-table tbody tr {
+        background: rgba(255, 255, 255, 0.7);
+        transition: all 0.2s ease;
     }
 
-    .product-editor {
-        background: #f8f9fa;
-        padding: 30px;
-        border-radius: 12px;
-        margin-top: 20px;
-        display: none;
+    .products-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.95);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
     }
 
-    .product-editor.active {
-        display: block;
+    .products-table tbody tr:last-child td:first-child {
+        border-bottom-left-radius: 0.75rem;
     }
 
-    .product-section {
-        background: white;
-        padding: 25px;
-        border-radius: 10px;
-        margin-bottom: 20px;
+    .products-table tbody tr:last-child td:last-child {
+        border-bottom-right-radius: 0.75rem;
     }
 
-    .product-section h3 {
-        font-size: 18px;
-        margin-bottom: 20px;
-        color: #333;
-        border-bottom: 2px solid #667eea;
-        padding-bottom: 10px;
+    .products-table td {
+        padding: 1.125rem 1.25rem;
+        border-bottom: 1px solid rgba(196, 181, 253, 0.2);
+        vertical-align: top;
     }
 
-    .form-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        margin-bottom: 15px;
+    .products-table tbody tr:last-child td {
+        border-bottom: none;
     }
 
-    .form-group {
-        margin-bottom: 15px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        color: #555;
-        font-weight: 500;
-        font-size: 14px;
-    }
-
-    .form-control {
-        width: 100%;
-        padding: 10px 15px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 14px;
-        font-family: inherit;
-    }
-
-    .form-control:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    textarea.form-control {
-        resize: vertical;
-        min-height: 100px;
-    }
-
-    .image-preview {
-        width: 100%;
-        max-width: 300px;
-        height: 200px;
+    .product-image {
+        width: 60px;
+        height: 60px;
         object-fit: cover;
-        border-radius: 8px;
-        margin-top: 10px;
-        border: 2px solid #e0e0e0;
+        border-radius: 0.5rem;
+        border: 2px solid #e5e7eb;
     }
 
-    .variants-container {
-        margin-top: 20px;
-    }
-
-    .variant-item {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        border-left: 4px solid #667eea;
-    }
-
-    .variant-header {
+    .product-name {
         font-weight: 600;
-        margin-bottom: 15px;
-        color: #333;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
     }
 
-    .btn-update {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    .product-sku {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.125rem;
+    }
+
+    .product-category {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    .stock-badge {
+        display: inline-block;
+        padding: 0.25rem 0.625rem;
+        border-radius: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .stock-in-stock {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .stock-low {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .stock-out {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.625rem;
+        border-radius: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .btn-edit {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
         color: white;
-        padding: 15px 40px;
+        padding: 0.625rem 1.125rem;
         border: none;
-        border-radius: 8px;
-        font-size: 16px;
+        border-radius: 0.625rem;
+        font-size: 0.8125rem;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.3s;
-        margin-top: 20px;
-    }
-
-    .btn-update:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-    }
-
-    .loading {
-        text-align: center;
-        padding: 40px;
-        color: #999;
-    }
-
-    .error-message {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 15px;
-        border-radius: 8px;
-        margin-top: 20px;
-    }
-
-    .success-message {
-        background: #d4edda;
-        color: #155724;
-        padding: 15px;
-        border-radius: 8px;
-        margin-top: 20px;
-    }
-
-    .file-input-wrapper {
-        display: flex;
-        gap: 10px;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        display: inline-flex;
         align-items: center;
+        gap: 0.375rem;
+        box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
     }
 
-    .file-input-wrapper input[type="text"] {
-        flex: 1;
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
     }
 
-    .file-input-wrapper input[type="file"] {
-        flex: 1;
+    .review-item {
+        padding: 0.75rem;
+        margin-bottom: 0.625rem;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 0.625rem;
+        border-left: 3px solid #a78bfa;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    .or-divider {
+    .review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.25rem;
+    }
+
+    .review-user {
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: #1f2937;
+    }
+
+    .review-rating {
+        color: #fbbf24;
+        font-size: 0.75rem;
+    }
+
+    .review-title {
+        font-size: 0.75rem;
+        color: #374151;
+        margin-bottom: 0.125rem;
+        font-weight: 500;
+    }
+
+    .review-comment {
+        font-size: 0.688rem;
+        color: #6b7280;
+        line-height: 1.4;
+    }
+
+    .review-date {
+        font-size: 0.625rem;
+        color: #9ca3af;
+        margin-top: 0.25rem;
+    }
+
+    .no-reviews {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    .loading-state, .no-results {
         text-align: center;
-        color: #999;
-        margin: 10px 0;
-        font-size: 13px;
+        padding: 2.5rem;
+        color: #6b7280;
     }
 
-    /* Add these to the existing <style> block in extra_css: */
-
-    .order-detail {
-        background: #f8f9fa;
-        padding: 30px;
-        border-radius: 12px;
-        margin-top: 20px;
+    .search-instructions {
+        background: rgba(237, 233, 254, 0.3);
+        padding: 4rem 2rem;
+        border-radius: 1.25rem;
+        margin-top: 1.5rem;
+        text-align: center;
+        border: 1px solid rgba(196, 181, 253, 0.3);
     }
 
-    .order-section h3 {
-        font-size: 20px;
-        margin-bottom: 20px;
-        color: #333;
-        border-bottom: 2px solid #667eea;  /* THIS LINE CREATES THE BLUE UNDERLINE */
-        padding-bottom: 10px;
+    .search-instructions h3 {
+        color: #5b21b6;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+
+    .search-instructions p {
+        color: #64748b;
+        font-size: 0.9375rem;
     }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="content-header">
+{% block admin_content %}
+<div class="admin-content-header">
     <h2>Product Management</h2>
     <p>Search and edit product details</p>
 </div>
 
-<div class="content-body">
-    <div class="search-section">
-        <form class="search-form" id="productSearchForm">
-            <input 
-                type="text" 
-                name="search" 
-                class="search-input" 
-                placeholder="Enter product code (e.g., PHO-0001, phones-product-1)..."
-                id="searchInput"
-                value="{{ request.GET.search }}"
-            >
-            <button type="submit" class="btn-search">🔍 Search</button>
+<div class="admin-content-body">
+    <div class="mb-6">
+        <form method="get" id="productSearchForm">
+            {{ form.query }}
         </form>
     </div>
 
-    <!-- ADD THIS SECTION -->
-    {% if not request.GET.search %}
     <!-- Search Instructions -->
-    <div class="order-detail" id="searchInstructions">  <!-- ADD ID -->
-        <div class="order-section" style="text-align: center; padding: 60px 20px;">
-            <div style="font-size: 60px; margin-bottom: 20px;">🔍</div>
-            <h3 style="color: #333;">Search for Products</h3>
-            <p style="color: #666;">Enter a Product Code (e.g., PHO-0001) or Product Name (e.g., phones-product-1) to get started</p>
+    <div class="search-instructions" id="searchInstructions" style="display: none;">
+        <div class="text-6xl mb-5">🔍</div>
+        <h3 class="text-xl font-semibold">Search for Products</h3>
+        <p>Start typing a product name or SKU to search. Results will appear in real-time as you type.</p>
+    </div>
+
+    <!-- Products Table -->
+    <div class="products-table-container" id="productsTableContainer">
+        <h3 id="tableHeader" class="text-lg font-semibold text-gray-900 mb-6 pb-3 border-b-2 border-purple-300" style="color: #5b21b6;">
+            {% if search_query %}
+                Search Results for "{{ search_query }}"
+            {% else %}
+                All Products
+            {% endif %}
+        </h3>
+        <div id="productsTableLoading" class="loading-state" style="display: none;">
+            <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2"></i>
+            Loading products...
+        </div>
+        <div id="productsTableContent">
+            {% if products_data %}
+                <div class="products-table-wrapper">
+                    {% include 'adminpanel/includes/product_table.html' with products=products_data search_query=search_query %}
+                </div>
+            {% endif %}
         </div>
     </div>
-    {% endif %}
-    <!-- END OF NEW SECTION -->
-
-    <div id="productEditor" class="product-editor">
-        <div class="loading">Searching...</div>
-    </div>
 </div>
-
 {% endblock %}
 
-{% block extra_js %}
+{% block admin_extra_js %}
 <script>
-document.getElementById('productSearchForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const query = document.getElementById('searchInput').value.trim();
-    
-    if (!query) {
-        alert('Please enter a product code');
-        return;
+// Real-time search with debouncing
+let searchTimeout = null;
+const DEBOUNCE_DELAY = 300;
+
+const searchInput = document.getElementById('searchInput');
+const searchForm = document.getElementById('productSearchForm');
+const productsTableContainer = document.getElementById('productsTableContainer');
+const productsTableContent = document.getElementById('productsTableContent');
+const productsTableLoading = document.getElementById('productsTableLoading');
+const searchInstructions = document.getElementById('searchInstructions');
+const tableHeader = document.getElementById('tableHeader');
+
+if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, DEBOUNCE_DELAY);
+    });
+
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = e.target.value.trim();
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            performSearch(query);
+        }
+    });
+}
+
+if (searchForm) {
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const query = searchInput ? searchInput.value.trim() : '';
+        performSearch(query);
+    });
+}
+
+function performSearch(query) {
+    if (tableHeader) {
+        if (query && query.trim()) {
+            tableHeader.textContent = `Search Results for "${query}"`;
+        } else {
+            tableHeader.textContent = 'All Products';
+        }
     }
-
-    const editor = document.getElementById('productEditor');
-    editor.classList.add('active');
-    editor.innerHTML = '<div class="loading">🔍 Searching for product...</div>';
-
-    fetch(`{% url 'adminpanel:search_product' %}?query=${query}`)
-        .then(response => response.json())
-        .then(data => {
-            const productEditor = document.getElementById('productEditor');
-            const searchInstructions = document.getElementById('searchInstructions');  // ADD THIS
+    
+    if (productsTableLoading) {
+        productsTableLoading.style.display = 'block';
+    }
+    if (productsTableContent) {
+        productsTableContent.innerHTML = '';
+    }
+    if (searchInstructions) {
+        searchInstructions.style.display = 'none';
+    }
+    
+    const searchUrl = `{% url 'adminpanel:search_product' %}?query=${encodeURIComponent(query || '')}`;
+    
+    fetch(searchUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            if (productsTableLoading) {
+                productsTableLoading.style.display = 'none';
+            }
             
-            if (data.products && data.products.length > 0) {
-                // Hide instructions when results appear
-                if (searchInstructions) {
-                    searchInstructions.style.display = 'none';  // ADD THIS
+            if (productsTableContent) {
+                // Wrap the table in the purple wrapper if it contains a table
+                if (html.includes('<table')) {
+                    productsTableContent.innerHTML = '<div class="products-table-wrapper">' + html + '</div>';
+                } else {
+                    productsTableContent.innerHTML = html;
                 }
-                
-                // Display the first product found
-                displayProduct(data.products[0]);
-                productEditor.style.display = 'block';
-            } else {
-                // Show instructions again if no results
-                if (searchInstructions) {
-                    searchInstructions.style.display = 'block';  // ADD THIS
-                }
-                
-                productEditor.innerHTML = '<div class="no-results">No products found</div>';
+            }
+            
+            if (searchInstructions && html.trim().length > 0) {
+                searchInstructions.style.display = 'none';
+            }
+            
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
             }
         })
         .catch(error => {
-            editor.innerHTML = '<div class="error-message">❌ Error searching product</div>';
+            if (productsTableLoading) {
+                productsTableLoading.style.display = 'none';
+            }
+            if (productsTableContent) {
+                productsTableContent.innerHTML = '<div class="no-results text-red-600">❌ Error searching products. Please try again.</div>';
+            }
             console.error('Error:', error);
         });
-});
-
-function displayProduct(product) {
-    const editor = document.getElementById('productEditor');
-    
-    let variantsHTML = '';
-    product.variants.forEach((variant, index) => {
-        const variantImageUrl = variant.images.length > 0 ? variant.images[0].url : '';
-        
-        variantsHTML += `
-            <div class="variant-item">
-                <div class="variant-header">Variant: ${variant.name}</div>
-                <input type="hidden" name="variant_id[]" value="${variant.id}">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Variant Name:</label>
-                        <input type="text" class="form-control" name="variant_name_${index}" value="${variant.name}">
-                    </div>
-                    <div class="form-group">
-                        <label>SKU:</label>
-                        <input type="text" class="form-control" value="${variant.sku}" readonly>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Stock:</label>
-                        <input type="number" class="form-control" name="variant_stock_${index}" value="${variant.stock}" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Price ($):</label>
-                        <input type="number" class="form-control" name="variant_price_${index}" value="${variant.price}" step="0.01" min="0">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Variant Image URL:</label>
-                    <input type="text" class="form-control" name="variant_image_url_${index}" 
-                           value="${variantImageUrl}" 
-                           placeholder="https://example.com/image.jpg"
-                           onchange="previewImage(this, 'variantPreview${index}')">
-                    <div class="or-divider">OR</div>
-                    <label>Upload Image:</label>
-                    <input type="file" class="form-control" name="variant_image_file_${index}" accept="image/*">
-                    ${variantImageUrl ? `<img src="${variantImageUrl}" class="image-preview" id="variantPreview${index}">` : ''}
-                </div>
-            </div>
-        `;
-    });
-
-    const mainImageUrl = product.images.find(img => img.is_primary)?.url || '';
-
-    editor.innerHTML = `
-        <form id="updateProductForm">
-            <input type="hidden" name="product_id" value="${product.id}">
-            
-            <div class="product-section">
-                <h3>📦 Product Information</h3>
-                <div class="form-group">
-                    <label>Product Code:</label>
-                    <input type="text" class="form-control" value="${product.slug}" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Product Name:</label>
-                    <input type="text" class="form-control" name="name" value="${product.name}" required>
-                </div>
-                <div class="form-group">
-                    <label>Category:</label>
-                    <input type="text" class="form-control" name="category" value="${product.category || ''}" required>
-                    <input type="hidden" name="category_id" value="${product.category_id || ''}">
-                </div>
-                <div class="form-group">
-                    <label>Description:</label>
-                    <textarea class="form-control" name="description" required>${product.description}</textarea>
-                </div>
-                <div class="form-group">
-                    <label>Product Image URL:</label>
-                    <input type="text" class="form-control" name="product_image_url" 
-                           value="${mainImageUrl}" 
-                           placeholder="https://example.com/image.jpg"
-                           onchange="previewImage(this, 'productPreview')">
-                    <div class="or-divider">OR</div>
-                    <label>Upload Image:</label>
-                    <input type="file" class="form-control" name="product_image_file" accept="image/*">
-                    ${mainImageUrl ? `<img src="${mainImageUrl}" class="image-preview" id="productPreview">` : ''}
-                </div>
-            </div>
-
-            <div class="product-section">
-                <h3>🎨 Product Variants</h3>
-                <div class="variants-container">
-                    ${variantsHTML || '<p>No variants available</p>'}
-                </div>
-            </div>
-
-            <button type="submit" class="btn-update">💾 Update Product</button>
-        </form>
-        <div id="updateMessage"></div>
-    `;
-
-    document.getElementById('updateProductForm').addEventListener('submit', handleProductUpdate);
 }
 
-function previewImage(input, previewId) {
-    const preview = document.getElementById(previewId);
-    if (input.value && input.value.startsWith('http')) {
-        if (preview) {
-            preview.src = input.value;
-        } else {
-            const img = document.createElement('img');
-            img.src = input.value;
-            img.className = 'image-preview';
-            img.id = previewId;
-            input.parentElement.appendChild(img);
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    const hasInitialContent = productsTableContent && productsTableContent.innerHTML.trim().length > 0;
+    
+    if (!hasInitialContent) {
+        performSearch('');
     }
-}
-
-function handleProductUpdate(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const messageDiv = document.getElementById('updateMessage');
     
-    messageDiv.innerHTML = '<div class="loading">⏳ Updating product...</div>';
-
-    fetch(`{% url 'adminpanel:update_product' %}`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            messageDiv.innerHTML = '<div class="success-message">✅ Product updated successfully!</div>';
-            setTimeout(() => {
-                messageDiv.innerHTML = '';
-            }, 3000);
-        } else {
-            messageDiv.innerHTML = `<div class="error-message">❌ Error: ${data.error}</div>`;
-        }
-    })
-    .catch(error => {
-        messageDiv.innerHTML = '<div class="error-message">❌ Error updating product</div>';
-        console.error('Error:', error);
-    });
-}
-
-// Auto-search if there's a query parameter
-const hasSearchParam = '{{ request.GET.search|default:"" }}';
-if (hasSearchParam) {
-    window.addEventListener('load', function() {
-        document.getElementById('productSearchForm').dispatchEvent(new Event('submit'));
-    });
-}
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+});
 </script>
 {% endblock %}

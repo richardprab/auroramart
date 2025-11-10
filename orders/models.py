@@ -112,6 +112,11 @@ class Order(models.Model):
     def __str__(self):
         return f"Order {self.order_number}"
 
+    @property
+    def total_item_quantity(self):
+        """Calculate the total quantity of all items in the order."""
+        return sum(item.quantity for item in self.items.all())
+
     def save(self, *args, **kwargs):
         """
         Generates a unique order number on first save.

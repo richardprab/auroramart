@@ -62,20 +62,17 @@ def create_staff_user():
     last_name = f'User {staff_number}'
     
     try:
-        # Create staff user
-        user = User.objects.create_user(
+        # Create staff user with all fields set at once
+        User.objects.create_user(
             username=username,
             email=email,
             password=password,
             first_name=first_name,
             last_name=last_name,
+            role='staff',
+            is_staff=True,
+            is_active=True,
         )
-        
-        # Set staff permissions
-        user.is_staff = True
-        user.is_active = True
-        user.role = 'staff'
-        user.save()
         
         print("=" * 50)
         print("✅ Staff Account Created Successfully!")
@@ -114,7 +111,7 @@ def create_multiple_staff_users(count=1):
     
     created_users = []
     
-    for i in range(count):
+    for _ in range(count):
         user_data = create_staff_user()
         if user_data:
             created_users.append(user_data)
@@ -135,8 +132,6 @@ def create_multiple_staff_users(count=1):
     return created_users
 
 if __name__ == '__main__':
-    import sys
-    
     # Check if user wants to create multiple accounts
     if len(sys.argv) > 1:
         try:
