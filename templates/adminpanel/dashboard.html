@@ -73,6 +73,18 @@
         background: #f8f9fa;
     }
 
+    .order-link {
+        color: #667eea;
+        font-weight: bold;
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+
+    .order-link:hover {
+        color: #764ba2;
+        text-decoration: underline;
+    }
+
     .status-badge {
         padding: 5px 12px;
         border-radius: 20px;
@@ -155,7 +167,12 @@
             <tbody>
                 {% for order in recent_orders %}
                 <tr>
-                    <td><strong>#{{ order.order_number }}</strong></td>
+                    <td>
+                        <a href="{% url 'adminpanel:order_management' %}?search={{ order.order_number }}" 
+                           class="order-link">
+                            #{{ order.order_number }}
+                        </a>
+                    </td>
                     <td>{{ order.user.username }}</td>
                     <td>
                         <span class="status-badge status-{{ order.status }}">

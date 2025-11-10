@@ -60,6 +60,7 @@ urlpatterns = [
     path('recommendations/predict-category/', recommendations_api.predict_user_category, name='predict_category'),
     path('recommendations/similar-products/<int:product_id>/', recommendations_api.get_similar_products, name='similar_products'),
     path('recommendations/cart-recommendations/', recommendations_api.get_cart_recommendations, name='cart_recommendations'),
+    path('recommendations/order-recommendations/<int:order_id>/', recommendations_api.order_recommendations, name='order_recommendations'),
     path('recommendations/personalized/', recommendations_api.get_personalized_recommendations, name='personalized'),
     
     # Include router URLs
