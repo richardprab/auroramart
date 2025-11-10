@@ -6,11 +6,15 @@ from products.models import Product, Category
 
 
 # Load models once at module level
-app_path = apps.get_app_config('recommendations').path
-model_path = os.path.join(app_path, 'mlmodels', 'b2c_customers_100.joblib')
-customer_model = joblib.load(model_path)
-model_path = os.path.join(app_path, 'mlmodels', 'b2c_products_500_transactions_50k.joblib')
-association_rules = joblib.load(model_path)
+try:
+    app_path = apps.get_app_config('recommendations').path
+    model_path = os.path.join(app_path, 'mlmodels', 'b2c_customers_100.joblib')
+    customer_model = joblib.load(model_path)
+    model_path = os.path.join(app_path, 'mlmodels', 'b2c_products_500_transactions_50k.joblib')
+    association_rules = joblib.load(model_path)
+except Exception as e:
+    customer_model = None
+    association_rules = None
 
 
 class CustomerCategoryPredictor:
@@ -22,6 +26,8 @@ class CustomerCategoryPredictor:
         Predict preferred category for a user.
         Returns category name as string.
         """
+        if customer_model is None:
+            raise ValueError("ML model not loaded. Please check model files.")
         features = CustomerCategoryPredictor._prepare_features(user)
         prediction = customer_model.predict(features)
         return prediction[0]
@@ -29,11 +35,17 @@ class CustomerCategoryPredictor:
     @staticmethod
     def _prepare_features(user):
         """Convert user data to model input format"""
+        # Use age directly (integer) or estimate from age if needed
+        age = user.age if user.age else 35
+        
+        # Use monthly_income_sgd directly (decimal) or convert to float
+        monthly_income = float(user.monthly_income_sgd) if user.monthly_income_sgd else 5000.0
+        
         data = {
-            'age': CustomerCategoryPredictor._estimate_age(user.age_range),
-            'household_size': user.household_size or 2,
-            'has_children': 1 if user.has_children else 0,
-            'monthly_income_sgd': CustomerCategoryPredictor._estimate_income(user.income_range),
+            'age': age,
+            'household_size': user.household_size if user.household_size is not None else 2,
+            'has_children': 1 if user.has_children is True else 0,
+            'monthly_income_sgd': monthly_income,
         }
         
         # Add one-hot encoded gender
@@ -42,7 +54,7 @@ class CustomerCategoryPredictor:
         data['gender_Male'] = 1 if gender_value == 'Male' else 0
         
         # Add one-hot encoded employment status
-        employment = user.employment or 'Full-time'
+        employment = user.employment_status or 'Full-time'
         data['employment_status_Full-time'] = 1 if employment == 'Full-time' else 0
         data['employment_status_Part-time'] = 1 if employment == 'Part-time' else 0
         data['employment_status_Retired'] = 1 if employment == 'Retired' else 0
@@ -189,14 +201,14 @@ class PersonalizedRecommendations:
         Get personalized product recommendations for a user.
         Uses ML model prediction as primary method, with category filtering as fallback.
         """
-        if not user.is_authenticated:
+        if not user or not hasattr(user, 'is_authenticated') or not user.is_authenticated:
             return Product.objects.filter(
                 is_active=True,
                 variants__is_active=True
             ).distinct().order_by('-rating', '-created_at')[:limit]
         
         # PRIORITY 1: Use ML model to predict category based on demographics
-        if user.age_range and user.gender:
+        if user.age and user.gender:
             try:
                 predicted_category_name = CustomerCategoryPredictor.predict(user)
                 

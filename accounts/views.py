@@ -242,7 +242,20 @@ def remove_from_wishlist(request, product_id):
     """Remove product from wishlist"""
     if request.method == "POST":
         product = get_object_or_404(Product, id=product_id)
-        wishlist_item = get_object_or_404(Wishlist, user=request.user, product=product)
+        # Try to find wishlist item - could be stored by product or product_variant
+        try:
+            wishlist_item = Wishlist.objects.get(user=request.user, product=product)
+        except Wishlist.DoesNotExist:
+            # Maybe it was added with a specific variant, try that
+            wishlist_item = Wishlist.objects.filter(
+                user=request.user, 
+                product_variant__product=product
+            ).first()
+            if not wishlist_item:
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return JsonResponse({"success": False, "message": "Item not in wishlist"}, status=404)
+                return redirect("accounts:wishlist")
+        
         wishlist_item.delete()
 
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":

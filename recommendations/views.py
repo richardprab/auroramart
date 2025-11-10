@@ -11,7 +11,7 @@ def predict_user_category(request):
     """Predict user's preferred category based on demographics"""
     user = request.user
     
-    if not user.age_range or not user.gender:
+    if not user.age or not user.gender:
         return JsonResponse({
             'error': 'User demographics incomplete. Please complete your profile.'
         }, status=400)
@@ -21,7 +21,7 @@ def predict_user_category(request):
         return JsonResponse({
             'predicted_category': predicted_category,
             'user': {
-                'age_range': user.age_range,
+                'age': user.age,
                 'gender': user.gender,
                 'occupation': user.occupation,
                 'education': user.education,
@@ -61,14 +61,15 @@ def get_similar_products(request, product_id):
                 'sku': prod.sku,
                 'brand': prod.brand,
                 'rating': float(prod.rating) if prod.rating else 0.0,
-                'review_count': prod.review_count,
                 'primary_image': {
                     'url': image.image.url if image else None,
                     'alt_text': image.alt_text if image else prod.name
                 } if image else None,
                 'lowest_variant': {
+                    'id': default_variant.id if default_variant else None,
                     'price': float(default_variant.price) if default_variant else 0.0,
                     'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
+                    'stock': default_variant.stock if default_variant else 0,
                 } if default_variant else None
             })
         
@@ -114,6 +115,7 @@ def get_cart_recommendations(request):
             default_variant = prod.get_lowest_priced_variant()
             image = prod.get_primary_image()
             
+            # Get review count
             recommendations_data.append({
                 'id': prod.id,
                 'name': prod.name,
@@ -121,14 +123,15 @@ def get_cart_recommendations(request):
                 'sku': prod.sku,
                 'brand': prod.brand,
                 'rating': float(prod.rating) if prod.rating else 0.0,
-                'review_count': prod.review_count,
                 'primary_image': {
                     'url': image.image.url if image else None,
                     'alt_text': image.alt_text if image else prod.name
                 } if image else None,
                 'lowest_variant': {
+                    'id': default_variant.id if default_variant else None,
                     'price': float(default_variant.price) if default_variant else 0.0,
                     'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
+                    'stock': default_variant.stock if default_variant else 0,
                 } if default_variant else None
             })
         
@@ -150,37 +153,59 @@ def get_personalized_recommendations(request):
     try:
         if request.user.is_authenticated:
             recommendations = PersonalizedRecommendations.get_for_user(request.user, limit=limit)
+            # Get user's wishlist product IDs
+            from accounts.models import Wishlist
+            user_wishlist_ids = set(
+                Wishlist.objects.filter(user=request.user)
+                .values_list('product_id', flat=True)
+            )
         else:
             recommendations = PersonalizedRecommendations.get_for_user(None, limit=limit)
+            user_wishlist_ids = set()
         
         # Serialize products manually
         recommendations_data = []
         for prod in recommendations:
-            default_variant = prod.get_lowest_priced_variant()
-            image = prod.get_primary_image()
-            
-            recommendations_data.append({
-                'id': prod.id,
-                'name': prod.name,
-                'slug': prod.slug,
-                'sku': prod.sku,
-                'brand': prod.brand,
-                'rating': float(prod.rating) if prod.rating else 0.0,
-                'review_count': prod.review_count,
-                'primary_image': {
-                    'url': image.image.url if image else None,
-                    'alt_text': image.alt_text if image else prod.name
-                } if image else None,
-                'lowest_variant': {
-                    'price': float(default_variant.price) if default_variant else 0.0,
-                    'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
-                } if default_variant else None
-            })
+            try:
+                default_variant = prod.get_lowest_priced_variant()
+                image = prod.get_primary_image()
+                
+                # Safely get image URL
+                image_url = None
+                if image and hasattr(image, 'image') and image.image:
+                    try:
+                        image_url = image.image.url
+                    except (AttributeError, ValueError):
+                        image_url = None
+                
+                recommendations_data.append({
+                    'id': prod.id,
+                    'name': prod.name,
+                    'slug': prod.slug,
+                    'sku': prod.sku,
+                    'brand': prod.brand,
+                    'rating': float(prod.rating) if prod.rating else 0.0,
+                    'review_count': prod.reviews.count(),
+                    'is_in_wishlist': prod.id in user_wishlist_ids,
+                    'primary_image': {
+                        'url': image_url,
+                        'alt_text': image.alt_text if image else prod.name
+                    } if image else None,
+                    'lowest_variant': {
+                        'id': default_variant.id if default_variant else None,
+                        'price': float(default_variant.price) if default_variant else 0.0,
+                        'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
+                        'stock': default_variant.stock if default_variant else 0,
+                    } if default_variant else None
+                })
+            except Exception:
+                # Continue with other products even if one fails
+                pass
         
         return JsonResponse({
             'recommendations': recommendations_data,
             'count': len(recommendations),
-            'personalized': request.user.is_authenticated and bool(request.user.age_range)
+            'personalized': request.user.is_authenticated and bool(request.user.age)
         })
     except Exception as e:
         return JsonResponse({

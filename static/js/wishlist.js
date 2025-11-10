@@ -338,8 +338,13 @@ const WishlistModule = {
                 return response.json();
             })
             .then(data => {
-                badge.textContent = data.count || 0;
-                badge.classList.remove('hidden');
+                const count = data.count || 0;
+                badge.textContent = count;
+                if (count > 0) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
             })
             .catch(error => {
                 console.error('Error fetching wishlist count:', error);
