@@ -42,23 +42,21 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "rest_framework",
-    "corsheaders",
+    "channels",
     "accounts",
+    "chat",
     "home",
     "products",
     "cart",
     "orders",
     "adminpanel",
     "notifications",
-    "chat",
     "recommendations",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -122,7 +120,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Singapore"  # GMT+8
 
 USE_I18N = True
 
@@ -151,26 +149,21 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # Django REST Framework settings
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
-    'DEFAULT_RENDERER_CLASSES': (
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
-    ),
-}
-
-# CORS settings (for development)
-CORS_ALLOW_ALL_ORIGINS = True  # Change in production
-CORS_ALLOW_CREDENTIALS = True
+# Removed DRF and CORS - using vanilla Django with JsonResponse
 
 # Business settings
 TAX_RATE = 0.10
 SHIPPING_COST = 10.00
 FREE_SHIPPING_THRESHOLD = 100.00
+
+# Django Channels configuration
+ASGI_APPLICATION = "auroramartproject.asgi.application"
+
+# Channel layers configuration
+# For development, use in-memory channel layer
+# For production, use Redis: pip install channels-redis
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}

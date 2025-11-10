@@ -1,13 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate, get_user_model
+from django.contrib.auth import login, authenticate, get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from products.models import Product
 from .models import Wishlist
-from .forms import CustomUserCreationForm, UserProfileForm, WelcomePersonalizationForm
-from django.contrib.auth.forms import AuthenticationForm
+from .forms import CustomUserCreationForm, UserProfileForm
 from django.contrib.auth import logout
+from decimal import Decimal
 import json
 
 User = get_user_model()
@@ -58,8 +60,8 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            # Redirect to welcome personalization screen without toast
-            return redirect("accounts:welcome")
+            # Redirect to home after registration
+            return redirect("home:index")
         else:
             # Don't show generic error message, let form errors show
             pass
@@ -70,25 +72,6 @@ def register(request):
         "form": form,
     }
     return render(request, "accounts/register.html", context)
-
-
-@login_required
-def welcome_personalization(request):
-    """Welcome screen for new users to personalize their experience"""
-    # If user already has preferences set, skip to home
-    if request.user.age_range and request.user.gender:
-        return redirect("home:index")
-    
-    if request.method == "POST":
-        form = WelcomePersonalizationForm(request.POST, instance=request.user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Profile personalized! Enjoy your shopping experience.")
-            return redirect("home:index")
-    else:
-        form = WelcomePersonalizationForm(instance=request.user)
-    
-    return render(request, "accounts/welcome.html", {"form": form})
 
 
 @login_required
@@ -121,7 +104,6 @@ def profile(request):
                     'full_name': request.user.get_full_name(),
                     'email': request.user.email,
                     'phone': request.user.phone or '',
-                    'date_of_birth': request.user.date_of_birth.strftime('%Y-%m-%d') if request.user.date_of_birth else '',
                 }
             })
         else:
@@ -164,22 +146,22 @@ def update_demographics(request):
         user = request.user
         
         # Update demographic fields
-        if request.POST.get('age_range'):
-            user.age_range = request.POST.get('age_range')
+        if request.POST.get('age'):
+            user.age = int(request.POST.get('age'))
         if request.POST.get('gender'):
             user.gender = request.POST.get('gender')
-        if request.POST.get('household_size'):
-            user.household_size = request.POST.get('household_size')
-        if request.POST.get('has_children'):
-            user.has_children = request.POST.get('has_children') == 'true'
+        if request.POST.get('employment_status'):
+            user.employment_status = request.POST.get('employment_status')
         if request.POST.get('occupation'):
             user.occupation = request.POST.get('occupation')
         if request.POST.get('education'):
             user.education = request.POST.get('education')
-        if request.POST.get('employment'):
-            user.employment = request.POST.get('employment')
-        if request.POST.get('income_range'):
-            user.income_range = request.POST.get('income_range')
+        if request.POST.get('household_size'):
+            user.household_size = int(request.POST.get('household_size'))
+        if request.POST.get('has_children') is not None:
+            user.has_children = request.POST.get('has_children') == 'true'
+        if request.POST.get('monthly_income_sgd'):
+            user.monthly_income_sgd = Decimal(request.POST.get('monthly_income_sgd'))
         
         user.save()
         
@@ -355,3 +337,51 @@ def move_to_cart(request, wishlist_id):
         return redirect("accounts:wishlist")
     
     return redirect("accounts:wishlist")
+
+@require_http_methods(["GET"])
+@login_required
+def get_wishlist_count(request):
+    """Get the count of wishlist items"""
+    count = Wishlist.objects.filter(user=request.user).count()
+    return JsonResponse({'count': count})
+@require_http_methods(["POST"])
+@login_required
+def change_password(request):
+    """Change user password"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        
+        if form.is_valid():
+            user = form.save()
+            # Update session to prevent logout
+            update_session_auth_hash(request, user)
+            return JsonResponse({
+                'success': True,
+                'message': 'Password changed successfully!'
+            })
+        else:
+            # Return validation errors
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            
+            return JsonResponse({
+                'success': False,
+                'message': 'Please correct the errors below.',
+                'errors': errors
+            }, status=400)
+    
+    # Fallback for non-AJAX requests
+    if request.method == "POST":
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Password changed successfully!')
+            return redirect('accounts:profile')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    
+    return redirect('accounts:profile')
+
+

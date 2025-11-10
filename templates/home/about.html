@@ -4,74 +4,119 @@
 {% block title %}About Us - AuroraMart{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-12">
+<div class="bg-gradient-to-b from-blue-50 to-white min-h-screen">
+    <div class="container mx-auto px-4 py-16">
     <!-- Header -->
-    <div class="text-center mb-12">
-        <h1 class="text-5xl font-bold mb-4">About AuroraMart</h1>
-        <p class="text-xl text-gray-600">Your trusted online shopping destination since 2025</p>
+        <div class="text-center mb-16">
+            <div class="flex justify-center mb-6">
+                <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
+                    <i data-lucide="shopping-bag" class="w-10 h-10 text-white"></i>
+                </div>
+            </div>
+            <h1 class="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">About AuroraMart</h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">Your trusted online shopping destination since 2025</p>
     </div>
 
     <!-- Mission -->
-    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
-        <h2 class="text-3xl font-bold mb-4">Our Mission</h2>
+        <div class="max-w-4xl mx-auto mb-16">
+            <div class="bg-white rounded-2xl shadow-lg p-8 md:p-12 border border-gray-100 hover:shadow-xl transition">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="target" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-gray-900">Our Mission</h2>
+                </div>
         <p class="text-lg text-gray-700 leading-relaxed">
             At AuroraMart, we're dedicated to providing our customers with the best online shopping experience.
             We believe that shopping should be easy, enjoyable, and accessible to everyone. Our mission is to
             bring quality products at competitive prices, delivered right to your doorstep.
         </p>
+            </div>
     </div>
 
     <!-- Values -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-        <div class="bg-white rounded-lg shadow-md p-6 text-center">
-            <div class="text-6xl mb-4">💯</div>
-            <h3 class="text-xl font-bold mb-3">Quality First</h3>
+        <div class="max-w-6xl mx-auto mb-16">
+            <h2 class="text-3xl font-bold text-center mb-12 text-gray-900">Why Choose Us</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition border border-gray-100 group">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-blue-600 transition">
+                        <i data-lucide="shield-check" class="w-8 h-8 text-blue-600 group-hover:text-white transition"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-gray-900">Quality First</h3>
             <p class="text-gray-600">We carefully select each product to ensure it meets our high standards.</p>
         </div>
-        <div class="bg-white rounded-lg shadow-md p-6 text-center">
-            <div class="text-6xl mb-4">🤝</div>
-            <h3 class="text-xl font-bold mb-3">Customer Focused</h3>
+                <div class="bg-white rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition border border-gray-100 group">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-purple-600 transition">
+                        <i data-lucide="heart-handshake" class="w-8 h-8 text-purple-600 group-hover:text-white transition"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-gray-900">Customer Focused</h3>
             <p class="text-gray-600">Your satisfaction is our top priority. We're here to help 24/7.</p>
         </div>
-        <div class="bg-white rounded-lg shadow-md p-6 text-center">
-            <div class="text-6xl mb-4">🌍</div>
-            <h3 class="text-xl font-bold mb-3">Global Reach</h3>
+                <div class="bg-white rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition border border-gray-100 group">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-green-600 transition">
+                        <i data-lucide="globe" class="w-8 h-8 text-green-600 group-hover:text-white transition"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-gray-900">Global Reach</h3>
             <p class="text-gray-600">Shipping worldwide with fast and reliable delivery services.</p>
+                </div>
         </div>
     </div>
 
     <!-- Stats -->
-    <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg p-8 mb-8">
+        <div class="max-w-6xl mx-auto mb-16">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl shadow-xl p-12">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-                <div class="text-4xl font-bold mb-2">10K+</div>
-                <div class="text-gray-200">Products</div>
+                    <div class="group">
+                        <div class="flex justify-center mb-3">
+                            <i data-lucide="package" class="w-10 h-10"></i>
+                        </div>
+                        <div class="text-4xl font-bold mb-2">{{ total_products|default:"500+" }}</div>
+                        <div class="text-blue-100">Products</div>
+                    </div>
+                    <div class="group">
+                        <div class="flex justify-center mb-3">
+                            <i data-lucide="users" class="w-10 h-10"></i>
+                        </div>
+                        <div class="text-4xl font-bold mb-2">{{ total_customers|default:"100+" }}</div>
+                        <div class="text-blue-100">Happy Customers</div>
+                    </div>
+                    <div class="group">
+                        <div class="flex justify-center mb-3">
+                            <i data-lucide="award" class="w-10 h-10"></i>
+                        </div>
+                        <div class="text-4xl font-bold mb-2">{{ total_brands|default:"50+" }}</div>
+                        <div class="text-blue-100">Brands</div>
+                    </div>
+                    <div class="group">
+                        <div class="flex justify-center mb-3">
+                            <i data-lucide="shopping-cart" class="w-10 h-10"></i>
             </div>
-            <div>
-                <div class="text-4xl font-bold mb-2">50K+</div>
-                <div class="text-gray-200">Happy Customers</div>
+                        <div class="text-4xl font-bold mb-2">{{ total_orders|default:"1K+" }}</div>
+                        <div class="text-blue-100">Orders Delivered</div>
             </div>
-            <div>
-                <div class="text-4xl font-bold mb-2">100+</div>
-                <div class="text-gray-200">Brands</div>
             </div>
-            <div>
-                <div class="text-4xl font-bold mb-2">24/7</div>
-                <div class="text-gray-200">Support</div>
             </div>
         </div>
-    </div>
 
-    <!-- Team (Optional) -->
-    <div class="text-center">
-        <h2 class="text-3xl font-bold mb-8">Our Team</h2>
+        <!-- CTA Section -->
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="bg-white rounded-2xl shadow-lg p-12 border border-gray-100">
+                <div class="flex justify-center mb-6">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i data-lucide="users-round" class="w-8 h-8 text-blue-600"></i>
+        </div>
+    </div>
+                <h2 class="text-3xl font-bold mb-4 text-gray-900">Meet Our Team</h2>
         <p class="text-lg text-gray-600 mb-8">
             We're a passionate team of professionals dedicated to making your shopping experience exceptional.
         </p>
         <a href="{% url 'home:contact' %}"
-            class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700">
+                    class="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg hover:shadow-xl">
+                    <i data-lucide="mail" class="w-5 h-5"></i>
             Get in Touch
         </a>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

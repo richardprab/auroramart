@@ -296,75 +296,6 @@ class CustomUserCreationForm(UserCreationForm):
         return user
 
 
-class WelcomePersonalizationForm(forms.ModelForm):
-    """Quick personalization form shown after registration"""
-    
-    age_range = forms.ChoiceField(
-        required=False,
-        choices=[
-            ('', 'Select your age range'),
-            ('18-24', '18-24'),
-            ('25-34', '25-34'),
-            ('35-44', '35-44'),
-            ('45-54', '45-54'),
-            ('55-64', '55-64'),
-            ('65+', '65+'),
-        ],
-        widget=forms.Select(attrs={'class': 'form-control'}),
-    )
-    
-    gender = forms.ChoiceField(
-        required=False,
-        choices=[
-            ('', 'Select gender'),
-            ('Male', 'Male'),
-            ('Female', 'Female'),
-            ('Other', 'Prefer not to say'),
-        ],
-        widget=forms.Select(attrs={'class': 'form-control'}),
-    )
-    
-    shopping_interest = forms.ChoiceField(
-        required=False,
-        label="What brings you here?",
-        choices=[
-            ('', 'What are you interested in?'),
-            ('Electronics', 'Electronics & Gadgets'),
-            ('Fashion - Men', 'Men\'s Fashion'),
-            ('Fashion - Women', 'Women\'s Fashion'),
-            ('Home & Kitchen', 'Home & Kitchen'),
-            ('Beauty & Personal Care', 'Beauty & Personal Care'),
-            ('Sports & Outdoors', 'Sports & Outdoors'),
-            ('Books', 'Books'),
-            ('Groceries & Gourmet', 'Groceries'),
-            ('Pet Supplies', 'Pet Supplies'),
-            ('Automotive', 'Automotive'),
-        ],
-        widget=forms.Select(attrs={'class': 'form-control'}),
-    )
-    
-    class Meta:
-        model = User
-        fields = ['age_range', 'gender']
-    
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        
-        # Map shopping interest to preferred category if provided
-        if self.cleaned_data.get('shopping_interest'):
-            from products.models import Category
-            category_name = self.cleaned_data['shopping_interest']
-            try:
-                category = Category.objects.get(name=category_name)
-                user.preferred_category = category
-            except Category.DoesNotExist:
-                pass
-        
-        if commit:
-            user.save()
-        return user
-
-
 class UserProfileForm(forms.ModelForm):
     """Form for editing user profile information"""
 
@@ -429,32 +360,13 @@ class UserProfileForm(forms.ModelForm):
         help_text="Optional. Enter your phone number.",
     )
 
-    date_of_birth = forms.DateField(
-        required=False,
-        widget=forms.DateInput(
-            attrs={
-                "class": "form-control",
-                "type": "date",
-                "autocomplete": "bday",
-            }
-        ),
-        help_text="Optional. Enter your date of birth.",
-    )
-
     class Meta:
         model = User
         fields = [
             "first_name", 
             "last_name", 
             "email", 
-            "phone", 
-            "date_of_birth",
-            "age_range",
-            "gender",
-            "occupation",
-            "education",
-            "household_size",
-            "has_children",
+            "phone",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -564,30 +476,6 @@ class UserProfileForm(forms.ModelForm):
 
         return phone
 
-    def clean_date_of_birth(self):
-        """Validate date of birth"""
-        dob = self.cleaned_data.get("date_of_birth")
-
-        if not dob:
-            return None
-
-        # Import date utilities
-        from datetime import date
-
-        # Check if date is not in the future
-        if dob > date.today():
-            raise ValidationError("Date of birth cannot be in the future.")
-
-        # Check if user is at least 13 years old (COPPA compliance)
-        age = (date.today() - dob).days // 365
-        if age < 13:
-            raise ValidationError("You must be at least 13 years old to register.")
-
-        # Check if date is reasonable (not more than 120 years ago)
-        if age > 120:
-            raise ValidationError("Please enter a valid date of birth.")
-
-        return dob
 
     def save(self, commit=True):
         """Save the user profile with cleaned data"""
@@ -596,7 +484,6 @@ class UserProfileForm(forms.ModelForm):
         user.first_name = self.cleaned_data["first_name"].strip()
         user.last_name = self.cleaned_data["last_name"].strip()
         user.phone = self.cleaned_data.get("phone", "").strip()
-        user.date_of_birth = self.cleaned_data.get("date_of_birth")
 
         if commit:
             user.save()

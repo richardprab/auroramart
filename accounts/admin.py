@@ -6,8 +6,6 @@ from .models import (
     Wishlist,
     SaleSubscription,
     BrowsingHistory,
-    ChatConversation,
-    ChatMessage,
 )
 from notifications.models import Notification
 
@@ -18,30 +16,32 @@ class UserAdmin(BaseUserAdmin):
     Customizes the User display in the admin panel.
     """
 
-    list_display = ("username", "email", "first_name", "last_name", "role", "is_staff")
-    list_filter = ("role", "is_staff", "is_active")
+    list_display = ("username", "email", "first_name", "last_name", "is_staff")
+    list_filter = ("is_staff", "is_active", "gender", "employment_status")
     search_fields = ("username", "email", "first_name", "last_name")
     fieldsets = BaseUserAdmin.fieldsets + (
         (
-            "Account Details",
+            "Demographic Information",
             {
                 "fields": (
-                    "role",
-                    "age_range",
+                    "age",
                     "gender",
-                    "employment",
-                    "income_range",
-                    "preferred_category",
-                    "phone",
-                    "date_of_birth",
-                    "avatar",
+                    "employment_status",
+                    "occupation",
+                    "education",
+                    "household_size",
+                    "has_children",
+                    "monthly_income_sgd",
                 ),
             },
         ),
         (
-            "Notification Toggles",
+            "Profile Details",
             {
-                "fields": ("allow_marketing_emails", "allow_sale_notifications"),
+                "fields": (
+                    "phone",
+                    "avatar",
+                ),
             },
         ),
     )
@@ -87,39 +87,6 @@ class BrowsingHistoryAdmin(admin.ModelAdmin):
     list_display = ("user", "product", "viewed_at")
     search_fields = ("user__username", "product__name")
     list_filter = ("viewed_at",)
-
-
-class ChatMessageInline(admin.TabularInline):
-    """
-    Allows editing ChatMessages directly within the ChatConversation admin page.
-    """
-
-    model = ChatMessage
-    extra = 0  # Don't show extra empty forms
-    readonly_fields = ("sender", "content", "created_at")
-
-
-@admin.register(ChatConversation)
-class ChatConversationAdmin(admin.ModelAdmin):
-    """
-    Customizes the ChatConversation display in the admin panel.
-    """
-
-    list_display = (
-        "user",
-        "subject",              # ADD THIS
-        "message_type",         # ADD THIS
-        "status",           # ADD THIS
-        "product",
-        "admin",
-        "user_has_unread",
-        "admin_has_unread",
-        "created_at",
-    )
-    list_filter = ("user_has_unread", "admin_has_unread")
-    search_fields = ("user__username", "product__name", "admin__username")
-    inlines = [ChatMessageInline]
-    readonly_fields = ("created_at", "updated_at")  # ADD updated_at
 
 
 @admin.register(Notification)

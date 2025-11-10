@@ -285,214 +285,403 @@ def product_defaults(name: str, cat, parent_cat, idx: int) -> dict:
         "category": cat,
         "brand": brand,
         "description": f"High‑quality {name} with modern design and reliable performance.",
-        "size_guide": "Refer to the product details for sizing.",
-        "rating": Decimal(str(round(RNG.uniform(3.8, 5.0), 1))),
-        "review_count": RNG.randint(3, 120),
-        "is_featured": (idx % 3 == 0),
         "is_active": True,
     }
 
 
 def create_sample_users():
-    """Create sample users with varied demographic profiles for ML testing"""
-    print("\nCreating sample users...")
+    """Create users from b2c_customers_100.csv file"""
     
-    sample_users = [
-        {
-            "username": "demo_user",
-            "email": "demo@auroramart.com",
-            "first_name": "Demo",
-            "last_name": "User",
-            "age": 28,
-            "age_range": "25-34",
-            "gender": "Male",
-            "household_size": 2,
-            "has_children": False,
-            "occupation": "Tech",
-            "education": "Bachelor",
-            "monthly_income": 65000,
-            "employment": "Full-time",
-            "income_range": "$50k-$75k",
-        },
-        {
-            "username": "sarah_jones",
-            "email": "sarah.jones@auroramart.com",
-            "first_name": "Sarah",
-            "last_name": "Jones",
-            "age": 32,
-            "age_range": "25-34",
-            "gender": "Female",
-            "household_size": 4,
-            "has_children": True,
-            "occupation": "Healthcare",
-            "education": "Master",
-            "monthly_income": 85000,
-            "employment": "Full-time",
-            "income_range": "$75k-$100k",
-        },
-        {
-            "username": "mike_chen",
-            "email": "mike.chen@auroramart.com",
-            "first_name": "Mike",
-            "last_name": "Chen",
-            "age": 45,
-            "age_range": "45-54",
-            "gender": "Male",
-            "household_size": 3,
-            "has_children": True,
-            "occupation": "Finance",
-            "education": "Master",
-            "monthly_income": 120000,
-            "employment": "Full-time",
-            "income_range": "Over $100k",
-        },
-        {
-            "username": "emma_wilson",
-            "email": "emma.wilson@auroramart.com",
-            "first_name": "Emma",
-            "last_name": "Wilson",
-            "age": 22,
-            "age_range": "18-24",
-            "gender": "Female",
-            "household_size": 1,
-            "has_children": False,
-            "occupation": "Student",
-            "education": "Secondary",
-            "monthly_income": 15000,
-            "employment": "Part-time",
-            "income_range": "Under $30k",
-        },
-        {
-            "username": "david_martinez",
-            "email": "david.martinez@auroramart.com",
-            "first_name": "David",
-            "last_name": "Martinez",
-            "age": 38,
-            "age_range": "35-44",
-            "gender": "Male",
-            "household_size": 2,
-            "has_children": False,
-            "occupation": "Sales",
-            "education": "Bachelor",
-            "monthly_income": 55000,
-            "employment": "Full-time",
-            "income_range": "$50k-$75k",
-        },
-        {
-            "username": "lisa_taylor",
-            "email": "lisa.taylor@auroramart.com",
-            "first_name": "Lisa",
-            "last_name": "Taylor",
-            "age": 58,
-            "age_range": "55-64",
-            "gender": "Female",
-            "household_size": 2,
-            "has_children": True,
-            "occupation": "Education",
-            "education": "Master",
-            "monthly_income": 70000,
-            "employment": "Full-time",
-            "income_range": "$50k-$75k",
-        },
-        {
-            "username": "james_brown",
-            "email": "james.brown@auroramart.com",
-            "first_name": "James",
-            "last_name": "Brown",
-            "age": 67,
-            "age_range": "65+",
-            "gender": "Male",
-            "household_size": 2,
-            "has_children": True,
-            "occupation": "Other",
-            "education": "Diploma",
-            "monthly_income": 40000,
-            "employment": "Retired",
-            "income_range": "$30k-$50k",
-        },
-        {
-            "username": "jessica_lee",
-            "email": "jessica.lee@auroramart.com",
-            "first_name": "Jessica",
-            "last_name": "Lee",
-            "age": 29,
-            "age_range": "25-34",
-            "gender": "Female",
-            "household_size": 1,
-            "has_children": False,
-            "occupation": "Tech",
-            "education": "Bachelor",
-            "monthly_income": 75000,
-            "employment": "Full-time",
-            "income_range": "$75k-$100k",
-        },
-        {
-            "username": "robert_garcia",
-            "email": "robert.garcia@auroramart.com",
-            "first_name": "Robert",
-            "last_name": "Garcia",
-            "age": 41,
-            "age_range": "35-44",
-            "gender": "Male",
-            "household_size": 5,
-            "has_children": True,
-            "occupation": "Skilled Trades",
-            "education": "Diploma",
-            "monthly_income": 62000,
-            "employment": "Self-employed",
-            "income_range": "$50k-$75k",
-        },
-        {
-            "username": "amanda_white",
-            "email": "amanda.white@auroramart.com",
-            "first_name": "Amanda",
-            "last_name": "White",
-            "age": 35,
-            "age_range": "35-44",
-            "gender": "Female",
-            "household_size": 3,
-            "has_children": True,
-            "occupation": "Admin",
-            "education": "Bachelor",
-            "monthly_income": 48000,
-            "employment": "Full-time",
-            "income_range": "$30k-$50k",
-        },
+    csv_path = Path(__file__).parent / "data" / "b2c_customers_100.csv"
+    
+    if not csv_path.exists():
+        print(f"  ERROR: CSV file not found at {csv_path}")
+        return 0
+    
+    # Sample first names and last names for generating user data
+    first_names = [
+        "Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Avery", "Quinn",
+        "Sam", "Cameron", "Dakota", "Skyler", "Blake", "Sage", "River", "Phoenix",
+        "Jamie", "Drew", "Kai", "Rowan", "Finley", "Hayden", "Reese", "Emery",
+        "Sage", "Parker", "Quinn", "Blake", "Avery", "Riley", "Jordan", "Taylor"
+    ]
+    
+    last_names = [
+        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
+        "Rodriguez", "Martinez", "Hernandez", "Lopez", "Wilson", "Anderson", "Thomas",
+        "Taylor", "Moore", "Jackson", "Martin", "Lee", "Thompson", "White", "Harris",
+        "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson", "Walker", "Young", "King"
     ]
     
     created_count = 0
-    for user_data in sample_users:
-        username = user_data.pop("username")
-        email = user_data.pop("email")
-        
-        if not User.objects.filter(username=username).exists():
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password="demo123",  # Simple password for testing
-                **user_data
-            )
-            created_count += 1
-            print(f"  Created user: {username} ({user_data['age_range']}, {user_data['occupation']})")
-        else:
-            print(f"  User {username} already exists, skipping...")
+    skipped_count = 0
     
-    print(f"Created {created_count} sample users\n")
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        
+        for idx, row in enumerate(reader, start=1):
+            # Skip empty rows
+            if not row.get('age') or not row.get('age').strip():
+                continue
+            
+            # Parse CSV data
+            age = int(row['age']) if row['age'] else None
+            gender = row['gender'] if row['gender'] else None
+            employment_status = row['employment_status'] if row['employment_status'] else None
+            occupation = row['occupation'] if row['occupation'] else None
+            education = row['education'] if row['education'] else None
+            household_size = int(row['household_size']) if row['household_size'] else None
+            has_children = bool(int(row['has_children'])) if row['has_children'] else None
+            monthly_income_sgd = Decimal(row['monthly_income_sgd']) if row['monthly_income_sgd'] else None
+            
+            username = f"user_{idx:03d}"
+            email = f"user{idx:03d}@auroramart.com"
+            
+            if gender == "Male":
+                first_name = RNG.choice(["James", "John", "Robert", "Michael", "William", "David", 
+                                        "Richard", "Joseph", "Thomas", "Charles", "Daniel", "Matthew"])
+            elif gender == "Female":
+                first_name = RNG.choice(["Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara",
+                                        "Susan", "Jessica", "Sarah", "Karen", "Nancy", "Lisa"])
+            else:
+                first_name = RNG.choice(first_names)
+            
+            last_name = RNG.choice(last_names)
+            
+            # Generate phone number (optional field)
+            phone = f"+65{RNG.randint(8000, 9999)}{RNG.randint(1000, 9999)}"
+            
+            # Check if user already exists
+            if User.objects.filter(username=username).exists() or User.objects.filter(email=email).exists():
+                skipped_count += 1
+                continue
+            
+            # Create user
+            try:
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password="Pass1234",
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    age=age,
+                    gender=gender,
+                    employment_status=employment_status,
+                    occupation=occupation,
+                    education=education,
+                    household_size=household_size,
+                    has_children=has_children,
+                    monthly_income_sgd=monthly_income_sgd,
+                )
+                created_count += 1
+                if created_count % 10 == 0:
+                    print(f"  Created {created_count} users...")
+            except Exception as e:
+                print(f"  ERROR creating user {username}: {e}")
+                skipped_count += 1
+                continue
+    
+    print(f"Created {created_count} users from CSV")
+    if skipped_count > 0:
+        print(f"Skipped {skipped_count} users (already exist or error)")
+    print()
     return created_count
 
 
-@transaction.atomic
-def seed_from_csv(csv_path, reset=False):
-    create_sample_users()
-    if reset:
-        print("Resetting catalog…")
-        ProductVariant.objects.all().delete()
-        ProductImage.objects.all().delete()
-        Product.objects.all().delete()
-        Category.objects.all().delete()
+def create_staff_user():
+    """
+    Create a staff user with username 'staff_01'.
+    """
+    print("\n" + "=" * 60)
+    print("CREATING STAFF USER")
+    print("=" * 60)
+    
+    username = "staff_01"
+    email = "staff_01@auroramart.com"
+    
+    # Check if user already exists
+    if User.objects.filter(username=username).exists():
+        print(f"Staff user '{username}' already exists. Skipping...")
+        return User.objects.get(username=username)
+    
+    # Create staff user
+    try:
+        staff_user = User.objects.create_user(
+            username=username,
+            email=email,
+            password="Pass1234",
+            first_name="Staff",
+            last_name="User",
+            is_staff=True,
+            is_superuser=False,
+        )
+        print(f"✅ Created staff user: {username} (email: {email})")
+        return staff_user
+    except Exception as e:
+        print(f"❌ Error creating staff user: {e}")
+        return None
 
-    # Cache for categories
-    category_cache = {}
+
+def create_nus_computing_tshirt():
+    """
+    Create NUS Computing t-shirt with multiple variants (different colors and sizes with different prices).
+    """
+    print("\n" + "=" * 60)
+    print("CREATING NUS COMPUTING T-SHIRT")
+    print("=" * 60)
+    
+    # Get or create Fashion - Men category and Tops subcategory
+    parent_cat, _ = Category.objects.get_or_create(
+        name="Fashion - Men",
+        defaults={"slug": slugify("Fashion - Men"), "is_active": True}
+    )
+    subcat, _ = Category.objects.get_or_create(
+        name="Tops",
+        parent=parent_cat,
+        defaults={"slug": slugify("Tops"), "is_active": True}
+    )
+    
+    # Product details
+    product_name = "NUS Computing Shirt"
+    product_sku = "NUS-COMP-001"
+    product_slug = slugify(product_name)
+    
+    # Check if product already exists (check by SKU or old name)
+    existing_product = None
+    if Product.objects.filter(sku=product_sku).exists():
+        existing_product = Product.objects.get(sku=product_sku)
+    elif Product.objects.filter(name="NUS Computing").exists():
+        existing_product = Product.objects.get(name="NUS Computing")
+    
+    if existing_product:
+        product = existing_product
+        # Update name if it's the old name
+        if product.name != product_name:
+            product.name = product_name
+            product.slug = product_slug
+            product.save()
+        print(f"Product '{product_name}' already exists. Updating...")
+    else:
+        # Create product
+        product = Product.objects.create(
+            sku=product_sku,
+            name=product_name,
+            slug=product_slug,
+            category=subcat,
+            brand="NUS",
+            description="Official NUS Computing t-shirt. Made from premium cotton blend for comfort and durability. Perfect for students, alumni, and computing enthusiasts.",
+            rating=Decimal("4.5"),
+            reorder_quantity=10,
+            is_active=True,
+        )
+        print(f"✅ Created product: {product_name} (SKU: {product_sku})")
+    
+    # Add product image (using a t-shirt image)
+    if product.images.count() == 0:
+        image_url = "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=70"
+        img = ProductImage(
+            product=product,
+            is_primary=True,
+            display_order=0,
+            alt_text=f"{product_name} image",
+        )
+        filename = f"{product_slug}-main.jpg"
+        img.image.save(filename, download_image(image_url, filename), save=True)
+        print(f"  → Added product image")
+    
+    # Delete existing variants to recreate them
+    ProductVariant.objects.filter(product=product).delete()
+    
+    # Create variants with different colors, sizes, and prices
+    # Base price varies by size: XS/S = $25, M/L = $28, XL/XXL = $30
+    # Different colors may have slight price variations
+    variants_data = [
+        # Black variants
+        {"color": "Black", "size": "XS", "base_price": 25.00},
+        {"color": "Black", "size": "S", "base_price": 25.00},
+        {"color": "Black", "size": "M", "base_price": 28.00},
+        {"color": "Black", "size": "L", "base_price": 28.00},
+        {"color": "Black", "size": "XL", "base_price": 30.00},
+        {"color": "Black", "size": "XXL", "base_price": 30.00},
+        # White variants
+        {"color": "White", "size": "XS", "base_price": 25.00},
+        {"color": "White", "size": "S", "base_price": 25.00},
+        {"color": "White", "size": "M", "base_price": 28.00},
+        {"color": "White", "size": "L", "base_price": 28.00},
+        {"color": "White", "size": "XL", "base_price": 30.00},
+        {"color": "White", "size": "XXL", "base_price": 30.00},
+        # Navy variants (slightly more expensive)
+        {"color": "Navy", "size": "XS", "base_price": 26.00},
+        {"color": "Navy", "size": "S", "base_price": 26.00},
+        {"color": "Navy", "size": "M", "base_price": 29.00},
+        {"color": "Navy", "size": "L", "base_price": 29.00},
+        {"color": "Navy", "size": "XL", "base_price": 31.00},
+        {"color": "Navy", "size": "XXL", "base_price": 31.00},
+        # Red variants
+        {"color": "Red", "size": "XS", "base_price": 25.00},
+        {"color": "Red", "size": "S", "base_price": 25.00},
+        {"color": "Red", "size": "M", "base_price": 28.00},
+        {"color": "Red", "size": "L", "base_price": 28.00},
+        {"color": "Red", "size": "XL", "base_price": 30.00},
+        {"color": "Red", "size": "XXL", "base_price": 30.00},
+    ]
+    
+    created_variants = 0
+    for idx, variant_data in enumerate(variants_data):
+        color = variant_data["color"]
+        size = variant_data["size"]
+        base_price = Decimal(str(variant_data["base_price"]))
+        
+        # Add some random variation to prices (±$1)
+        price_variation = Decimal(str(RNG.choice([-1, 0, 1])))
+        price = base_price + price_variation
+        
+        # Some variants have compare_price (on sale)
+        compare_price = None
+        if RNG.random() > 0.6:  # 40% chance of being on sale
+            compare_price = price + Decimal(str(RNG.choice([5, 10, 15])))
+        
+        # Stock varies by size (larger sizes have less stock)
+        stock_map = {"XS": 50, "S": 80, "M": 100, "L": 100, "XL": 60, "XXL": 30}
+        stock = stock_map.get(size, 50)
+        
+        # Create variant SKU
+        variant_sku = f"{product_sku}-{color}-{size}"
+        
+        # Check if variant already exists
+        if ProductVariant.objects.filter(sku=variant_sku).exists():
+            continue
+        
+        # Create variant
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku=variant_sku,
+            color=color,
+            size=size,
+            price=price,
+            compare_price=compare_price,
+            stock=stock,
+            is_active=True,
+            is_default=(idx == 0),  # First variant is default
+        )
+        created_variants += 1
+        
+        sale_text = f" (was ${compare_price})" if compare_price else ""
+        print(f"  → Created variant: {color} / {size} - ${price}{sale_text} (Stock: {stock}, SKU: {variant_sku})")
+    
+    print(f"✅ Created {created_variants} variants for {product_name}")
+    return product
+
+
+def seed_from_csv(csv_path, reset=True):
+    """
+    Seed database from CSV file.
+    By default, deletes all existing data before seeding (reset=True).
+    """
+    if reset:
+        print("\n" + "=" * 60)
+        print("RESETTING DATABASE BEFORE SEEDING")
+        print("=" * 60)
+        
+        # Get all models
+        from django.contrib.sessions.models import Session
+        from django.contrib.admin.models import LogEntry
+        
+        Order = apps.get_model("orders", "Order")
+        OrderItem = apps.get_model("orders", "OrderItem")
+        Cart = apps.get_model("cart", "Cart")
+        CartItem = apps.get_model("cart", "CartItem")
+        Wishlist = apps.get_model("accounts", "Wishlist")
+        ChatConversation = apps.get_model("chat", "ChatConversation")
+        ChatMessage = apps.get_model("chat", "ChatMessage")
+        Notification = apps.get_model("notifications", "Notification")
+        BrowsingHistory = apps.get_model("accounts", "BrowsingHistory")
+        Address = apps.get_model("accounts", "Address")
+        SaleSubscription = apps.get_model("accounts", "SaleSubscription")
+        Review = apps.get_model("products", "Review")
+        Coupon = apps.get_model("adminpanel", "Coupon")
+        HomepageBanner = apps.get_model("adminpanel", "HomepageBanner")
+        
+        # Delete in correct order respecting foreign key constraints
+        # Order: child records first, then parent records
+        
+        print("Deleting sessions and admin logs...")
+        Session.objects.all().delete()
+        LogEntry.objects.all().delete()
+        
+        print("Deleting notifications...")
+        Notification.objects.all().delete()
+        
+        print("Deleting order items (child)...")
+        OrderItem.objects.all().delete()
+        
+        print("Deleting orders (parent)...")
+        Order.objects.all().delete()
+        
+        print("Deleting cart items (child)...")
+        CartItem.objects.all().delete()
+        
+        print("Deleting carts (parent)...")
+        Cart.objects.all().delete()
+        
+        print("Deleting chat messages (child)...")
+        ChatMessage.objects.all().delete()
+        
+        print("Deleting chat conversations (parent)...")
+        ChatConversation.objects.all().delete()
+        
+        print("Deleting wishlists...")
+        Wishlist.objects.all().delete()
+        
+        print("Deleting browsing history...")
+        BrowsingHistory.objects.all().delete()
+        
+        print("Deleting sale subscriptions...")
+        SaleSubscription.objects.all().delete()
+        
+        print("Deleting addresses...")
+        Address.objects.all().delete()
+        
+        print("Deleting reviews (depends on User and Product)...")
+        Review.objects.all().delete()
+        
+        print("Deleting coupons (depends on User)...")
+        Coupon.objects.all().delete()
+        
+        print("Deleting homepage banners...")
+        HomepageBanner.objects.all().delete()
+        
+        print("Deleting product images (child)...")
+        ProductImage.objects.all().delete()
+        
+        print("Deleting product variants (child)...")
+        ProductVariant.objects.all().delete()
+        
+        print("Deleting products (parent)...")
+        Product.objects.all().delete()
+        
+        print("Deleting categories (delete children first)...")
+        Category.objects.filter(parent__isnull=False).delete()
+        Category.objects.filter(parent__isnull=True).delete()
+        
+        print("Skipping user deletion (avoids complex FK constraints)...")
+        # Note: We keep users to avoid FK constraint issues
+        # create_sample_users() uses get_or_create(), so it will handle existing users
+        
+        print("✅ Database reset complete!\n")
+    
+    create_sample_users()
+    
+    # Create staff user
+    create_staff_user()
+    
+    # Create NUS Computing t-shirt
+    create_nus_computing_tshirt()
+    
+    with transaction.atomic():
+        # Cache for categories
+        category_cache = {}
 
     # Try reading CSV with utf-8-sig, fallback to latin1 if error
     try:
@@ -514,9 +703,9 @@ def seed_from_csv(csv_path, reset=False):
         parent_cat_name = row.get("Product Category")
         subcat_name = row.get("Product Subcategory")
         price = Decimal(row.get("Unit price") or RNG.randint(10, 100))
-        rating = Decimal(row.get("Product rating") or round(RNG.uniform(3.8, 5.0), 1))
         stock = int(row.get("Quantity on hand") or RNG.randint(10, 100))
         reorder_qty = int(row.get("Reorder Quantity") or RNG.randint(5, 20))
+        rating = Decimal(row.get("Product rating") or round(RNG.uniform(3.8, 5.0), 1))
 
         # Create parent category
         if parent_cat_name not in category_cache:
@@ -555,10 +744,8 @@ def seed_from_csv(csv_path, reset=False):
                 "category": subcat,
                 "brand": brand,
                 "description": description,
-                "size_guide": "Refer to the product details for sizing.",
                 "rating": rating,
-                "review_count": RNG.randint(3, 120),
-                "is_featured": (idx % 3 == 0),
+                    "reorder_quantity": reorder_qty,
                 "is_active": True,
             }
         )
@@ -569,6 +756,7 @@ def seed_from_csv(csv_path, reset=False):
             product.brand = brand
             product.description = description
             product.rating = rating
+            product.reorder_quantity = reorder_qty
             product.is_active = True
             product.save()
 
@@ -580,37 +768,195 @@ def seed_from_csv(csv_path, reset=False):
                 break
         ensure_product_image(product, image_urls)
 
-        # Create a default variant if none exists
+        # Create variants for ALL products (required for products to show up)
         if product.variants.count() == 0:
-            color = RNG.choice(COLORS)
-            size = RNG.choice(SIZES)
-            variant_sku = unique_value(ProductVariant, "sku", f"{sku}-V")
-            ProductVariant.objects.create(
-                product=product,
-                sku=variant_sku,
-                color=color,
-                size=size,
-                price=price,
-                compare_price=price + Decimal(RNG.choice([0, 10, 20, 50, 100])),
-                stock=stock,
-                is_active=True,
-                is_default=True,
-            )
-            print(f"  → Created variant: {color} / {size} - ${price} (SKU: {variant_sku})")
+            is_fashion = parent_cat_name in ["Fashion - Men", "Fashion - Women"]
+            
+            if is_fashion:
+                # Create variant with color and size for fashion items
+                color = RNG.choice(COLORS)
+                size = RNG.choice(SIZES)
+                variant_sku = unique_value(ProductVariant, "sku", f"{sku}-V")
+                ProductVariant.objects.create(
+                    product=product,
+                    sku=variant_sku,
+                    color=color,
+                    size=size,
+                    price=price,
+                    compare_price=price + Decimal(RNG.choice([0, 10, 20, 50, 100])),
+                    stock=stock,
+                    is_active=True,
+                    is_default=True,
+                )
+                print(f"  → Created variant: {color} / {size} - ${price} (SKU: {variant_sku})")
+            else:
+                # For non-fashion items, create default variant without color/size
+                # Use the same SKU as the product (no variant suffix needed)
+                ProductVariant.objects.create(
+                    product=product,
+                    sku=sku,  # Same SKU as product
+                    color="",  # No color for non-fashion
+                    size="",   # No size for non-fashion
+                    price=price,
+                    compare_price=price + Decimal(RNG.choice([0, 10, 20, 50, 100])) if RNG.random() > 0.5 else None,
+                    stock=stock,
+                    is_active=True,
+                    is_default=True,
+                )
+                print(f"  → Created default variant - ${price} (SKU: {sku})")
 
     print(
         f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
     )
 
 
+def delete_all_data():
+    """
+    Delete all data from the database (but keep the database file and structure).
+    Useful for resetting the database to a clean state.
+    """
+    print("=" * 60)
+    print("DELETING ALL DATA FROM DATABASE")
+    print("=" * 60)
+    
+    # Get all models
+    from django.contrib.contenttypes.models import ContentType
+    from django.contrib.sessions.models import Session
+    from django.contrib.admin.models import LogEntry
+    
+    Order = apps.get_model("orders", "Order")
+    OrderItem = apps.get_model("orders", "OrderItem")
+    Cart = apps.get_model("cart", "Cart")
+    CartItem = apps.get_model("cart", "CartItem")
+    Wishlist = apps.get_model("accounts", "Wishlist")
+    ChatConversation = apps.get_model("chat", "ChatConversation")
+    ChatMessage = apps.get_model("chat", "ChatMessage")
+    Notification = apps.get_model("notifications", "Notification")
+    BrowsingHistory = apps.get_model("accounts", "BrowsingHistory")
+    Address = apps.get_model("accounts", "Address")
+    SaleSubscription = apps.get_model("accounts", "SaleSubscription")
+    Review = apps.get_model("products", "Review")
+    Coupon = apps.get_model("adminpanel", "Coupon")
+    HomepageBanner = apps.get_model("adminpanel", "HomepageBanner")
+    
+    with transaction.atomic():
+        # Delete in correct order respecting foreign key constraints
+        
+        print("Deleting sessions and admin logs...")
+        Session.objects.all().delete()
+        LogEntry.objects.all().delete()
+        
+        print("Deleting notifications...")
+        Notification.objects.all().delete()
+        
+        print("Deleting order items (child)...")
+        OrderItem.objects.all().delete()
+        
+        print("Deleting orders (parent)...")
+        Order.objects.all().delete()
+        
+        print("Deleting cart items (child)...")
+        CartItem.objects.all().delete()
+        
+        print("Deleting carts (parent)...")
+        Cart.objects.all().delete()
+        
+        print("Deleting chat messages (child)...")
+        ChatMessage.objects.all().delete()
+        
+        print("Deleting chat conversations (parent)...")
+        ChatConversation.objects.all().delete()
+        
+        print("Deleting wishlists...")
+        Wishlist.objects.all().delete()
+        
+        print("Deleting browsing history...")
+        BrowsingHistory.objects.all().delete()
+        
+        print("Deleting sale subscriptions...")
+        SaleSubscription.objects.all().delete()
+        
+        print("Deleting addresses...")
+        Address.objects.all().delete()
+        
+        print("Deleting reviews (depends on User and Product)...")
+        Review.objects.all().delete()
+        
+        print("Deleting coupons (depends on User)...")
+        Coupon.objects.all().delete()
+        
+        print("Deleting homepage banners...")
+        HomepageBanner.objects.all().delete()
+        
+        print("Deleting product images (child)...")
+        ProductImage.objects.all().delete()
+        
+        print("Deleting product variants (child)...")
+        ProductVariant.objects.all().delete()
+        
+        print("Deleting products (parent)...")
+        Product.objects.all().delete()
+        
+        print("Deleting categories (delete children first)...")
+        # Delete child categories first (those with parents), then parent categories
+        Category.objects.filter(parent__isnull=False).delete()
+        Category.objects.filter(parent__isnull=True).delete()
+        
+        print("Skipping user deletion (avoids complex FK constraints)...")
+        # Note: We keep users to avoid FK constraint issues
+        # create_sample_users() uses get_or_create(), so it will handle existing users
+        
+        print("\n✅ All data deleted successfully!")
+    print(f"Remaining superusers: {User.objects.filter(is_superuser=True).count()}")
+    print("=" * 60)
+
+
+def delete_database_file():
+    """
+    Delete the entire database file (db.sqlite3).
+    This requires migrations to be run again.
+    """
+    import sys
+    
+    print("=" * 60)
+    print("WARNING: DELETING DATABASE FILE")
+    print("=" * 60)
+    print("This will delete the entire db.sqlite3 file.")
+    print("You will need to run migrations again:")
+    print("  python manage.py migrate")
+    print("  python manage.py createsuperuser")
+    print("=" * 60)
+    
+    response = input("Are you sure? Type 'yes' to continue: ")
+    if response.lower() != 'yes':
+        print("❌ Aborted.")
+        sys.exit(0)
+    
+    db_path = Path(__file__).resolve().parent / "db.sqlite3"
+    
+    if db_path.exists():
+        try:
+            os.remove(db_path)
+            print(f"\n✅ Database file deleted: {db_path}")
+            print("\nNext steps:")
+            print("  1. python manage.py migrate")
+            print("  2. python manage.py createsuperuser")
+            print("  3. python populate_db.py --csv data/b2c_products_500.csv")
+        except Exception as e:
+            print(f"❌ Error deleting database: {e}")
+            sys.exit(1)
+    else:
+        print(f"⚠️  Database file not found: {db_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Seed catalog from CSV."
+        description="Seed catalog from CSV or manage database."
     )
     parser.add_argument(
-        "--reset",
+        "--no-reset",
         action="store_true",
-        help="Delete existing products/categories first.",
+        help="Don't delete existing data before seeding (default: deletes all data).",
     )
     parser.add_argument(
         "--csv",
@@ -618,10 +964,32 @@ def main():
         default="data/b2c_products_500.csv",
         help="CSV file to import products from.",
     )
+    parser.add_argument(
+        "--delete-data",
+        action="store_true",
+        help="Delete all data from database (keeps DB file and structure).",
+    )
+    parser.add_argument(
+        "--delete-db",
+        action="store_true",
+        help="Delete the entire database file (requires migrations after).",
+    )
     args = parser.parse_args()
+    
+    # Handle delete operations
+    if args.delete_db:
+        delete_database_file()
+        return
+    
+    if args.delete_data:
+        delete_all_data()
+        return
+    
+    # Otherwise, seed from CSV
+    # By default, reset=True (delete all data), unless --no-reset is specified
     seed_from_csv(
         csv_path=args.csv,
-        reset=args.reset,
+        reset=not args.no_reset,
     )
 
 

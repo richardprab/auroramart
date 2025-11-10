@@ -8,6 +8,9 @@ const WishlistModule = {
     FLYING_ANIMATION_DURATION: 800,
     CARD_REMOVE_DELAY: 300,
     
+    // Initialization flag to prevent double init
+    _initialized: false,
+    
     // Icon templates
     ICONS: {
         WISHLISTED: '<i data-lucide="heart" class="w-5 h-5 text-red-500 fill-current"></i>',
@@ -18,8 +21,14 @@ const WishlistModule = {
      * Initialize wishlist module
      */
     init() {
+        // Prevent double initialization
+        if (this._initialized) {
+            return;
+        }
+        
         this.attachEventListeners();
         this.updateWishlistCount();
+        this._initialized = true;
     },
 
     /**
@@ -49,26 +58,30 @@ const WishlistModule = {
         const forms = document.querySelectorAll('[data-wishlist-toggle]');
 
         forms.forEach(form => {
-            form.addEventListener('submit', (e) => {
+            // Remove any existing listener by cloning the element
+            const newForm = form.cloneNode(true);
+            form.parentNode.replaceChild(newForm, form);
+            
+            // Attach event listener to the new form
+            newForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
 
-                const button = form.querySelector('button[type="submit"]');
+                const button = newForm.querySelector('button[type="submit"]');
                 const productId = button?.dataset.productId;
                 
                 if (!productId) {
-                    console.error('Product ID not found');
                     return;
                 }
 
                 const isWishlisted = button.classList.contains('in-wishlist');
 
                 if (isWishlisted) {
-                    this.removeFromWishlist(productId, button, form);
+                    this.removeFromWishlist(productId, button, newForm);
                 } else {
-                    this.addToWishlist(productId, button, form);
+                    this.addToWishlist(productId, button, newForm);
                 }
-            });
+            }, { once: false });
         });
     },
 
@@ -121,20 +134,28 @@ const WishlistModule = {
         // Optimistic UI update
         this.updateButtonState(button, false);
 
-        const formData = new FormData(form);
+        // Build the remove URL (form.action is add URL, we need remove URL)
+        const addUrl = form.action;
+        const removeUrl = addUrl.replace('/add/', '/remove/');
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', this.getCSRFToken());
+        
         const headers = {
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': this.getCSRFToken()
         };
 
-        fetch(form.action, {
+        fetch(removeUrl, {
             method: 'POST',
             body: formData,
             headers: headers,
             credentials: 'same-origin'
         })
             .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
                 return response.json();
             })
             .then(data => {
@@ -308,7 +329,7 @@ const WishlistModule = {
             'X-CSRFToken': this.getCSRFToken()
         };
 
-        fetch('/api/wishlist/count/', {
+        fetch('/accounts/ajax/wishlist/count/', {
             headers: headers,
             credentials: 'same-origin'
         })
