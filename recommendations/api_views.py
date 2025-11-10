@@ -171,6 +171,68 @@ def get_personalized_recommendations(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def order_recommendations(request, order_id):
+    """Get recommendations based on order items - returns items 5-9 or last 4"""
+    try:
+        print("=" * 80)
+        print("ORDER RECOMMENDATIONS API CALLED")
+        print("=" * 80)
+        
+        # Get order
+        from orders.models import Order
+        try:
+            order = Order.objects.select_related('user').prefetch_related(
+                'items__product', 'items__product_variant'
+            ).get(id=order_id, user=request.user)
+        except Order.DoesNotExist:
+            return Response({
+                'error': 'Order not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        order_items = order.items.select_related('product', 'product_variant').all()
+        
+        print(f"DEBUG api_views.py: Order has {order_items.count()} items")
+        
+        # Log each order item's SKU
+        for item in order_items:
+            if item.product_variant:
+                print(f"DEBUG api_views.py: Order item variant SKU: {item.product_variant.sku}")
+            if item.product:
+                print(f"DEBUG api_views.py: Order item product SKU: {item.product.sku}")
+        
+        # Get recommendations (items 5-9, or last 4 if fewer than 9)
+        from .services import ProductRecommender
+        recommended_products = ProductRecommender.get_order_recommendations(order_items)
+        
+        print(f"DEBUG api_views.py: Got {len(recommended_products)} recommendations")
+        for prod in recommended_products:
+            print(f"  - {prod.name} (SKU: {prod.sku})")
+        
+        # Serialize products
+        from products.serializers import ProductListSerializer
+        serializer = ProductListSerializer(recommended_products, many=True, context={'request': request})
+        
+        print(f"DEBUG api_views.py: Returning {len(serializer.data)} serialized products")
+        print("=" * 80)
+        
+        return Response({
+            'success': True,
+            'recommendations': serializer.data,
+            'count': len(recommended_products)
+        })
+        
+    except Exception as e:
+        print(f"DEBUG api_views.py ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'error': str(e),
+            'recommendations': []
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['POST'])
 def cart_recommendations(request):
     """Get recommendations based on current cart contents - this is the correct function name"""
@@ -205,8 +267,8 @@ def cart_recommendations(request):
             print(f"  - {prod.name} (SKU: {prod.sku})")
         
         # Serialize products
-        from products.serializers import ProductSerializer
-        serializer = ProductSerializer(recommended_products, many=True, context={'request': request})
+        from products.serializers import ProductListSerializer
+        serializer = ProductListSerializer(recommended_products, many=True, context={'request': request})
         
         print(f"DEBUG api_views.py: Returning {len(serializer.data)} serialized products")
         print("=" * 80)

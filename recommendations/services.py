@@ -163,62 +163,102 @@ class ProductRecommender:
     def get_cart_recommendations(cart_items, top_n=5):
         """
         Get recommendations based on current cart contents.
-        CHANGED: Updated to work with CartItem model that has product_variant
+        Gets top 4 recommendations for each cart item, then limits to 10 total products.
+        Uses association rules model with SKUs.
         
         Args:
             cart_items: QuerySet or list of CartItem objects
-            top_n: Number of recommendations
+            top_n: Number of recommendations per item (default 4), total limited to 10
             
         Returns:
-            List of Product objects
+            List of Product objects (max 10)
         """
         print(f"\n{'='*80}")
-        print(f"GET_CART_RECOMMENDATIONS called with top_n={top_n}")
+        print(f"GET_CART_RECOMMENDATIONS called")
         print(f"{'='*80}")
         
         cart_skus = []
         
         # Extract SKUs from cart items (handle both variant and product)
+        # Use only first 12 characters of SKU for AI model input
         for item in cart_items:
             if hasattr(item, 'product_variant') and item.product_variant:
                 sku = item.product_variant.sku
-                cart_skus.append(sku)
-                print(f"DEBUG: Added variant SKU: {sku}")
+                sku_12char = sku[:12] if len(sku) > 12 else sku
+                cart_skus.append(sku_12char)
+                print(f"DEBUG: Added variant SKU (full: {sku}, truncated: {sku_12char})")
             elif hasattr(item, 'product') and item.product:
                 sku = item.product.sku
-                cart_skus.append(sku)
-                print(f"DEBUG: Added product SKU: {sku}")
+                sku_12char = sku[:12] if len(sku) > 12 else sku
+                cart_skus.append(sku_12char)
+                print(f"DEBUG: Added product SKU (full: {sku}, truncated: {sku_12char})")
         
-        print(f"DEBUG: Total cart SKUs collected: {cart_skus}")
+        print(f"DEBUG: Total cart SKUs collected (first 12 chars): {cart_skus}")
         
         if not cart_skus:
             print("DEBUG: No SKUs found in cart - returning empty list")
             print(f"{'='*80}\n")
             return []
         
-        # Get recommended SKUs using association rules
-        recommended_skus = ProductRecommender.get_recommendations(cart_skus, top_n=top_n * 2)
-        print(f"DEBUG: Recommended SKUs from association rules: {recommended_skus}")
+        # Get top 4 recommendations for EACH cart item
+        all_recommended_skus = set()
+        per_item_limit = 4  # Top 4 for each item
         
-        if not recommended_skus:
+        for sku_12char in cart_skus:
+            print(f"DEBUG: Getting recommendations for SKU (first 12 chars): {sku_12char}")
+            item_recommendations = ProductRecommender.get_recommendations(
+                [sku_12char], 
+                metric='confidence', 
+                top_n=per_item_limit
+            )
+            print(f"DEBUG: Got {len(item_recommendations)} recommendations for {sku_12char}: {item_recommendations}")
+            all_recommended_skus.update(item_recommendations)
+        
+        # Remove items already in cart (compare first 12 chars)
+        cart_skus_set = set(cart_skus)
+        filtered_recommended_skus = set()
+        for rec_sku in all_recommended_skus:
+            rec_sku_12char = rec_sku[:12] if len(rec_sku) > 12 else rec_sku
+            if rec_sku_12char not in cart_skus_set:
+                filtered_recommended_skus.add(rec_sku)
+        
+        print(f"DEBUG: Total unique recommended SKUs (after removing cart items): {len(filtered_recommended_skus)}")
+        print(f"DEBUG: Recommended SKUs: {list(filtered_recommended_skus)[:10]}")
+        
+        if not filtered_recommended_skus:
             print("DEBUG: No recommendations from association rules - returning empty list")
             print(f"{'='*80}\n")
             return []
         
-        # Convert SKUs to actual products (match both variant and product SKU)
+        # Convert SKUs to actual products (match both variant and product SKU using first 12 chars)
         from products.models import ProductVariant
+        from django.db.models import Q
+        
+        # Limit to 10 total products
+        limited_skus = list(filtered_recommended_skus)[:10]
+        
+        # Build Q objects to match first 12 characters of SKUs
+        variant_q = Q()
+        product_q = Q()
+        
+        for rec_sku in limited_skus:
+            rec_sku_12char = rec_sku[:12] if len(rec_sku) > 12 else rec_sku
+            # Match variants where first 12 chars of SKU match
+            variant_q |= Q(variants__sku__startswith=rec_sku_12char)
+            # Match products where first 12 chars of SKU match
+            product_q |= Q(sku__startswith=rec_sku_12char)
         
         variant_products = Product.objects.filter(
-            variants__sku__in=recommended_skus,
+            variant_q,
             is_active=True
         ).distinct()
-        print(f"DEBUG: Found {variant_products.count()} products by variant SKU")
+        print(f"DEBUG: Found {variant_products.count()} products by variant SKU (first 12 chars)")
         
         product_sku_products = Product.objects.filter(
-            sku__in=recommended_skus,
+            product_q,
             is_active=True
         ).distinct()
-        print(f"DEBUG: Found {product_sku_products.count()} products by product SKU")
+        print(f"DEBUG: Found {product_sku_products.count()} products by product SKU (first 12 chars)")
         
         products = list(set(list(variant_products) + list(product_sku_products)))
         print(f"DEBUG: Total unique products: {len(products)}")
@@ -228,10 +268,150 @@ class ProductRecommender:
             for p in products:
                 print(f"  - {p.name} (SKU: {p.sku})")
         
+        # Sort by rating and creation date
         products.sort(key=lambda p: (p.rating or 0, p.created_at), reverse=True)
         
-        final_products = products[:top_n]
-        print(f"DEBUG: Returning top {len(final_products)} products")
+        # Limit to 10 total products
+        final_products = products[:10]
+        print(f"DEBUG: Returning top {len(final_products)} products (limited to 10)")
+        print(f"{'='*80}\n")
+        
+        return final_products
+    
+    @staticmethod
+    def get_order_recommendations(order_items, start_index=4, end_index=8, fallback_count=4):
+        """
+        Get recommendations based on order items.
+        Returns items at positions 5-9 (index 4-8), or last 4 if fewer than 9 items available.
+        Uses first 12 characters of SKU for AI model input.
+        
+        Args:
+            order_items: QuerySet or list of OrderItem objects
+            start_index: Start index (default 4 for 5th item)
+            end_index: End index (default 8 for 9th item)
+            fallback_count: Number of items to return if fewer than 9 available (default 4)
+            
+        Returns:
+            List of Product objects (items 5-9, or last 4 if fewer than 9)
+        """
+        print(f"\n{'='*80}")
+        print(f"GET_ORDER_RECOMMENDATIONS called")
+        print(f"{'='*80}")
+        
+        order_skus = []
+        
+        # Extract SKUs from order items (handle both variant and product)
+        # Use only first 12 characters of SKU for AI model input
+        for item in order_items:
+            if hasattr(item, 'product_variant') and item.product_variant:
+                sku = item.product_variant.sku
+                sku_12char = sku[:12] if len(sku) > 12 else sku
+                order_skus.append(sku_12char)
+                print(f"DEBUG: Added variant SKU (full: {sku}, truncated: {sku_12char})")
+            elif hasattr(item, 'product') and item.product:
+                sku = item.product.sku
+                sku_12char = sku[:12] if len(sku) > 12 else sku
+                order_skus.append(sku_12char)
+                print(f"DEBUG: Added product SKU (full: {sku}, truncated: {sku_12char})")
+        
+        print(f"DEBUG: Total order SKUs collected (first 12 chars): {order_skus}")
+        
+        if not order_skus:
+            print("DEBUG: No SKUs found in order - returning empty list")
+            print(f"{'='*80}\n")
+            return []
+        
+        # Get top 4 recommendations for EACH order item
+        all_recommended_skus = []
+        per_item_limit = 4  # Top 4 for each item
+        
+        for sku_12char in order_skus:
+            print(f"DEBUG: Getting recommendations for SKU (first 12 chars): {sku_12char}")
+            item_recommendations = ProductRecommender.get_recommendations(
+                [sku_12char], 
+                metric='confidence', 
+                top_n=per_item_limit
+            )
+            print(f"DEBUG: Got {len(item_recommendations)} recommendations for {sku_12char}: {item_recommendations}")
+            all_recommended_skus.extend(item_recommendations)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_recommended_skus = []
+        for rec_sku in all_recommended_skus:
+            if rec_sku not in seen:
+                seen.add(rec_sku)
+                unique_recommended_skus.append(rec_sku)
+        
+        # Remove items already in order (compare first 12 chars)
+        order_skus_set = set(order_skus)
+        filtered_recommended_skus = []
+        for rec_sku in unique_recommended_skus:
+            rec_sku_12char = rec_sku[:12] if len(rec_sku) > 12 else rec_sku
+            if rec_sku_12char not in order_skus_set:
+                filtered_recommended_skus.append(rec_sku)
+        
+        print(f"DEBUG: Total unique recommended SKUs (after removing order items): {len(filtered_recommended_skus)}")
+        
+        if not filtered_recommended_skus:
+            print("DEBUG: No recommendations from association rules - returning empty list")
+            print(f"{'='*80}\n")
+            return []
+        
+        # Get at least 9 recommendations, then select items 5-9 (index 4-8)
+        # If fewer than 9, take the last 4
+        if len(filtered_recommended_skus) >= 9:
+            # Take items 5-9 (index 4-8)
+            selected_skus = filtered_recommended_skus[start_index:end_index+1]
+            print(f"DEBUG: Taking items 5-9 (index {start_index}-{end_index}): {len(selected_skus)} items")
+        else:
+            # Take last 4 items
+            selected_skus = filtered_recommended_skus[-fallback_count:] if len(filtered_recommended_skus) >= fallback_count else filtered_recommended_skus
+            print(f"DEBUG: Taking last {len(selected_skus)} items (fewer than 9 available)")
+        
+        print(f"DEBUG: Selected SKUs: {selected_skus}")
+        
+        # Convert SKUs to actual products (match both variant and product SKU using first 12 chars)
+        from products.models import ProductVariant
+        from django.db.models import Q
+        
+        # Build Q objects to match first 12 characters of SKUs
+        variant_q = Q()
+        product_q = Q()
+        
+        for rec_sku in selected_skus:
+            rec_sku_12char = rec_sku[:12] if len(rec_sku) > 12 else rec_sku
+            # Match variants where first 12 chars of SKU match
+            variant_q |= Q(variants__sku__startswith=rec_sku_12char)
+            # Match products where first 12 chars of SKU match
+            product_q |= Q(sku__startswith=rec_sku_12char)
+        
+        variant_products = Product.objects.filter(
+            variant_q,
+            is_active=True
+        ).distinct()
+        print(f"DEBUG: Found {variant_products.count()} products by variant SKU (first 12 chars)")
+        
+        product_sku_products = Product.objects.filter(
+            product_q,
+            is_active=True
+        ).distinct()
+        print(f"DEBUG: Found {product_sku_products.count()} products by product SKU (first 12 chars)")
+        
+        products = list(set(list(variant_products) + list(product_sku_products)))
+        print(f"DEBUG: Total unique products: {len(products)}")
+        
+        if products:
+            print("DEBUG: Product names:")
+            for p in products:
+                print(f"  - {p.name} (SKU: {p.sku})")
+        
+        # Sort by rating and creation date
+        products.sort(key=lambda p: (p.rating or 0, p.created_at), reverse=True)
+        
+        # Limit to the number of selected SKUs
+        final_products = products[:len(selected_skus)]
+        print(f"DEBUG: Returning {len(final_products)} products (items 5-9 or last 4)")
         print(f"{'='*80}\n")
         
         return final_products

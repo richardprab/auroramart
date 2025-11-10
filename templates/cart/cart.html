@@ -598,6 +598,8 @@
     function createRecommendationCard(product) {
         const lowestVariant = product.lowest_variant || {};
         const primaryImage = product.primary_image;
+        // Handle primary_image as object with url property or as string
+        const imageUrl = primaryImage && typeof primaryImage === 'object' ? primaryImage.url : primaryImage;
         const price = lowestVariant.price || '0.00';
         const comparePrice = lowestVariant.compare_price;
         const hasDiscount = comparePrice && parseFloat(comparePrice) > parseFloat(price);
@@ -608,8 +610,8 @@
         return `
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition duration-300 flex flex-col group">
                 <div class="relative overflow-hidden">
-                    ${primaryImage ? 
-                        `<img src="${primaryImage}" alt="${product.name}" class="w-full h-48 object-cover group-hover:scale-110 transition duration-500">` :
+                    ${imageUrl ? 
+                        `<img src="${imageUrl}" alt="${product.name}" class="w-full h-48 object-cover group-hover:scale-110 transition duration-500">` :
                         `<div class="w-full h-48 bg-gray-100 flex items-center justify-center">
                             <i data-lucide="image" class="w-16 h-16 text-gray-400"></i>
                         </div>`
@@ -652,7 +654,7 @@
                             }
                         </div>
                         
-                        ${stock > 0 ? `
+                        ${stock > 0 && variantId ? `
                             <button onclick="quickAddToCart(${product.id}, ${variantId}, '${product.name.replace(/'/g, "\\'")}')" 
                                     class="w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
                                 <i data-lucide="plus" class="w-4 h-4"></i>

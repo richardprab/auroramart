@@ -216,3 +216,48 @@ def order_detail(request, order_id):
         "status_info": status_info,
     }
     return render(request, "orders/order_detail.html", context)
+
+
+@login_required
+def cancel_order(request, order_id):
+    """Cancel an order - only pending orders can be cancelled"""
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
+        return redirect('orders:order_detail', order_id=order_id)
+    
+    order = get_object_or_404(
+        Order.objects.select_related('user'),
+        id=order_id,
+        user=request.user
+    )
+    
+    # Only allow cancellation of pending orders
+    if order.status != 'pending':
+        messages.error(request, f"Cannot cancel order. Only pending orders can be cancelled. Current status: {order.status.title()}.")
+        return redirect('orders:order_detail', order_id=order_id)
+    
+    try:
+        with transaction.atomic():
+            # Restore stock for all items
+            for item in order.items.all():
+                if item.product_variant:
+                    item.product_variant.stock += item.quantity
+                    item.product_variant.save()
+                    logger.info(f"✅ Restored {item.quantity} units of stock for variant ID {item.product_variant.id}")
+                else:
+                    item.product.stock += item.quantity
+                    item.product.save()
+                    logger.info(f"✅ Restored {item.quantity} units of stock for product: {item.product.name}")
+            
+            # Update order status
+            order.status = 'cancelled'
+            order.save()
+            
+            logger.info(f"✅ Order {order.order_number} cancelled successfully by user {request.user.username}")
+            messages.success(request, f"Order {order.order_number} has been cancelled successfully.")
+            
+    except Exception as e:
+        logger.error(f"❌ Error cancelling order {order.order_number}: {str(e)}", exc_info=True)
+        messages.error(request, "An error occurred while cancelling the order. Please try again.")
+    
+    return redirect('orders:order_detail', order_id=order_id)
