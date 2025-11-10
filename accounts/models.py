@@ -242,17 +242,20 @@ class SaleSubscription(models.Model):
 
 class BrowsingHistory(models.Model):
     """
-    Logs products a user has viewed.
-    Used for the "Personalized Recommendations" feature.
+    Tracks products a user has viewed with view count.
+    One entry per user-product pair, updates timestamp on each view.
+    Used for "Recently Viewed" feature and analytics.
     """
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='browsing_history')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='browsing_history')
-    viewed_at = models.DateTimeField(auto_now_add=True)
+    viewed_at = models.DateTimeField(auto_now=True)
+    view_count = models.IntegerField(default=1)
     
     class Meta:
         verbose_name_plural = 'Browsing Histories'
         ordering = ['-viewed_at']
+        unique_together = ('user', 'product')
 
     def __str__(self):
         return f"{self.user.username} viewed {self.product.name}"

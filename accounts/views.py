@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.core.paginator import Paginator
 from products.models import Product
 from .models import Wishlist
 from .forms import CustomUserCreationForm, UserProfileForm
@@ -81,11 +82,28 @@ def profile(request):
     total_orders = 0
     wishlist_count = Wishlist.objects.filter(user=request.user).count()
     recent_orders = []
+    viewing_history = []
     
     try:
         from orders.models import Order
         total_orders = Order.objects.filter(user=request.user).count()
         recent_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
+    except:
+        pass
+    
+    # Get viewing history with pagination (10 per page)
+    viewing_history_list = []
+    viewing_history_page = None
+    try:
+        from .models import BrowsingHistory
+        viewing_history_list = BrowsingHistory.objects.filter(
+            user=request.user
+        ).select_related('product').prefetch_related('product__images').order_by('-viewed_at')
+        
+        # Paginate viewing history (8 items per page)
+        paginator = Paginator(viewing_history_list, 8)
+        page_number = request.GET.get('page', 1)
+        viewing_history_page = paginator.get_page(page_number)
     except:
         pass
 
@@ -135,6 +153,7 @@ def profile(request):
         "total_orders": total_orders,
         "wishlist_count": wishlist_count,
         "recent_orders": recent_orders,
+        "viewing_history_page": viewing_history_page,
     }
     return render(request, "accounts/profile.html", context)
 
@@ -242,11 +261,9 @@ def remove_from_wishlist(request, product_id):
     """Remove product from wishlist"""
     if request.method == "POST":
         product = get_object_or_404(Product, id=product_id)
-        # Try to find wishlist item - could be stored by product or product_variant
         try:
             wishlist_item = Wishlist.objects.get(user=request.user, product=product)
         except Wishlist.DoesNotExist:
-            # Maybe it was added with a specific variant, try that
             wishlist_item = Wishlist.objects.filter(
                 user=request.user, 
                 product_variant__product=product

@@ -353,7 +353,7 @@ class UserProfileForm(forms.ModelForm):
         widget=forms.TextInput(
             attrs={
                 "class": "form-control",
-                "placeholder": "+1 (555) 123-4567",
+                "placeholder": "+65",
                 "autocomplete": "tel",
             }
         ),

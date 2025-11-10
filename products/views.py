@@ -271,6 +271,20 @@ def product_detail(request, slug):
         is_active=True,
     )
 
+    # Track product view for authenticated users
+    if request.user.is_authenticated:
+        from accounts.models import BrowsingHistory
+        from django.db.models import F
+        
+        browsing_history, created = BrowsingHistory.objects.get_or_create(
+            user=request.user,
+            product=product
+        )
+        if not created:
+            # Increment view count if entry already exists
+            browsing_history.view_count = F('view_count') + 1
+            browsing_history.save(update_fields=['view_count', 'viewed_at'])
+
     # Check if this is a fashion category
     fashion_slugs = ['fashion', 'men', 'women', 'kids', 'clothing', 'apparel']
     category_slug_lower = product.category.slug.lower()

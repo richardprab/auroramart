@@ -40,14 +40,19 @@ def index(request):
     # Get user's wishlist items if authenticated
     user_wishlist_ids = []
     profile_completion_percentage = None
+    recently_viewed = []
     if request.user.is_authenticated:
-        from accounts.models import Wishlist
+        from accounts.models import Wishlist, BrowsingHistory
         user_wishlist_ids = list(
             Wishlist.objects.filter(user=request.user)
             .values_list('product_id', flat=True)
         )
         # Calculate profile completion percentage
         profile_completion_percentage = request.user.get_profile_completion_percentage()
+        # Get recently viewed products (last 8)
+        recently_viewed = BrowsingHistory.objects.filter(
+            user=request.user
+        ).select_related('product').prefetch_related('product__images', 'product__variants').order_by('-viewed_at')[:8]
 
     return render(
         request,
@@ -57,6 +62,7 @@ def index(request):
             "featured_products": featured_products,
             "user_wishlist_ids": user_wishlist_ids,
             "profile_completion_percentage": profile_completion_percentage,
+            "recently_viewed": recently_viewed,
         },
     )
 

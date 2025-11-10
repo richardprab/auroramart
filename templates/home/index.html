@@ -162,9 +162,37 @@
 </section>
 {% endif %}
 
+<!-- Recently Viewed Section -->
+{% if user.is_authenticated and recently_viewed %}
+<section class="py-16 bg-gray-50">
+    <div class="container mx-auto px-4">
+        <div class="mb-12 flex items-center justify-between">
+            <h2 class="text-3xl font-bold flex items-center gap-2">
+                <i data-lucide="eye" class="w-8 h-8 text-blue-600"></i>
+                Recently Viewed
+            </h2>
+            <a href="{% url 'accounts:profile' %}" class="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-2 transition-colors">
+                View All
+                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </a>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% for history_item in recently_viewed %}
+            {% with product=history_item.product %}
+            {% include 'products/product_card.html' with product=product %}
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <script>
     // Fetch ML-powered personalized recommendations
     document.addEventListener('DOMContentLoaded', function() {
+        // Stars are automatically rendered by StarRating module in base.html
+        
         const featuredFallback = document.getElementById('featured-fallback');
         const contentState = document.getElementById('personalized-content');
         const grid = document.getElementById('personalized-grid');
@@ -204,6 +232,11 @@
                     
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
+                    }
+                    
+                    // Render star ratings for dynamically added cards using StarRating module
+                    if (typeof StarRating !== 'undefined') {
+                        StarRating.render(grid);
                     }
                     
                     // Attach event listeners ONLY to new elements in the grid to avoid duplicates
@@ -304,8 +337,8 @@
                         <div class="mt-1 mb-2 h-6">
                             ${product.rating > 0 ? `
                             <div class="flex items-center gap-1">
-                                <div class="flex text-yellow-400">
-                                    ${'★'.repeat(Math.floor(product.rating || 0))}${'☆'.repeat(5 - Math.floor(product.rating || 0))}
+                                <div class="flex text-yellow-400 product-rating-stars" data-rating="${product.rating || 0}">
+                                    <!-- Stars will be rendered by JavaScript -->
                                 </div>
                                 <span class="text-sm font-medium text-gray-700">${(product.rating || 0).toFixed(1)}</span>
                                 ${product.review_count > 0 ? `<span class="text-xs text-gray-500">(${product.review_count})</span>` : ''}

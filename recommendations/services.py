@@ -174,6 +174,7 @@ class ProductRecommender:
     def get_similar_products(product, top_n=5):
         """
         Get products frequently bought with this product.
+        Uses all variant SKUs for fashion products to find better recommendations.
         
         Args:
             product: Product object
@@ -182,14 +183,40 @@ class ProductRecommender:
         Returns:
             List of Product objects
         """
-        recommended_skus = ProductRecommender.get_recommendations(product.sku, top_n=top_n)
+        # Get all variant SKUs for this product (important for fashion products)
+        variant_skus = list(product.variants.filter(is_active=True).values_list('sku', flat=True))
         
-        products = Product.objects.filter(
+        # If product has variants, use variant SKUs; otherwise use product SKU
+        if variant_skus:
+            # Query association rules with all variant SKUs
+            recommended_skus = ProductRecommender.get_recommendations(variant_skus, top_n=top_n * 2)
+        else:
+            # Fallback to product SKU if no variants
+            recommended_skus = ProductRecommender.get_recommendations(product.sku, top_n=top_n * 2)
+        
+        if not recommended_skus:
+            return []
+        
+        # Convert recommended SKUs to products
+        # First try to match by variant SKU, then by product SKU
+        from products.models import ProductVariant
+        
+        # Get products from variant SKUs
+        variant_products = Product.objects.filter(
+            variants__sku__in=recommended_skus,
+            is_active=True
+        ).distinct().exclude(id=product.id).select_related('category')
+        
+        # Also try matching by product SKU (for products without variants)
+        product_skus = Product.objects.filter(
             sku__in=recommended_skus,
             is_active=True
-        ).exclude(id=product.id).select_related('category')[:top_n]
+        ).exclude(id=product.id).select_related('category')
         
-        return list(products)
+        # Combine and deduplicate
+        all_products = list(variant_products) + [p for p in product_skus if p not in variant_products]
+        
+        return all_products[:top_n]
 
 
 class PersonalizedRecommendations:

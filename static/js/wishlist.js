@@ -341,7 +341,7 @@ const WishlistModule = {
                 const count = data.count || 0;
                 badge.textContent = count;
                 if (count > 0) {
-                    badge.classList.remove('hidden');
+                badge.classList.remove('hidden');
                 } else {
                     badge.classList.add('hidden');
                 }
