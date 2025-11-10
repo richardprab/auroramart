@@ -169,7 +169,7 @@ def get_personalized_recommendations(request):
             try:
                 default_variant = prod.get_lowest_priced_variant()
                 image = prod.get_primary_image()
-                
+            
                 # Safely get image URL
                 image_url = None
                 if image and hasattr(image, 'image') and image.image:

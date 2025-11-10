@@ -32,8 +32,28 @@ const ChatWidget = {
         }
         
         this.attachEventListeners();
+        this.attachProductChatListeners();
         this.loadSessions();
         this.startPolling();
+    },
+
+    attachProductChatListeners() {
+        // Listen for "Chat with Seller" button clicks
+        document.addEventListener('click', (e) => {
+            const chatWithSellerBtn = e.target.closest('#chat-with-seller-btn');
+            if (chatWithSellerBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const productId = chatWithSellerBtn.dataset.productId;
+                const productUrl = chatWithSellerBtn.dataset.productUrl;
+                const productName = chatWithSellerBtn.dataset.productName;
+                
+                if (productId && productUrl) {
+                    this.createProductChat(productId, productUrl, productName);
+                }
+            }
+        });
     },
 
     attachEventListeners() {
@@ -199,15 +219,28 @@ const ChatWidget = {
         }
     },
 
-    async createNewSession() {
+    async createNewSession(productId = null, productUrl = null, productName = null) {
         try {
-            const title = `Chat ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            let title = `Chat ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            if (productName) {
+                title = `Product Inquiry: ${productName}`;
+            }
+            
+            const requestBody = { subject: title };
+            if (productId) {
+                requestBody.product_id = productId;
+            }
+            if (productUrl) {
+                // Make product_url absolute if it's relative
+                const absoluteUrl = productUrl.startsWith('http') ? productUrl : `${window.location.origin}${productUrl}`;
+                requestBody.product_url = absoluteUrl;
+            }
             
             const response = await fetch('/chat/ajax/conversations/create/', {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin',
-                body: JSON.stringify({ subject: title })
+                body: JSON.stringify(requestBody)
             });
 
             if (response.ok) {
@@ -215,11 +248,13 @@ const ChatWidget = {
                 this.currentSession = newSession;
                 this.sessions.unshift(newSession); // Add to beginning of array
                 this.updateSessionSelector();
-                this.displayWelcomeMessage();
+                
+                // Load messages to show the initial product link message
+                await this.loadMessages();
                 
                 // Show toast notification
                 if (window.AuroraMart && window.AuroraMart.toast) {
-                    window.AuroraMart.toast('New chat session created', 'success');
+                    window.AuroraMart.toast('Chat session created', 'success');
                 }
             } else {
                 console.error('Failed to create session:', response.status);
@@ -227,6 +262,16 @@ const ChatWidget = {
         } catch (error) {
             console.error('Error creating session:', error);
         }
+    },
+
+    async createProductChat(productId, productUrl, productName) {
+        // Open chat widget first
+        if (!this.isOpen) {
+            await this.openChat();
+        }
+        
+        // Create new session with product info
+        await this.createNewSession(productId, productUrl, productName);
     },
 
     async loadMessages() {

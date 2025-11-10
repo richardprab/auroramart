@@ -48,16 +48,55 @@ def create_conversation(request):
     try:
         data = json.loads(request.body)
         subject = data.get('subject', 'New Conversation')
+        product_id = data.get('product_id')
+        product_url = data.get('product_url')
         
         # Auto-assign to staff using round-robin
         from adminpanel.views import get_next_assigned_staff
         next_staff = get_next_assigned_staff()
         
+        # Get product if product_id is provided
+        product = None
+        if product_id:
+            from products.models import Product
+            try:
+                product = Product.objects.get(id=product_id, is_active=True)
+            except Product.DoesNotExist:
+                pass
+        
         conversation = ChatConversation.objects.create(
             user=request.user,
             subject=subject,
             admin=next_staff,
+            product=product,
+            message_type='product_chat' if product else 'contact_us',
         )
+        
+        # If product_url is provided, send initial message with product link
+        initial_message = None
+        if product_url:
+            # Make sure URL is absolute
+            if not product_url.startswith('http'):
+                from django.contrib.sites.shortcuts import get_current_site
+                current_site = get_current_site(request)
+                product_url = f"{request.scheme}://{current_site.domain}{product_url}"
+            
+            initial_message = f"Hi! I'm interested in this product: {product_url}"
+            ChatMessage.objects.create(
+                conversation=conversation,
+                sender=request.user,
+                content=initial_message
+            )
+        
+        # Get messages for response
+        messages_data = []
+        for msg in conversation.messages.all().select_related('sender').order_by('created_at'):
+            messages_data.append({
+                'id': msg.id,
+                'content': msg.content,
+                'sender': msg.sender.id,
+                'created_at': msg.created_at.isoformat(),
+            })
         
         return JsonResponse({
             'id': conversation.id,
@@ -68,7 +107,7 @@ def create_conversation(request):
             'admin_has_unread': conversation.admin_has_unread,
             'created_at': conversation.created_at.isoformat(),
             'updated_at': conversation.updated_at.isoformat(),
-            'messages': [],
+            'messages': messages_data,
         }, status=201)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)

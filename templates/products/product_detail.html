@@ -60,18 +60,11 @@
 
             <!-- Rating -->
             <div class="flex items-center mb-4 mt-1">
-                <div class="flex text-yellow-400" id="product-rating-stars" data-rating="{{ product.rating }}">
+                <div class="flex text-yellow-400 product-rating-stars" data-rating="{{ product.rating }}">
                     <!-- Stars will be rendered by JavaScript -->
                 </div>
                 <span class="text-gray-600 ml-2">{{ product.rating|floatformat:1 }}</span>
             </div>
-            
-            <script>
-                // Use StarRating module to render stars
-                if (typeof StarRating !== 'undefined') {
-                    StarRating.render();
-                }
-            </script>
 
             <!-- Price -->
             {% if lowest_variant %}
@@ -189,17 +182,28 @@
                 {% endif %}
 
                 {% if user.is_authenticated %}
-                <form action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" method="post" data-wishlist-toggle>
-                    {% csrf_token %}
-                    <button type="submit" data-product-id="{{ product.id }}"
-                        class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition">
-                        {% if is_in_wishlist %}
-                        <i data-lucide="heart" class="w-6 h-6 text-red-500 fill-current"></i>
-                        {% else %}
-                        <i data-lucide="heart" class="w-6 h-6"></i>
-                        {% endif %}
+                <div class="flex gap-2">
+                    <form action="{% url 'accounts:add_to_wishlist' product_id=product.id %}" method="post" data-wishlist-toggle>
+                        {% csrf_token %}
+                        <button type="submit" data-product-id="{{ product.id }}"
+                            class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition">
+                            {% if is_in_wishlist %}
+                            <i data-lucide="heart" class="w-6 h-6 text-red-500 fill-current"></i>
+                            {% else %}
+                            <i data-lucide="heart" class="w-6 h-6"></i>
+                            {% endif %}
+                        </button>
+                    </form>
+                    <button type="button" 
+                        id="chat-with-seller-btn"
+                        data-product-id="{{ product.id }}"
+                        data-product-url="{% url 'products:product_detail' slug=product.slug %}"
+                        data-product-name="{{ product.name }}"
+                        class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
+                        title="Chat with Seller">
+                        <i data-lucide="message-circle" class="w-6 h-6"></i>
                     </button>
-                </form>
+                </div>
                 {% endif %}
             </div>
         </div>

@@ -24,10 +24,11 @@ install:
 	@echo "✅ Dependencies installed successfully!"
 
 # Create migrations for all apps (in dependency order)
+# Note: accounts migrations include BrowsingHistory, Wishlist, Address, User, etc.
 migrations:
 	@echo "Creating migrations..."
 	python manage.py makemigrations products
-	python manage.py makemigrations accounts
+	python manage.py makemigrations accounts  # Includes BrowsingHistory (view_count, unique_together)
 	python manage.py makemigrations chat
 	python manage.py makemigrations cart
 	python manage.py makemigrations orders
