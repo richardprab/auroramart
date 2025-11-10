@@ -152,7 +152,7 @@
                             <div class="lg:col-span-5">
                                 <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                                     <i data-lucide="package" class="w-4 h-4 mr-2 text-blue-600"></i>
-                                    <span class="order-item-count" data-order-id="{{ order.id }}">Items</span>
+                                    Items ({{ order.total_item_quantity }})
                                 </h4>
                                 <div class="flex flex-wrap gap-2">
                                     {% for item in order.items.all|slice:":5" %}
@@ -305,18 +305,6 @@ document.addEventListener('DOMContentLoaded', function() {
         lucide.createIcons();
     }
 
-    // Calculate total item quantities for each order
-    document.querySelectorAll('.order-item-count').forEach(function(countElement) {
-        const orderCard = countElement.closest('.order-card');
-        const itemDivs = orderCard.querySelectorAll('[data-quantity]');
-        let totalQuantity = 0;
-        
-        itemDivs.forEach(function(div) {
-            totalQuantity += parseInt(div.getAttribute('data-quantity')) || 0;
-        });
-        
-        countElement.textContent = 'Items (' + totalQuantity + ')';
-    });
 
     // Filter functionality
     const filterTabs = document.querySelectorAll('.filter-tab');

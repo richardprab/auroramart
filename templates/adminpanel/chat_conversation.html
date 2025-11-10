@@ -1,8 +1,8 @@
 {% extends 'adminpanel/base.html' %}
 
-{% block title %}Chat - {{ conversation.subject }}{% endblock %}
+{% block admin_title %}Chat - {{ conversation.subject }}{% endblock %}
 
-{% block extra_css %}
+{% block admin_extra_css %}
 <style>
     .conversation-container {
         max-width: 900px;
@@ -10,53 +10,55 @@
     }
 
     .conversation-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
         color: white;
-        padding: 25px;
-        border-radius: 12px;
-        margin-bottom: 25px;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        margin-bottom: 1.5rem;
     }
 
     .conversation-header h3 {
-        font-size: 22px;
-        margin-bottom: 15px;
+        font-size: 1.375rem;
+        margin-bottom: 1rem;
+        font-weight: 700;
     }
 
     .conversation-info {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        font-size: 14px;
+        gap: 1rem;
+        font-size: 0.875rem;
     }
 
     .info-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 0.5rem;
     }
 
     .search-link {
         color: white;
         text-decoration: underline;
-        margin-left: 5px;
+        margin-left: 0.25rem;
         cursor: pointer;
+        opacity: 0.9;
     }
 
     .search-link:hover {
-        opacity: 0.8;
+        opacity: 1;
     }
 
     .messages-container {
-        background: #f8f9fa;
-        border-radius: 12px;
-        padding: 25px;
-        margin-bottom: 25px;
+        background: #f9fafb;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
         max-height: 500px;
         overflow-y: auto;
     }
 
     .message-bubble {
-        margin-bottom: 20px;
+        margin-bottom: 1.25rem;
         display: flex;
         flex-direction: column;
     }
@@ -70,116 +72,138 @@
     }
 
     .message-sender {
-        font-size: 12px;
-        color: #666;
-        margin-bottom: 5px;
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
         font-weight: 600;
     }
 
     .message-content {
         background: white;
-        padding: 15px 20px;
-        border-radius: 12px;
+        padding: 0.938rem 1.25rem;
+        border-radius: 0.75rem;
         max-width: 70%;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
 
     .message-bubble.staff .message-content {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
         color: white;
     }
 
     .message-time {
-        font-size: 11px;
-        color: #999;
-        margin-top: 5px;
+        font-size: 0.688rem;
+        color: #9ca3af;
+        margin-top: 0.25rem;
     }
 
     .message-bubble.staff .message-time {
-        color: #ccc;
+        color: #d1d5db;
     }
 
     .reply-form {
         background: white;
-        padding: 25px;
-        border-radius: 12px;
-        border: 2px solid #e0e0e0;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        border: 2px solid #e5e7eb;
     }
 
     .reply-form h4 {
-        margin-bottom: 15px;
-        color: #333;
+        margin-bottom: 1rem;
+        color: #1f2937;
+        font-weight: 600;
     }
 
     .form-group {
-        margin-bottom: 15px;
+        margin-bottom: 1rem;
     }
 
     .form-group label {
         display: block;
-        margin-bottom: 8px;
-        color: #555;
+        margin-bottom: 0.5rem;
+        color: #374151;
         font-weight: 500;
+        font-size: 0.875rem;
     }
 
     .form-control {
         width: 100%;
-        padding: 12px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
         font-family: inherit;
         resize: vertical;
     }
 
     .form-control:focus {
         outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
     .btn-submit {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
         color: white;
-        padding: 12px 30px;
+        padding: 0.75rem 1.875rem;
         border: none;
-        border-radius: 8px;
-        font-size: 15px;
+        border-radius: 0.5rem;
+        font-size: 0.938rem;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.2s;
     }
 
     .btn-submit:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
     }
 
     .status-info {
         display: inline-block;
-        padding: 6px 15px;
-        border-radius: 20px;
-        font-size: 13px;
+        padding: 0.375rem 0.938rem;
+        border-radius: 1.25rem;
+        font-size: 0.813rem;
         font-weight: 600;
-        margin-left: 10px;
+        margin-left: 0.625rem;
     }
 
     .status-pending {
-        background: #fff3cd;
-        color: #856404;
+        background: #fef3c7;
+        color: #92400e;
     }
 
     .status-replied {
-        background: #d4edda;
-        color: #155724;
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        background: #3b82f6;
+        color: white;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        margin-bottom: 1.25rem;
+        transition: all 0.2s;
+        font-weight: 500;
+    }
+
+    .back-button:hover {
+        background: #2563eb;
+        transform: translateX(-4px);
     }
 </style>
 {% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="conversation-container">
-    <a href="{% url 'adminpanel:customer_support' %}" class="back-to-chat">
-        ← Back to Messages
+    <a href="{% url 'adminpanel:customer_support' %}" class="back-button">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        Back to Messages
     </a>
 
     <div class="conversation-header">
@@ -191,29 +215,40 @@
         </h3>
         <div class="conversation-info">
             <div class="info-item">
-                <span>👤 Customer ID: {{ conversation.user.username|upper }}</span>
+                <i data-lucide="user" class="w-4 h-4"></i>
+                <span>Customer ID: {{ conversation.user.username|upper }}</span>
                 <a href="{% url 'adminpanel:order_management' %}?search={{ conversation.user.username }}" 
-                   class="search-link" title="Search Customer Orders">🔍</a>
+                   class="search-link" title="Search Customer Orders">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </a>
             </div>
             <div class="info-item">
-                <span>📧 Email: {{ conversation.user.email }}</span>
+                <i data-lucide="mail" class="w-4 h-4"></i>
+                <span>Email: {{ conversation.user.email }}</span>
             </div>
             {% if conversation.product %}
             <div class="info-item">
-                <span>📦 Product: {{ conversation.product.slug|upper }}</span>
+                <i data-lucide="package" class="w-4 h-4"></i>
+                <span>Product: {{ conversation.product.slug|upper }}</span>
                 <a href="{% url 'adminpanel:products' %}?search={{ conversation.product.slug }}" 
-                   class="search-link" title="View Product">🔍</a>
+                   class="search-link" title="View Product">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </a>
             </div>
             {% endif %}
             {% if latest_order %}
             <div class="info-item">
-                <span>📋 Order: ORD{{ latest_order.id }}</span>
+                <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                <span>Order: ORD{{ latest_order.id }}</span>
                 <a href="{% url 'adminpanel:order_management' %}?search=ORD{{ latest_order.id }}" 
-                   class="search-link" title="View Order">🔍</a>
+                   class="search-link" title="View Order">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </a>
             </div>
             {% endif %}
             <div class="info-item">
-                <span>🏷️ Type: {{ conversation.get_message_type_display }}</span>
+                <i data-lucide="tag" class="w-4 h-4"></i>
+                <span>Type: {{ conversation.get_message_type_display }}</span>
             </div>
         </div>
     </div>
@@ -252,8 +287,16 @@
                     required
                     placeholder="Type your reply here..."></textarea>
             </div>
-            <button type="submit" class="btn-submit">Send Reply</button>
+            <button type="submit" class="btn-submit">
+                <i data-lucide="send" class="w-4 h-4 inline"></i> Send Reply
+            </button>
         </form>
     </div>
 </div>
+
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>
 {% endblock %}
