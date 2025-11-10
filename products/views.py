@@ -1,13 +1,18 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Q, Min, Prefetch
 from django.core.paginator import Paginator
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from products.models import (
     Product,
     ProductVariant,
     ProductImage,
     Category,
+    Review,
 )
+from products.forms import ReviewForm
 from django.http import JsonResponse
+from orders.models import Order
 
 
 def product_list(request):
@@ -365,6 +370,37 @@ def product_detail(request, slug):
             product=product
         ).exists()
 
+    # Review functionality
+    reviews_list = product.reviews.select_related('user').all()
+    
+    # Sort reviews based on query parameter
+    sort_by = request.GET.get('sort_by', 'recent')
+    if sort_by == 'highest':
+        reviews_list = reviews_list.order_by('-rating', '-created_at')
+    elif sort_by == 'lowest':
+        reviews_list = reviews_list.order_by('rating', '-created_at')
+    else:  # 'recent' (default)
+        reviews_list = reviews_list.order_by('-created_at')
+    
+    # Check if user can review this product
+    can_review = False
+    existing_review = None
+    has_purchased = False
+    
+    if request.user.is_authenticated:
+        # Check if user has an existing review
+        existing_review = product.reviews.filter(user=request.user).first()
+        
+        # Check if user has a delivered/completed order containing this product
+        has_purchased = Order.objects.filter(
+            user=request.user,
+            status__in=['delivered', 'completed'],
+            items__product=product
+        ).exists()
+        
+        # User can review if they've purchased and don't have a review yet
+        can_review = has_purchased
+
     context = {
         "product": product,
         "is_fashion_category": is_fashion_category,
@@ -373,6 +409,12 @@ def product_detail(request, slug):
         "selected_color": selected_color,
         "selected_size": selected_size,
         "is_in_wishlist": is_in_wishlist,
+        "reviews": reviews_list,
+        "review_count": reviews_list.count(),
+        "can_review": can_review,
+        "existing_review": existing_review,
+        "has_purchased": has_purchased,
+        "sort_by": sort_by,
     }
 
     return render(request, "products/product_detail.html", context)
@@ -455,3 +497,64 @@ def product_detail_ajax(request, product_id):
         return JsonResponse({'error': 'Product not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def submit_review(request, slug):
+    """Submit or edit a product review"""
+    product = get_object_or_404(Product, slug=slug, is_active=True)
+    
+    # Check if user has purchased this product
+    has_purchased = Order.objects.filter(
+        user=request.user,
+        status__in=['delivered', 'completed'],
+        items__product=product
+    ).exists()
+    
+    if not has_purchased:
+        messages.error(request, "You can only review products you have purchased and received.")
+        return redirect('products:product_detail', slug=slug)
+    
+    # Check if user already has a review
+    existing_review = Review.objects.filter(user=request.user, product=product).first()
+    
+    if request.method == 'POST':
+        form = ReviewForm(request.POST, instance=existing_review)
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.user = request.user
+            review.product = product
+            review.is_verified_purchase = True
+            review.save()
+            
+            if existing_review:
+                messages.success(request, "Your review has been updated successfully!")
+            else:
+                messages.success(request, "Thank you for your review!")
+            
+            return redirect('products:product_detail', slug=slug)
+    else:
+        form = ReviewForm(instance=existing_review)
+    
+    context = {
+        'product': product,
+        'form': form,
+        'existing_review': existing_review,
+    }
+    
+    return render(request, 'products/submit_review.html', context)
+
+
+@login_required
+def delete_review(request, review_id):
+    """Delete a user's review"""
+    review = get_object_or_404(Review, id=review_id, user=request.user)
+    product_slug = review.product.slug
+    
+    if request.method == 'POST':
+        review.delete()
+        messages.success(request, "Your review has been deleted.")
+        return redirect('products:product_detail', slug=product_slug)
+    
+    # If not POST, redirect back to product page
+    return redirect('products:product_detail', slug=product_slug)

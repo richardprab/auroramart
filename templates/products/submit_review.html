@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ existing_review|yesno:"Edit,Write a" }} Review - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+    <!-- Back to Product -->
+    <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline mb-6 inline-block">
+        ← Back to {{ product.name }}
+    </a>
+    
+    <!-- Page Header -->
+    <h1 class="text-3xl font-bold mb-6">
+        {% if existing_review %}Edit Your Review{% else %}Write a Review{% endif %}
+    </h1>
+    
+    <!-- Product Info -->
+    <div class="bg-gray-50 p-4 rounded-lg mb-6 flex items-center gap-4">
+        {% with image=product.get_primary_image %}
+        {% if image %}
+        <img src="{{ image.image.url }}" alt="{{ product.name }}" class="w-20 h-20 object-cover rounded">
+        {% endif %}
+        {% endwith %}
+        <div>
+            <h2 class="font-semibold text-lg">{{ product.name }}</h2>
+            <p class="text-gray-600 text-sm">{{ product.brand }}</p>
+        </div>
+    </div>
+    
+    <!-- Review Form -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Star Rating Input -->
+        <div>
+            <label class="block text-sm font-semibold mb-2">Your Rating *</label>
+            <div class="flex items-center gap-2">
+                <div id="star-rating-input" class="flex gap-1">
+                    <button type="button" class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition" data-rating="1">★</button>
+                    <button type="button" class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition" data-rating="2">★</button>
+                    <button type="button" class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition" data-rating="3">★</button>
+                    <button type="button" class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition" data-rating="4">★</button>
+                    <button type="button" class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition" data-rating="5">★</button>
+                </div>
+                <span id="rating-text" class="text-gray-600 ml-2"></span>
+            </div>
+            {{ form.rating }}
+            {% if form.rating.errors %}
+            <p class="text-red-500 text-sm mt-1">{{ form.rating.errors|first }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Title -->
+        <div>
+            <label for="id_title" class="block text-sm font-semibold mb-2">Review Title *</label>
+            {{ form.title }}
+            {% if form.title.errors %}
+            <p class="text-red-500 text-sm mt-1">{{ form.title.errors|first }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Comment -->
+        <div>
+            <label for="id_comment" class="block text-sm font-semibold mb-2">Your Review *</label>
+            {{ form.comment }}
+            {% if form.comment.errors %}
+            <p class="text-red-500 text-sm mt-1">{{ form.comment.errors|first }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Submit Buttons -->
+        <div class="flex gap-4">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                {% if existing_review %}Update Review{% else %}Submit Review{% endif %}
+            </button>
+            <a href="{% url 'products:product_detail' product.slug %}" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const starButtons = document.querySelectorAll('.star-btn');
+    const ratingInput = document.getElementById('id_rating');
+    const ratingText = document.getElementById('rating-text');
+    let selectedRating = parseInt(ratingInput.value) || 0;
+    
+    const ratingLabels = {
+        1: 'Poor',
+        2: 'Fair',
+        3: 'Good',
+        4: 'Very Good',
+        5: 'Excellent'
+    };
+    
+    // Initialize with existing rating if editing
+    if (selectedRating > 0) {
+        updateStars(selectedRating);
+    }
+    
+    starButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            selectedRating = parseInt(this.dataset.rating);
+            updateStars(selectedRating);
+            ratingInput.value = selectedRating;
+        });
+        
+        button.addEventListener('mouseenter', function() {
+            const hoverRating = parseInt(this.dataset.rating);
+            updateStars(hoverRating);
+        });
+    });
+    
+    document.getElementById('star-rating-input').addEventListener('mouseleave', function() {
+        updateStars(selectedRating);
+    });
+    
+    function updateStars(rating) {
+        starButtons.forEach((btn, index) => {
+            if (index < rating) {
+                btn.classList.remove('text-gray-300');
+                btn.classList.add('text-yellow-400');
+            } else {
+                btn.classList.remove('text-yellow-400');
+                btn.classList.add('text-gray-300');
+            }
+        });
+        
+        if (rating > 0) {
+            ratingText.textContent = ratingLabels[rating];
+        } else {
+            ratingText.textContent = '';
+        }
+    }
+});
+</script>
+{% endblock %}
+
