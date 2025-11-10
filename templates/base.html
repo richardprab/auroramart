@@ -140,8 +140,7 @@
                         <div id="user-menu"
                             class="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-2xl py-2 hidden z-50 border border-gray-100">
                             <div class="px-5 py-3 border-b border-gray-100">
-                                <p class="text-sm font-semibold text-gray-900 text-center">{{ user.username }}</p>
-                                <p class="text-xs text-gray-500 text-center">{{ user.email }}</p>
+                                <p class="text-sm font-semibold text-gray-900 text-center">{{ user.get_full_name|default:user.username }}</p>
                             </div>
                             <div class="px-2 py-2">
                                 <a href="{% url 'accounts:profile' %}"
@@ -206,108 +205,124 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 text-white mt-16">
+    <footer class="bg-gray-900 text-white mt-16">
         <div class="container mx-auto px-4 py-12">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 <!-- About -->
                 <div>
-                    <h3 class="text-xl font-bold mb-4">AuroraMart</h3>
-                    <p class="text-gray-400 text-sm mb-4">
-                        Your trusted online marketplace for quality products at great prices.
+                    <div class="flex items-center gap-3 mb-4">
+                        <img src="{% static 'images/logo_without_text.png' %}" alt="AuroraMart Logo" class="h-8 w-8 object-contain">
+                        <h3 class="text-xl font-bold mt-5">AuroraMart</h3>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-6 leading-relaxed">
+                        Your trusted online marketplace for quality products at great prices. Shop with confidence!
                     </p>
-                    <div class="flex space-x-4">
-                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                    <div class="flex space-x-3">
+                        <a href="#" class="w-10 h-10 bg-gray-800 hover:bg-blue-600 rounded-lg flex items-center justify-center transition-colors">
                             <i data-lucide="facebook" class="w-5 h-5"></i>
                         </a>
-                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                        <a href="#" class="w-10 h-10 bg-gray-800 hover:bg-sky-500 rounded-lg flex items-center justify-center transition-colors">
                             <i data-lucide="twitter" class="w-5 h-5"></i>
                         </a>
-                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                        <a href="#" class="w-10 h-10 bg-gray-800 hover:bg-pink-600 rounded-lg flex items-center justify-center transition-colors">
                             <i data-lucide="instagram" class="w-5 h-5"></i>
                         </a>
-                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
-                            <i data-lucide="linkedin" class="w-5 h-5"></i>
+                        <a href="#" class="w-10 h-10 bg-gray-800 hover:bg-red-600 rounded-lg flex items-center justify-center transition-colors">
+                            <i data-lucide="youtube" class="w-5 h-5"></i>
                         </a>
                     </div>
                 </div>
 
-                <!-- Quick Links -->
+                <!-- Shop -->
                 <div>
-                    <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
-                    <ul class="space-y-2">
-                        <li><a href="{% url 'home:index' %}"
-                                class="text-gray-400 hover:text-white flex items-center gap-2">
-                                <i data-lucide="home" class="w-4 h-4"></i>
-                                Home
-                            </a></li>
-                        <li><a href="{% url 'products:product_list' %}"
-                                class="text-gray-400 hover:text-white flex items-center gap-2">
-                                <i data-lucide="package" class="w-4 h-4"></i>
-                                Products
-                            </a></li>
-                        <li><a href="{% url 'home:about' %}"
-                                class="text-gray-400 hover:text-white flex items-center gap-2">
-                                <i data-lucide="info" class="w-4 h-4"></i>
-                                About Us
-                            </a></li>
-                        <li><a href="{% url 'home:contact' %}"
-                                class="text-gray-400 hover:text-white flex items-center gap-2">
-                                <i data-lucide="mail" class="w-4 h-4"></i>
-                                Contact
-                            </a></li>
+                    <h4 class="text-lg font-semibold mb-4">Shop</h4>
+                    <ul class="space-y-2.5">
+                        <li>
+                            <a href="{% url 'products:product_list' %}" class="text-gray-400 hover:text-white transition-colors text-sm">
+                                All Products
+                            </a>
+                        </li>
+                        {% if user.is_authenticated %}
+                        <li>
+                            <a href="{% url 'orders:order_list' %}" class="text-gray-400 hover:text-white transition-colors text-sm">
+                                My Orders
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'accounts:wishlist' %}" class="text-gray-400 hover:text-white transition-colors text-sm">
+                                My Wishlist
+                            </a>
+                        </li>
+                        {% else %}
+                        <li>
+                            <a href="{% url 'accounts:login' %}" class="text-gray-400 hover:text-white transition-colors text-sm">
+                                Sign In
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'accounts:register' %}" class="text-gray-400 hover:text-white transition-colors text-sm">
+                                Create Account
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </div>
 
-                <!-- Customer Service -->
+                <!-- Company -->
                 <div>
-                    <h4 class="text-lg font-semibold mb-4">Customer Service</h4>
-                    <ul class="space-y-2">
-                        <li><a href="#" class="text-gray-400 hover:text-white flex items-center gap-2">
-                                <i data-lucide="help-circle" class="w-4 h-4"></i>
-                                Help Center
-                            </a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white flex items-center gap-2">
-                                <i data-lucide="truck" class="w-4 h-4"></i>
-                                Track Order
-                            </a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white flex items-center gap-2">
-                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-                                Returns
-                            </a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white flex items-center gap-2">
-                                <i data-lucide="package-check" class="w-4 h-4"></i>
-                                Shipping Info
-                            </a></li>
+                    <h4 class="text-lg font-semibold mb-4">Company</h4>
+                    <ul class="space-y-2.5">
+                        <li>
+                            <a href="{% url 'home:about' %}" class="text-gray-400 hover:text-white transition-colors text-sm">
+                                About Us
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'home:contact' %}" class="text-gray-400 hover:text-white transition-colors text-sm">
+                                Contact Us
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'home:faq' %}" class="text-gray-400 hover:text-white transition-colors text-sm">
+                                FAQ
+                            </a>
+                        </li>
                     </ul>
                 </div>
 
                 <!-- Contact Info -->
                 <div>
-                    <h4 class="text-lg font-semibold mb-4">Contact Us</h4>
-                    <ul class="space-y-3 text-gray-400 text-sm">
-                        <li class="flex items-center gap-2">
-                            <i data-lucide="mail" class="w-4 h-4"></i>
-                            support@auroramart.com
+                    <h4 class="text-lg font-semibold mb-4">Get in Touch</h4>
+                    <ul class="space-y-3">
+                        <li>
+                            <a href="mailto:support@auroramart.com" class="flex items-start gap-2 text-gray-400 hover:text-white transition-colors text-sm group">
+                                <i data-lucide="mail" class="w-4 h-4 mt-0.5 flex-shrink-0 group-hover:text-blue-400"></i>
+                                <span>support@auroramart.com</span>
+                            </a>
                         </li>
-                        <li class="flex items-center gap-2">
-                            <i data-lucide="phone" class="w-4 h-4"></i>
-                            1-800-AURORA
+                        <li>
+                            <a href="tel:1-800-287-6721" class="flex items-start gap-2 text-gray-400 hover:text-white transition-colors text-sm group">
+                                <i data-lucide="phone" class="w-4 h-4 mt-0.5 flex-shrink-0 group-hover:text-blue-400"></i>
+                                <span>1-800-AURORA (287-6721)</span>
+                            </a>
                         </li>
-                        <li class="flex items-center gap-2">
-                            <i data-lucide="map-pin" class="w-4 h-4"></i>
-                            123 Commerce St, City, State 12345
+                        <li class="flex items-start gap-2 text-gray-400 text-sm">
+                            <i data-lucide="clock" class="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-500"></i>
+                            <span>Mon-Fri: 9AM-6PM<br>Sat: 10AM-4PM</span>
                         </li>
                     </ul>
                 </div>
             </div>
 
             <!-- Bottom Bar -->
-            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400 text-sm">
-                <p>&copy; 2025 AuroraMart. All rights reserved.</p>
-                <div class="mt-2 space-x-4">
-                    <a href="#" class="hover:text-white">Privacy Policy</a>
-                    <a href="#" class="hover:text-white">Terms of Service</a>
-                    <a href="#" class="hover:text-white">Cookie Policy</a>
+            <div class="border-t border-gray-800 mt-10 pt-8">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-400">
+                    <p>&copy; 2025 AuroraMart. All rights reserved.</p>
+                    <div class="flex flex-wrap justify-center gap-6">
+                        <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
+                        <a href="#" class="hover:text-white transition-colors">Terms of Service</a>
+                        <a href="#" class="hover:text-white transition-colors">Cookie Policy</a>
+                    </div>
                 </div>
             </div>
         </div>

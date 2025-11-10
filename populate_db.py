@@ -333,7 +333,7 @@ def create_sample_users():
             household_size = int(row['household_size']) if row['household_size'] else None
             has_children = bool(int(row['has_children'])) if row['has_children'] else None
             monthly_income_sgd = Decimal(row['monthly_income_sgd']) if row['monthly_income_sgd'] else None
-
+            
             username = f"user_{idx:03d}"
             email = f"user{idx:03d}@auroramart.com"
             
