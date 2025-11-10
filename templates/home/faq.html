@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}FAQ - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-b from-blue-50 to-white min-h-screen">
+    <div class="container mx-auto px-4 py-16">
+        <!-- Header -->
+        <div class="text-center mb-16">
+            <div class="flex justify-center mb-6">
+                <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
+                    <i data-lucide="help-circle" class="w-10 h-10 text-white"></i>
+                </div>
+            </div>
+            <h1 class="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Frequently Asked Questions</h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">Find answers to common questions about shopping with AuroraMart</p>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="max-w-6xl mx-auto mb-12">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {% for faq_category in faqs %}
+                <a href="#{{ faq_category.category|slugify }}" 
+                   class="group bg-white rounded-xl shadow-md hover:shadow-xl p-6 border border-gray-100 hover:border-blue-300 transition-all">
+                    <div class="flex flex-col items-center text-center">
+                        <div class="flex items-center justify-center mb-4">
+                            <i data-lucide="{{ faq_category.icon }}" class="w-12 h-12 text-blue-600 group-hover:text-purple-600 transition"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 group-hover:text-blue-600 transition">{{ faq_category.category }}</h3>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- FAQ Categories -->
+        <div class="max-w-4xl mx-auto space-y-8">
+            {% for faq_category in faqs %}
+            <div id="{{ faq_category.category|slugify }}" class="scroll-mt-4">
+                <!-- Category Header -->
+                <div class="bg-white rounded-t-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="{{ faq_category.icon }}" class="w-6 h-6 text-blue-600"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900">{{ faq_category.category }}</h2>
+                    </div>
+                </div>
+
+                <!-- Questions -->
+                <div class="bg-white rounded-b-2xl shadow-lg border-x border-b border-gray-100 divide-y divide-gray-100">
+                    {% for qa in faq_category.questions %}
+                    <details class="group">
+                        <summary class="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition">
+                            <h3 class="text-lg font-semibold text-gray-900 pr-4">{{ qa.question }}</h3>
+                            <div class="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-500 transition-transform group-open:rotate-180"></i>
+                            </div>
+                        </summary>
+                        <div class="px-6 pb-6 pt-2">
+                            <p class="text-gray-600 leading-relaxed">{{ qa.answer }}</p>
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Still Have Questions -->
+        <div class="max-w-4xl mx-auto mt-16">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-xl p-12 text-white text-center">
+                <div class="flex justify-center mb-6">
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <i data-lucide="message-circle" class="w-8 h-8"></i>
+                    </div>
+                </div>
+                <h2 class="text-3xl font-bold mb-4">Still Have Questions?</h2>
+                <p class="text-blue-100 mb-8 text-lg">Can't find what you're looking for? Our support team is here to help!</p>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <a href="{% url 'home:contact' %}" 
+                       class="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition shadow-lg">
+                        <i data-lucide="mail" class="w-5 h-5"></i>
+                        Contact Us
+                    </a>
+                    <a href="#" 
+                       class="inline-flex items-center gap-2 bg-white bg-opacity-10 text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-20 transition backdrop-blur-sm">
+                        <i data-lucide="message-square" class="w-5 h-5"></i>
+                        Live Chat
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Custom style for details marker */
+    details > summary {
+        list-style: none;
+    }
+    details > summary::-webkit-details-marker {
+        display: none;
+    }
+</style>
+{% endblock %}
+

@@ -23,16 +23,16 @@ install:
 	pip install -r requirements.txt
 	@echo "✅ Dependencies installed successfully!"
 
-# Create migrations for all apps
+# Create migrations for all apps (in dependency order)
 migrations:
 	@echo "Creating migrations..."
-	python manage.py makemigrations accounts
 	python manage.py makemigrations products
+	python manage.py makemigrations accounts
+	python manage.py makemigrations chat
 	python manage.py makemigrations cart
 	python manage.py makemigrations orders
 	python manage.py makemigrations notifications
-	python manage.py makemigrations home
-	python manage.py makemigrations chat
+	python manage.py makemigrations adminpanel
 	@echo "✅ Migrations created successfully!"
 
 # Apply migrations

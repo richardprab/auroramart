@@ -9,10 +9,10 @@ import base64
 import requests
 
 from products.models import Product, ProductVariant, ProductImage, Category
-from accounts.models import ChatConversation, ChatMessage, User
+from accounts.models import User
+from chat.models import ChatConversation, ChatMessage
 from orders.models import Order, OrderItem
 
-# ==================== HELPER FUNCTIONS ====================
 
 def get_next_assigned_staff():
     """

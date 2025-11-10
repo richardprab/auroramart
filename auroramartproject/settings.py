@@ -37,7 +37,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",
     "accounts",
+    "chat",
     "home",
     "products",
     "cart",
@@ -113,7 +115,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Singapore"  # GMT+8
 
 USE_I18N = True
 
@@ -148,3 +150,15 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 TAX_RATE = 0.10
 SHIPPING_COST = 10.00
 FREE_SHIPPING_THRESHOLD = 100.00
+
+# Django Channels configuration
+ASGI_APPLICATION = "auroramartproject.asgi.application"
+
+# Channel layers configuration
+# For development, use in-memory channel layer
+# For production, use Redis: pip install channels-redis
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}

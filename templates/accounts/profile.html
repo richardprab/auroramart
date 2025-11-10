@@ -306,14 +306,6 @@
                     <h1 class="text-3xl font-bold text-gray-800 truncate">{{ user.get_full_name }}</h1>
                     <p class="text-gray-600">@{{ user.username }}</p>
                     <p class="text-gray-500">{{ user.email }}</p>
-                    <!-- # COMMENTED OUT: Preferred category is redundant - ML model should be primary
-                    <div class="flex items-center gap-3 flex-wrap">
-                        <button onclick="openShoppingInterestModal()" class="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full text-sm font-medium hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-md hover:shadow-lg">
-                            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
-                            <span>{% if user.preferred_category %}{{ user.preferred_category.name }}{% else %}Set Shopping Interest{% endif %}</span>
-                        </button>
-                    </div>
-                    -->
                 </div>
             </div>
         </div>
@@ -375,7 +367,7 @@
             <div class="flex items-start justify-between gap-4 mb-4">
                 <div class="flex items-start gap-3">
                     <div class="bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg p-2.5 flex-shrink-0">
-                        <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+                        <i data-lucide="user-check" class="w-5 h-5 text-white"></i>
                     </div>
                     <div class="flex-1">
                         <h3 class="text-lg font-bold text-gray-900 mb-1">Complete Your Shopping Profile</h3>
@@ -722,76 +714,6 @@
     </div>
 </div>
 
-<!-- # COMMENTED OUT: Preferred category is redundant - ML model should be primary
-<!-- Shopping Interest Modal -->
-<!--
-<div id="shoppingInterestModal" class="modal" style="display: none;">
-    <div class="modal-content" style="max-width: 600px;">
-        <div class="modal-header">
-            <h2 class="flex items-center gap-2">
-                <i data-lucide="shopping-bag" class="w-6 h-6"></i>
-                Update Shopping Interest
-            </h2>
-            <button class="modal-close" onclick="closeShoppingInterestModal()">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </button>
-        </div>
-
-        <form id="shoppingInterestForm" class="p-6">
-            {% csrf_token %}
-            <div class="mb-6">
-                <p class="text-gray-600 mb-4">What are you most interested in shopping for?</p>
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <button type="button" class="shopping-tile" data-category="Electronics">
-                        <i data-lucide="laptop" class="w-6 h-6 mb-2"></i>
-                        <span class="text-sm font-medium">Electronics</span>
-                    </button>
-                    <button type="button" class="shopping-tile" data-category="Fashion - Men">
-                        <i data-lucide="shirt" class="w-6 h-6 mb-2"></i>
-                        <span class="text-sm font-medium">Men's Fashion</span>
-                    </button>
-                    <button type="button" class="shopping-tile" data-category="Fashion - Women">
-                        <i data-lucide="sparkles" class="w-6 h-6 mb-2"></i>
-                        <span class="text-sm font-medium">Women's Fashion</span>
-                    </button>
-                    <button type="button" class="shopping-tile" data-category="Home & Kitchen">
-                        <i data-lucide="home" class="w-6 h-6 mb-2"></i>
-                        <span class="text-sm font-medium">Home & Kitchen</span>
-                    </button>
-                    <button type="button" class="shopping-tile" data-category="Beauty & Personal Care">
-                        <i data-lucide="heart" class="w-6 h-6 mb-2"></i>
-                        <span class="text-sm font-medium">Beauty</span>
-                    </button>
-                    <button type="button" class="shopping-tile" data-category="Sports & Outdoors">
-                        <i data-lucide="dumbbell" class="w-6 h-6 mb-2"></i>
-                        <span class="text-sm font-medium">Sports</span>
-                    </button>
-                    <button type="button" class="shopping-tile" data-category="Books">
-                        <i data-lucide="book-open" class="w-6 h-6 mb-2"></i>
-                        <span class="text-sm font-medium">Books</span>
-                    </button>
-                    <button type="button" class="shopping-tile" data-category="Pet Supplies">
-                        <i data-lucide="paw-print" class="w-6 h-6 mb-2"></i>
-                        <span class="text-sm font-medium">Pets</span>
-                    </button>
-                </div>
-                
-                <input type="hidden" name="shopping_interest" id="selected_category" value="">
-            </div>
-
-            <div class="flex gap-3">
-                <button type="button" onclick="closeShoppingInterestModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition">
-                    Cancel
-                </button>
-                <button type="submit" id="saveShoppingInterestBtn" class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-blue-600 transition">
-                    Save Changes
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
--->
 {% endblock %}
 
 {% block extra_js %}
@@ -874,35 +796,6 @@
         }
     }
 
-    // # COMMENTED OUT: Preferred category is redundant - ML model should be primary
-    // function openShoppingInterestModal() {
-    //     document.getElementById('shoppingInterestModal').classList.add('active');
-    //     document.body.style.overflow = 'hidden';
-    //     
-    //     // Highlight current selection if exists
-    //     const currentCategory = '{% if user.preferred_category %}{{ user.preferred_category.name }}{% endif %}';
-    //     if (currentCategory) {
-    //         document.querySelectorAll('.shopping-tile').forEach(tile => {
-    //             if (tile.dataset.category === currentCategory) {
-    //                 tile.classList.add('active');
-    //                 document.getElementById('selected_category').value = currentCategory;
-    //             }
-    //         });
-    //     }
-    //     
-    //     setTimeout(() => {
-    //         if (typeof lucide !== 'undefined') lucide.createIcons();
-    //     }, 100);
-    // }
-
-    // function closeShoppingInterestModal() {
-    //     document.getElementById('shoppingInterestModal').classList.remove('active');
-    //     document.body.style.overflow = '';
-    //     
-    //     // Reset selections
-    //     document.querySelectorAll('.shopping-tile').forEach(t => t.classList.remove('active'));
-    //     document.getElementById('selected_category').value = '';
-    // }
 
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
@@ -927,23 +820,6 @@
         }
     });
 
-    // # COMMENTED OUT: Preferred category is redundant - ML model should be primary
-    // // Close shopping interest modal when clicking outside
-    // document.getElementById('shoppingInterestModal').addEventListener('click', function(e) {
-    //     if (e.target === this) {
-    //         closeShoppingInterestModal();
-    //     }
-    // });
-
-    // // Shopping interest tile selection
-    // document.querySelectorAll('.shopping-tile').forEach(tile => {
-    //     tile.addEventListener('click', function(e) {
-    //         e.preventDefault();
-    //         document.querySelectorAll('.shopping-tile').forEach(t => t.classList.remove('active'));
-    //         this.classList.add('active');
-    //         document.getElementById('selected_category').value = this.dataset.category;
-    //     });
-    // });
 
     // // Shopping interest form submission
     // document.getElementById('shoppingInterestForm').addEventListener('submit', async function(e) {
@@ -1229,14 +1105,14 @@
     function calculateProfileCompletion() {
         // Check each field - for boolean fields, check if not null (answered, whether true or false)
         const mlFields = {
-            age_range: {{ user.age_range|yesno:"true,false" }},
+            age: {{ user.age|yesno:"true,false" }},
             gender: {{ user.gender|yesno:"true,false" }},
-            household_size: {{ user.household_size|yesno:"true,false" }},
-            has_children: {{ user.has_children|yesno:"true,true,false" }},  // Count as complete if True OR False (not None)
+            employment_status: {{ user.employment_status|yesno:"true,false" }},
             occupation: {{ user.occupation|yesno:"true,false" }},
             education: {{ user.education|yesno:"true,false" }},
-            income_range: {{ user.income_range|yesno:"true,false" }},
-            employment: {{ user.employment|yesno:"true,false" }}
+            household_size: {{ user.household_size|yesno:"true,false" }},
+            has_children: {{ user.has_children|yesno:"true,true,false" }},  // Count as complete if True OR False (not None)
+            monthly_income_sgd: {{ user.monthly_income_sgd|yesno:"true,false" }}
         };
         
         const totalFields = Object.keys(mlFields).length;
@@ -1272,7 +1148,7 @@
                     // Show success message in banner for 2 seconds before hiding
                     setTimeout(() => {
                         if (banner) {
-                            banner.style.display = 'none';
+                banner.style.display = 'none';
                         }
                     }, 2000);
                 } else {
@@ -1297,45 +1173,79 @@
     // Step-by-Step Questionnaire System - Initialize state
     window.questionnaireState.questions = [
         {
-            id: 'age_range',
-            title: "What's your age range?",
+            id: 'age',
+            title: "What's your age?",
             icon: 'calendar',
-            type: 'tiles',
-            options: [
-                { value: '18-24', label: '18-24' },
-                { value: '25-34', label: '25-34' },
-                { value: '35-44', label: '35-44' },
-                { value: '45-54', label: '45-54' },
-                { value: '55-64', label: '55-64' },
-                { value: '65+', label: '65+' }
-            ],
-            cols: 3
+            type: 'number',
+            placeholder: 'Enter your age',
+            min: 13,
+            max: 120
         },
         {
             id: 'gender',
-            title: "How do you identify?",
+            title: "What's your gender?",
             icon: 'users',
             type: 'tiles',
             options: [
                 { value: 'Male', label: 'Male' },
-                { value: 'Female', label: 'Female' },
-                { value: 'Other', label: 'Other' }
+                { value: 'Female', label: 'Female' }
             ],
-            cols: 3
+            cols: 2
+        },
+        {
+            id: 'employment_status',
+            title: "What's your employment status?",
+            icon: 'building',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select employment status' },
+                { value: 'Full-time', label: 'Full-time' },
+                { value: 'Part-time', label: 'Part-time' },
+                { value: 'Student', label: 'Student' },
+                { value: 'Self-employed', label: 'Self-employed' },
+                { value: 'Retired', label: 'Retired' }
+            ]
+        },
+        {
+            id: 'occupation',
+            title: "What's your occupation?",
+            icon: 'briefcase',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select occupation' },
+                { value: 'Tech', label: 'Technology/IT' },
+                { value: 'Sales', label: 'Sales & Marketing' },
+                { value: 'Service', label: 'Service Industry' },
+                { value: 'Admin', label: 'Administrative' },
+                { value: 'Education', label: 'Education' },
+                { value: 'Skilled Trades', label: 'Skilled Trades' },
+                { value: 'Healthcare', label: 'Healthcare' },
+                { value: 'Finance', label: 'Finance & Banking' },
+                { value: 'Other', label: 'Other' }
+            ]
+        },
+        {
+            id: 'education',
+            title: "What's your education level?",
+            icon: 'graduation-cap',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select education level' },
+                { value: 'Secondary', label: 'Secondary/High School' },
+                { value: 'Diploma', label: 'Diploma/Certificate' },
+                { value: 'Bachelor', label: 'Bachelor\'s Degree' },
+                { value: 'Master', label: 'Master\'s Degree' },
+                { value: 'Doctorate', label: 'Doctorate/PhD' }
+            ]
         },
         {
             id: 'household_size',
             title: "What's your household size?",
             icon: 'home',
-            type: 'tiles',
-            options: [
-                { value: '1', label: '1' },
-                { value: '2', label: '2' },
-                { value: '3', label: '3' },
-                { value: '4', label: '4' },
-                { value: '5+', label: '5+' }
-            ],
-            cols: 5
+            type: 'number',
+            placeholder: 'Number of people in household',
+            min: 1,
+            max: 20
         },
         {
             id: 'has_children',
@@ -1349,77 +1259,26 @@
             cols: 2
         },
         {
-            id: 'occupation',
-            title: "What's your occupation?",
-            icon: 'briefcase',
-            type: 'select',
-            options: [
-                { value: '', label: 'Select occupation' },
-                { value: 'Student', label: 'Student' },
-                { value: 'Professional', label: 'Professional' },
-                { value: 'Self-Employed', label: 'Self-Employed' },
-                { value: 'Homemaker', label: 'Homemaker' },
-                { value: 'Retired', label: 'Retired' },
-                { value: 'Other', label: 'Other' }
-            ]
-        },
-        {
-            id: 'education',
-            title: "What's your education level?",
-            icon: 'graduation-cap',
-            type: 'select',
-            options: [
-                { value: '', label: 'Select education level' },
-                { value: 'High School', label: 'High School' },
-                { value: 'Associate Degree', label: 'Associate Degree' },
-                { value: "Bachelor's Degree", label: "Bachelor's Degree" },
-                { value: "Master's Degree", label: "Master's Degree" },
-                { value: 'Doctorate', label: 'Doctorate' },
-                { value: 'Other', label: 'Other' }
-            ]
-        },
-        {
-            id: 'employment',
-            title: "What's your employment status?",
-            icon: 'building',
-            type: 'select',
-            options: [
-                { value: '', label: 'Select employment status' },
-                { value: 'Full-time', label: 'Full-time' },
-                { value: 'Part-time', label: 'Part-time' },
-                { value: 'Self-Employed', label: 'Self-Employed' },
-                { value: 'Unemployed', label: 'Unemployed' },
-                { value: 'Student', label: 'Student' },
-                { value: 'Retired', label: 'Retired' }
-            ]
-        },
-        {
-            id: 'income_range',
-            title: "What's your annual income range?",
+            id: 'monthly_income_sgd',
+            title: "What's your monthly income (SGD)?",
             icon: 'dollar-sign',
-            type: 'select',
-            options: [
-                { value: '', label: 'Select income range' },
-                { value: 'Under $25k', label: 'Under $25,000' },
-                { value: '$25k-$50k', label: '$25,000 - $50,000' },
-                { value: '$50k-$75k', label: '$50,000 - $75,000' },
-                { value: '$75k-$100k', label: '$75,000 - $100,000' },
-                { value: '$100k-$150k', label: '$100,000 - $150,000' },
-                { value: 'Over $150k', label: 'Over $150,000' }
-            ]
+            type: 'number',
+            placeholder: 'Enter monthly income in SGD',
+            min: 0,
+            step: 0.01
         }
     ];
 
     window.questionnaireState.currentStep = 0;
     window.questionnaireState.userAnswers = {
-        age_range: "{{ user.age_range|default:'' }}",
+        age: "{{ user.age|default:'' }}",
         gender: "{{ user.gender|default:'' }}",
-        household_size: "{{ user.household_size|default:'' }}",
-        has_children: "{{ user.has_children|yesno:'true,false,' }}",
+        employment_status: "{{ user.employment_status|default:'' }}",
         occupation: "{{ user.occupation|default:'' }}",
         education: "{{ user.education|default:'' }}",
-        employment: "{{ user.employment|default:'' }}",
-        income_range: "{{ user.income_range|default:'' }}"
+        household_size: "{{ user.household_size|default:'' }}",
+        has_children: "{{ user.has_children|yesno:'true,false,' }}",
+        monthly_income_sgd: "{{ user.monthly_income_sgd|default:'' }}"
     };
 
     window.openCompleteProfileModal = function() {
@@ -1484,6 +1343,20 @@
                 html += `<option value="${opt.value}" ${isSelected ? 'selected' : ''}>${opt.label}</option>`;
             });
             html += `</select>`;
+        } else if (question.type === 'number') {
+            const currentValue = window.questionnaireState.userAnswers[question.id] || '';
+            html += `
+                <input type="number" 
+                       id="${question.id}-input"
+                       value="${currentValue}"
+                       placeholder="${question.placeholder || ''}"
+                       min="${question.min || ''}"
+                       max="${question.max || ''}"
+                       step="${question.step || '1'}"
+                       onchange="window.questionnaireState.selectNumberAnswer('${question.id}', this.value)"
+                       onblur="window.questionnaireState.selectNumberAnswer('${question.id}', this.value)"
+                       class="form-control text-base md:text-lg p-3 md:p-4 w-full">
+            `;
         }
 
         html += `</div>`;
@@ -1515,6 +1388,13 @@
         }
     };
 
+    window.questionnaireState.selectNumberAnswer = function(field, value) {
+        if (value && value.trim() !== '') { // Only save if not empty
+            window.questionnaireState.userAnswers[field] = value;
+            window.questionnaireState.saveAnswer(field, value);
+        }
+    };
+
     window.questionnaireState.saveAnswer = function(field, value) {
         // Auto-save via AJAX
         const formData = new FormData();
@@ -1540,7 +1420,7 @@
                     badge.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
                     if (typeof lucide !== 'undefined') lucide.createIcons();
                     setTimeout(() => {
-                        badge.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i>';
+                        badge.innerHTML = '<i data-lucide="user-check" class="w-4 h-4"></i>';
                         if (typeof lucide !== 'undefined') lucide.createIcons();
                     }, 1000);
                 }
@@ -1604,6 +1484,11 @@
         } else if (window.AuroraMart && window.AuroraMart.toast) {
             window.AuroraMart.toast('Profile updated successfully!', 'success');
         }
+        
+        // Refresh the page after a short delay to show updated data
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     }
 
     // Add CSS animation only once

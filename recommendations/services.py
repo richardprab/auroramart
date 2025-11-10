@@ -192,8 +192,8 @@ class PersonalizedRecommendations:
         if not user.is_authenticated:
             return Product.objects.filter(
                 is_active=True,
-                is_featured=True
-            ).order_by('-rating')[:limit]
+                variants__is_active=True
+            ).distinct().order_by('-rating', '-created_at')[:limit]
         
         # PRIORITY 1: Use ML model to predict category based on demographics
         if user.age_range and user.gender:
@@ -280,5 +280,5 @@ class PersonalizedRecommendations:
         # FINAL FALLBACK: Featured products
         return list(Product.objects.filter(
             is_active=True,
-            is_featured=True
-        ).order_by('-rating')[:limit])
+            variants__is_active=True
+        ).distinct().order_by('-rating', '-created_at')[:limit])

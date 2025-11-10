@@ -1,17 +1,29 @@
 const NotificationSystem = {
-    pollInterval: null,
-    lastCheck: null,
-    checkInterval: 30000, // Check every 30 seconds
+    websocket: null,
+    reconnectAttempts: 0,
+    maxReconnectAttempts: 5,
+    reconnectDelay: 3000, // 3 seconds
+    reconnectTimeout: null,
     isDropdownOpen: false,
     lastNotificationCount: null,
     hasShownInitialToast: false,
     hideTimeout: null,
     DROPDOWN_DELAY: 300, // Same delay as profile dropdown
+    useWebSocket: true, // Flag to enable/disable WebSocket
+    fallbackPolling: false, // Fallback to polling if WebSocket fails
+    pollInterval: null,
+    checkInterval: 30000, // Check every 30 seconds (fallback only)
     
     init() {
         this.updateBadge();
-        this.startPolling();
         this.attachEventListeners();
+        
+        // Try WebSocket first, fallback to polling if it fails
+        if (this.useWebSocket) {
+            this.connectWebSocket();
+        } else {
+            this.startPolling();
+        }
     },
     
     attachEventListeners() {
@@ -268,7 +280,122 @@ const NotificationSystem = {
         return div.innerHTML;
     },
     
+    connectWebSocket() {
+        // Determine WebSocket URL based on current page
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/ws/notifications/`;
+        
+        try {
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onopen = () => {
+                console.log('WebSocket connected for notifications');
+                this.reconnectAttempts = 0;
+                this.fallbackPolling = false;
+                
+                // Stop polling if it was running
+                this.stopPolling();
+            };
+            
+            this.websocket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    this.handleWebSocketMessage(data);
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+            
+            this.websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            this.websocket.onclose = () => {
+                console.log('WebSocket disconnected');
+                this.websocket = null;
+                
+                // Attempt to reconnect
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+                    
+                    this.reconnectTimeout = setTimeout(() => {
+                        this.connectWebSocket();
+                    }, this.reconnectDelay);
+                } else {
+                    // Fallback to polling after max reconnection attempts
+                    console.log('Max reconnection attempts reached. Falling back to polling.');
+                    this.fallbackPolling = true;
+                    this.startPolling();
+                }
+            };
+        } catch (error) {
+            console.error('Error connecting WebSocket:', error);
+            // Fallback to polling
+            this.fallbackPolling = true;
+            this.startPolling();
+        }
+    },
+    
+    disconnectWebSocket() {
+        if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
+        }
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+    },
+    
+    handleWebSocketMessage(data) {
+        if (data.type === 'unread_count') {
+            const newCount = data.count || 0;
+            
+            // Initialize lastNotificationCount on first message
+            if (this.lastNotificationCount === null) {
+                this.lastNotificationCount = newCount;
+                this.updateBadgeCount(newCount);
+                return;
+            }
+            
+            // Update badge
+            this.updateBadgeCount(newCount);
+            
+            // Only show toast if count increased (new notification arrived)
+            if (newCount > this.lastNotificationCount) {
+                this.showNewNotificationToast(newCount - this.lastNotificationCount);
+            }
+            
+            this.lastNotificationCount = newCount;
+        } else if (data.type === 'notification') {
+            // New notification received
+            const notification = data.notification;
+            
+            // Update badge count
+            if (notification && !notification.is_read) {
+                const currentCount = this.getCurrentBadgeCount();
+                this.updateBadgeCount(currentCount + 1);
+                this.showNewNotificationToast(1);
+            }
+            
+            // Reload notifications if dropdown is open
+            if (this.isDropdownOpen) {
+                this.loadNotifications();
+            }
+        } else if (data.type === 'pong') {
+            // Response to ping, connection is alive
+            // No action needed
+        }
+    },
+    
     startPolling() {
+        // Only start polling if WebSocket is not available
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            return;
+        }
+        
         // Initial check
         this.checkNotifications();
         
@@ -382,4 +509,10 @@ if (document.readyState === 'loading') {
         NotificationSystem.init();
     }
 }
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    NotificationSystem.disconnectWebSocket();
+    NotificationSystem.stopPolling();
+});
 

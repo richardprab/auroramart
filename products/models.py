@@ -52,19 +52,23 @@ class Product(models.Model):
         Category, on_delete=models.CASCADE, related_name="products"
     )
     description = models.TextField()
-    size_guide = models.TextField(
-        blank=True, null=True, help_text="Size guide information"
-    )
     brand = models.CharField(
         max_length=100, blank=True, help_text="Product brand/manufacturer"
     )
+    
+    # --- Product Data from CSV ---
+    rating = models.DecimalField(
+        max_digits=3, 
+        decimal_places=2, 
+        default=0.0,
+        help_text="Product rating from CSV data"
+    )
+    reorder_quantity = models.PositiveIntegerField(
+        default=0,
+        help_text="Reorder quantity threshold (from CSV)"
+    )
 
-    # --- Denormalized Review Data (from your snippet) ---
-    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
-    review_count = models.IntegerField(default=0)
-
-    # --- Merchandising Flags (from your snippet) ---
-    is_featured = models.BooleanField(default=False)
+    # --- Product Status ---
     is_active = models.BooleanField(default=True)
 
     # --- Timestamps ---
@@ -162,34 +166,6 @@ class Review(models.Model):
         return f"{self.product.name} - {self.rating}★"
 
 
-class Attribute(models.Model):
-    """
-    Model for product attributes (e.g., 'Color', 'Size').
-    """
-
-    name = models.CharField(max_length=100, unique=True)
-
-    def __str__(self):
-        return self.name
-
-
-class AttributeValue(models.Model):
-    """
-    Model for attribute values (e.g., 'Red', 'Large').
-    """
-
-    attribute = models.ForeignKey(
-        Attribute, on_delete=models.CASCADE, related_name="values"
-    )
-    value = models.CharField(max_length=100)
-
-    class Meta:
-        unique_together = ("attribute", "value")
-
-    def __str__(self):
-        return f"{self.attribute.name}: {self.value}"
-
-
 class ProductVariant(models.Model):
     """
     Model for product variants (e.g., 'Red, Large T-Shirt').
@@ -253,39 +229,3 @@ class ProductVariant(models.Model):
         return 0
 
 
-class ProductVariantAttribute(models.Model):
-    """
-    Through table for Variant <-> AttributeValue.
-    """
-
-    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
-    value = models.ForeignKey(AttributeValue, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = ("variant", "value")
-
-
-class RelatedProduct(models.Model):
-    """
-    Model for 'Frequently Bought Together' or 'Alternatives'.
-    """
-
-    RELATION_TYPE_CHOICES = [
-        ("complementary", "Complementary (Frequently Bought Together)"),
-        ("alternative", "Alternative (Others Also Viewed)"),
-    ]
-    from_product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="related_from"
-    )
-    to_product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="related_to"
-    )
-    relation_type = models.CharField(max_length=15, choices=RELATION_TYPE_CHOICES)
-
-    class Meta:
-        unique_together = ("from_product", "to_product", "relation_type")
-
-    def __str__(self):
-        return (
-            f"{self.from_product.name} → {self.to_product.name} ({self.relation_type})"
-        )

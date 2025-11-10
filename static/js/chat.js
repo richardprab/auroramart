@@ -160,7 +160,7 @@ const ChatWidget = {
 
     async loadSessions() {
         try {
-            const response = await fetch('/accounts/ajax/conversations/', {
+            const response = await fetch('/chat/ajax/conversations/', {
                 method: 'GET',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin' // Important for session cookies
@@ -203,7 +203,7 @@ const ChatWidget = {
         try {
             const title = `Chat ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
             
-            const response = await fetch('/accounts/ajax/conversations/create/', {
+            const response = await fetch('/chat/ajax/conversations/create/', {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin',
@@ -233,7 +233,7 @@ const ChatWidget = {
         if (!this.currentSession) return;
 
         try {
-            const response = await fetch(`/accounts/ajax/conversations/${this.currentSession.id}/`, {
+            const response = await fetch(`/chat/ajax/conversations/${this.currentSession.id}/`, {
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin'
             });
@@ -335,7 +335,7 @@ const ChatWidget = {
         }
         
         try {
-            const response = await fetch(`/accounts/ajax/conversations/${this.currentSession.id}/send/`, {
+            const response = await fetch(`/chat/ajax/conversations/${this.currentSession.id}/send/`, {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin',
@@ -373,7 +373,7 @@ const ChatWidget = {
         if (!this.currentSession) return;
 
         try {
-            await fetch(`/accounts/ajax/conversations/${this.currentSession.id}/mark-read/`, {
+            await fetch(`/chat/ajax/conversations/${this.currentSession.id}/mark-read/`, {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin'
@@ -537,7 +537,7 @@ const ChatWidget = {
         this.hideDeleteModal();
 
         try {
-            const response = await fetch(`/accounts/ajax/conversations/${sessionId}/delete/`, {
+            const response = await fetch(`/chat/ajax/conversations/${sessionId}/delete/`, {
                 method: 'DELETE',
                 headers: this.getAuthHeaders(),
                 credentials: 'same-origin'
