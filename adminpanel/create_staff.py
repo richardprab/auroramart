@@ -15,7 +15,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "auroramartproject.settings")
 
 django.setup()
 
-from accounts.models import User
+from accounts.models import User, Staff
 from django.db import IntegrityError
 
 def generate_random_password(length=12):
@@ -27,7 +27,7 @@ def generate_random_password(length=12):
 def get_next_staff_number():
     """Get the next available staff number"""
     # Find all existing staff users with username pattern 'staffXXX'
-    staff_users = User.objects.filter(username__startswith='staff', is_staff=True)
+    staff_users = Staff.objects.filter(username__startswith='staff')
     
     if not staff_users.exists():
         return 1
@@ -62,14 +62,15 @@ def create_staff_user():
     last_name = f'User {staff_number}'
     
     try:
-        # Create staff user with all fields set at once
-        User.objects.create_user(
+        # Create staff user (Staff extends User via multi-table inheritance)
+        # This automatically creates both User and Staff records
+        staff_user = Staff.objects.create_user(
             username=username,
             email=email,
             password=password,
             first_name=first_name,
             last_name=last_name,
-            role='staff',
+            permissions='all',  # Default: all permissions
             is_staff=True,
             is_active=True,
         )

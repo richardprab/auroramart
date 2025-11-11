@@ -145,9 +145,13 @@ class Review(models.Model):
         Product, on_delete=models.CASCADE, related_name="reviews"
     )
     # Use settings.AUTH_USER_MODEL string reference instead of get_user_model()
+    # Note: nullable initially to avoid circular migration dependency with accounts
+    # This will be made required in a later migration
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
     rating = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]

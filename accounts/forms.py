@@ -150,8 +150,11 @@ class CustomUserCreationForm(UserCreationForm):
                 "Username can only contain letters, numbers, and @/./+/-/_ characters."
             )
 
-        # Check if username already exists
-        if User.objects.filter(username__iexact=username).exists():
+        # Check if username already exists (check Customer, Staff, Superuser)
+        from accounts.models import Customer, Staff, Superuser
+        if (Customer.objects.filter(username__iexact=username).exists() or
+            Staff.objects.filter(username__iexact=username).exists() or
+            Superuser.objects.filter(username__iexact=username).exists()):
             raise ValidationError(
                 "This username is already taken. Please choose another."
             )
@@ -165,8 +168,11 @@ class CustomUserCreationForm(UserCreationForm):
         if not email:
             raise ValidationError("Email address is required.")
 
-        # Check if email already exists
-        if User.objects.filter(email__iexact=email).exists():
+        # Check if email already exists (check Customer, Staff, Superuser)
+        from accounts.models import Customer, Staff, Superuser
+        if (Customer.objects.filter(email__iexact=email).exists() or
+            Staff.objects.filter(email__iexact=email).exists() or
+            Superuser.objects.filter(email__iexact=email).exists()):
             raise ValidationError(
                 "This email address is already registered. Please use another or try logging in."
             )
@@ -382,10 +388,12 @@ class UserProfileForm(forms.ModelForm):
 
         # Check if email already exists (excluding current user)
         if self.user:
-            existing_user = User.objects.filter(email__iexact=email).exclude(
-                pk=self.user.pk
-            )
-            if existing_user.exists():
+            from accounts.models import Customer, Staff, Superuser
+            # Check across all user types, excluding current user
+            existing = (Customer.objects.filter(email__iexact=email).exclude(pk=self.user.pk).exists() or
+                       Staff.objects.filter(email__iexact=email).exclude(pk=self.user.pk).exists() or
+                       Superuser.objects.filter(email__iexact=email).exclude(pk=self.user.pk).exists())
+            if existing:
                 raise ValidationError(
                     "This email address is already registered to another account."
                 )

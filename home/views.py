@@ -42,13 +42,26 @@ def index(request):
     profile_completion_percentage = None
     recently_viewed = []
     if request.user.is_authenticated:
-        from accounts.models import Wishlist, BrowsingHistory
+        from accounts.models import Wishlist, BrowsingHistory, Customer
         user_wishlist_ids = list(
             Wishlist.objects.filter(user=request.user)
             .values_list('product_id', flat=True)
         )
-        # Calculate profile completion percentage
-        profile_completion_percentage = request.user.get_profile_completion_percentage()
+        # Calculate profile completion percentage (only for customers)
+        # With multi-table inheritance, check if user is a Customer instance
+        # or if there's a Customer record with the same ID
+        try:
+            if isinstance(request.user, Customer):
+                customer = request.user
+                profile_completion_percentage = customer.get_profile_completion_percentage()
+            else:
+                # Try to get the Customer instance
+                # With multi-table inheritance, Customer extends User with same ID
+                customer = Customer.objects.get(id=request.user.id)
+                profile_completion_percentage = customer.get_profile_completion_percentage()
+        except (Customer.DoesNotExist, AttributeError):
+            # User is not a customer (staff/superuser) or error accessing customer
+            profile_completion_percentage = None
         # Get recently viewed products (last 8)
         recently_viewed = BrowsingHistory.objects.filter(
             user=request.user
@@ -76,7 +89,8 @@ def about(request):
     
     # Calculate real metrics
     total_products = Product.objects.filter(is_active=True, variants__is_active=True).distinct().count()
-    total_customers = User.objects.filter(is_active=True).count()
+    from accounts.models import Customer, Staff, Superuser
+    total_customers = Customer.objects.filter(is_active=True).count() + Staff.objects.filter(is_active=True).count() + Superuser.objects.filter(is_active=True).count()
     total_brands = Product.objects.filter(is_active=True).values('brand').distinct().count()
     total_orders = Order.objects.count()
     

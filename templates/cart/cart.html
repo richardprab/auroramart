@@ -52,7 +52,7 @@
                     </div>
 
                     <!-- Product Info -->
-                    <div class="flex-1 min-w-0">
+                    <div class="flex-1 min-w-0" data-product-id="{{ item.product.id }}" data-variant-id="{{ item.product_variant.id }}" data-sku="{{ item.product.sku }}">
                         <h3 class="font-semibold text-base mb-1 truncate">
                             <a href="{% url 'products:product_detail' item.product.sku %}" class="hover:text-blue-600 transition">
                                 {{ item.product.name }}
@@ -479,6 +479,11 @@
                                 CartModule.updateCartCount();
                             }
                             
+                            // Reload cart recommendations
+                            if (typeof loadCartRecommendations === 'function') {
+                                loadCartRecommendations();
+                            }
+                            
                             // Check if cart is empty, reload page to show empty state
                             const remainingItems = document.querySelectorAll('[data-remove-item]').length;
                             if (remainingItems === 0) {
@@ -551,53 +556,83 @@
         {% endfor %}
     ];
 
-    // Fetch cart-based recommendations
-    fetch('/recommendations/cart-recommendations/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify({ cart_items: cartItems, limit: 4 })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+    // Function to load cart recommendations
+    function loadCartRecommendations() {
+        // Check if cart is empty (no remove buttons = no items)
+        const remainingItems = document.querySelectorAll('[data-remove-item]').length;
+        if (remainingItems === 0) {
+            document.getElementById('cart-recommendations-loading').classList.add('hidden');
+            document.getElementById('cart-recommendations-content').classList.add('hidden');
+            document.getElementById('cart-recommendations-empty').classList.add('hidden');
+            document.getElementById('cart-recommendations-section').classList.add('hidden');
+            return;
         }
-        return response.json();
-    })
-    .then(data => {
+        
+        // Show loading state
         const loadingState = document.getElementById('cart-recommendations-loading');
         const contentState = document.getElementById('cart-recommendations-content');
         const emptyState = document.getElementById('cart-recommendations-empty');
+        const grid = document.getElementById('cart-recommendations-grid');
         
-        loadingState.classList.add('hidden');
+        loadingState.classList.remove('hidden');
+        contentState.classList.add('hidden');
+        emptyState.classList.add('hidden');
+        grid.innerHTML = ''; // Clear previous recommendations
         
-        if (data.recommendations && data.recommendations.length > 0) {
-            document.getElementById('cart-recommendations-section').classList.remove('hidden');
-            contentState.classList.remove('hidden');
-            const grid = document.getElementById('cart-recommendations-grid');
-            
-            data.recommendations.forEach(product => {
-                try {
-                grid.innerHTML += createProductCard(product);
-                } catch (err) {
-                    // Silently handle errors
-                }
-            });
-            
-            // Reinitialize Lucide icons
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
+        // Fetch cart-based recommendations (API gets cart items from database)
+        fetch('/recommendations/cart-recommendations/?limit=4', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-        } else {
+            return response.json();
+        })
+        .then(data => {
+            loadingState.classList.add('hidden');
+            
+            if (data.recommendations && data.recommendations.length > 0) {
+                document.getElementById('cart-recommendations-section').classList.remove('hidden');
+                contentState.classList.remove('hidden');
+                
+                data.recommendations.forEach(product => {
+                    try {
+                        grid.innerHTML += createProductCard(product);
+                    } catch (err) {
+                        // Silently handle errors
+                    }
+                });
+                
+                // Reinitialize Lucide icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+                
+                // Reattach event listeners for wishlist and cart buttons
+                if (window.WishlistModule) {
+                    window.WishlistModule.attachEventListeners();
+                }
+                if (window.CartModule) {
+                    window.CartModule.addToCartButtons();
+                }
+            } else {
+                document.getElementById('cart-recommendations-section').classList.add('hidden');
+            }
+        })
+        .catch(error => {
+            loadingState.classList.add('hidden');
             document.getElementById('cart-recommendations-section').classList.add('hidden');
-        }
-    })
-    .catch(error => {
-        document.getElementById('cart-recommendations-loading').classList.add('hidden');
-        document.getElementById('cart-recommendations-section').classList.add('hidden');
-    });
+        });
+    }
+    
+    // Load recommendations on page load
+    loadCartRecommendations();
 
     function createProductCard(product) {
         const lowestVariant = product.lowest_variant || {};

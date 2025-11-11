@@ -8,7 +8,7 @@ from urllib.parse import quote
 import requests
 
 from products.models import Product, ProductVariant, ProductImage, Category
-from accounts.models import User
+from accounts.models import User, Staff
 from chat.models import ChatConversation, ChatMessage
 from orders.models import Order
 from .forms import ProductSearchForm, OrderSearchForm
@@ -20,7 +20,11 @@ def get_next_assigned_staff():
     Returns the next staff member to be assigned based on ascending staff number.
     """
     # Get all staff users ordered by username (staff001, staff002, etc.)
-    staff_users = User.objects.filter(is_staff=True, is_active=True).order_by('username')
+    # Staff must have 'chat' permission to be assigned conversations
+    staff_users = Staff.objects.filter(
+        is_active=True,
+        permissions__in=['all', 'chat', 'products,chat', 'orders,chat', 'products,orders,chat']
+    ).order_by('username')
     
     if not staff_users.exists():
         return None
@@ -578,13 +582,15 @@ def order_management(request):
                     'search_type': 'order',
                 })
         else:
-            # Search by customer
-            matching_users = User.objects.filter(
-                Q(username__icontains=initial_query) | 
-                Q(email__icontains=initial_query) |
-                Q(first_name__icontains=initial_query) |
-                Q(last_name__icontains=initial_query)
-            ).distinct()[:20]
+            # Search by customer (search across Customer, Staff, Superuser)
+            from accounts.models import Customer, Staff, Superuser
+            query_filter = Q(username__icontains=initial_query) | Q(email__icontains=initial_query) | Q(first_name__icontains=initial_query) | Q(last_name__icontains=initial_query)
+            customers = Customer.objects.filter(query_filter)[:20]
+            staff = Staff.objects.filter(query_filter)[:20]
+            superusers = Superuser.objects.filter(query_filter)[:20]
+            # Combine results (limit to 20 total)
+            matching_users = list(customers) + list(staff) + list(superusers)
+            matching_users = matching_users[:20]
             
             for user in matching_users:
                 user_orders = Order.objects.filter(user=user).select_related('user').prefetch_related('items__product_variant__product').order_by('-created_at')[:10]
@@ -680,13 +686,15 @@ def search_order(request):
                     })
             else:
                 # Search by customer username
-                # Get all users matching the query
-                matching_users = User.objects.filter(
-                    Q(username__icontains=query) | 
-                    Q(email__icontains=query) |
-                    Q(first_name__icontains=query) |
-                    Q(last_name__icontains=query)
-                ).distinct()[:20]  # Limit to 20 users
+                # Get all users matching the query (search across Customer, Staff, Superuser)
+                from accounts.models import Customer, Staff, Superuser
+                query_filter = Q(username__icontains=query) | Q(email__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
+                customers = Customer.objects.filter(query_filter)[:20]
+                staff = Staff.objects.filter(query_filter)[:20]
+                superusers = Superuser.objects.filter(query_filter)[:20]
+                # Combine results (limit to 20 total)
+                matching_users = list(customers) + list(staff) + list(superusers)
+                matching_users = matching_users[:20]
                 
                 # For each user, get their most recent orders
                 for user in matching_users:
