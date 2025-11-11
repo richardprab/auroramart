@@ -116,7 +116,70 @@
                                     <i data-lucide="map-pin" class="w-5 h-5 mr-2 text-blue-600"></i>
                                     Shipping Address
                                 </h2>
-                                <div class="space-y-4">
+                                
+                                <!-- Saved Addresses Selection -->
+                                {% if saved_addresses %}
+                                <div class="mb-4">
+                                    <!-- Default Address Display (shown by default) -->
+                                    {% if default_address %}
+                                    <div id="defaultAddressDisplay" class="mb-4">
+                                        <div class="flex items-start justify-between p-3 border-2 border-blue-300 rounded-lg bg-blue-50">
+                                            <div class="flex items-start flex-1">
+                                                <input type="radio" name="selected_address" value="{{ default_address.id }}" 
+                                                       class="mt-1 mr-3 address-radio" 
+                                                       checked="checked">
+                                                <div class="flex-1">
+                                                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded mb-2">Default</span>
+                                                    <div class="text-sm text-gray-700">
+                                                        <div>{{ default_address.address_line1 }}</div>
+                                                        {% if default_address.address_line2 %}
+                                                        <div>{{ default_address.address_line2 }}</div>
+                                                        {% endif %}
+                                                        <div>{{ default_address.city }}, {{ default_address.state }} {{ default_address.postal_code }}</div>
+                                                        <div>{{ default_address.country }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button type="button" onclick="showAllAddresses()" class="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer transition-colors duration-200 ml-4" style="background: transparent; border: none; padding: 0; white-space: nowrap;">
+                                                Change
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- All Addresses Selection (hidden by default, shown when "Change" is clicked) -->
+                                    <div id="allAddressesSelection" style="display: none;" class="mb-4">
+                                        <div class="space-y-2 mb-4" id="savedAddressesList">
+                                            {% for address in saved_addresses %}
+                                            <label class="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition address-option" style="pointer-events: auto;">
+                                                <input type="radio" name="selected_address" value="{{ address.id }}" 
+                                                       class="mt-1 mr-3 address-radio" 
+                                                       {% if address.is_default %}checked{% endif %}>
+                                                <div class="flex-1">
+                                                    {% if address.is_default %}
+                                                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded mb-1">Default</span>
+                                                    {% endif %}
+                                                    <div class="text-sm text-gray-700">
+                                                        <div>{{ address.address_line1 }}</div>
+                                                        {% if address.address_line2 %}
+                                                        <div>{{ address.address_line2 }}</div>
+                                                        {% endif %}
+                                                        <div>{{ address.city }}, {{ address.state }} {{ address.postal_code }}</div>
+                                                        <div>{{ address.country }}</div>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        <button type="button" id="useNewAddressBtn" class="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer transition-colors duration-200" style="pointer-events: auto; z-index: 10; position: relative; background: transparent; border: none; padding: 0;">
+                                            + Use a new address
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Address Form (shown by default if no saved addresses, or when "Use new address" is clicked) -->
+                                <div class="space-y-4" id="addressFormSection" {% if saved_addresses %}style="display: none;"{% endif %}>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Street Address *</label>
                                         <input type="text" id="street_address" name="street_address"
@@ -157,6 +220,10 @@
                                             <option value="Australia">Australia</option>
                                         </select>
                                     </div>
+                                </div>
+                                
+                                <!-- Phone and Delivery Notes (always visible) -->
+                                <div class="space-y-4 mt-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
                                         <input type="tel" id="phone" name="phone"
@@ -172,6 +239,13 @@
                                                   placeholder="Any special instructions for delivery..."></textarea>
                                     </div>
                                 </div>
+                                {% if saved_addresses %}
+                                <div id="backToSavedAddresses" style="display: none;" class="mt-4">
+                                    <button type="button" onclick="showSavedAddresses()" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                        ← Back to saved addresses
+                                    </button>
+                                </div>
+                                {% endif %}
                             </div>
 
                             <!-- Billing Address -->
@@ -368,6 +442,21 @@
                 lucide.createIcons();
             }
 
+            // Ensure default address radio button is checked on page load
+            const defaultAddressDisplay = document.getElementById('defaultAddressDisplay');
+            if (defaultAddressDisplay) {
+                const defaultRadio = defaultAddressDisplay.querySelector('.address-radio');
+                if (defaultRadio) {
+                    defaultRadio.checked = true;
+                    // Uncheck any other address radios to ensure only default is selected
+                    document.querySelectorAll('.address-radio').forEach(radio => {
+                        if (radio !== defaultRadio) {
+                            radio.checked = false;
+                        }
+                    });
+                }
+            }
+
             // Toggle billing address section
             const sameAsShippingCheckbox = document.getElementById('sameAsShipping');
             const billingAddressSection = document.getElementById('billingAddressSection');
@@ -378,6 +467,158 @@
                         billingAddressSection.classList.add('hidden');
                     } else {
                         billingAddressSection.classList.remove('hidden');
+                    }
+                });
+            }
+
+            // Show all addresses when "Change" is clicked
+            window.showAllAddresses = function() {
+                const defaultAddressDisplay = document.getElementById('defaultAddressDisplay');
+                const allAddressesSelection = document.getElementById('allAddressesSelection');
+                
+                if (defaultAddressDisplay) {
+                    defaultAddressDisplay.style.display = 'none';
+                }
+                if (allAddressesSelection) {
+                    allAddressesSelection.style.display = 'block';
+                    allAddressesSelection.style.animation = 'fadeIn 0.3s ease-out';
+                }
+            };
+
+            // Address selection functions
+            window.showNewAddressForm = function() {
+                console.log('showNewAddressForm called');
+                const addressFormSection = document.getElementById('addressFormSection');
+                const allAddressesSelection = document.getElementById('allAddressesSelection');
+                const backToSavedAddresses = document.getElementById('backToSavedAddresses');
+                
+                if (addressFormSection) {
+                    addressFormSection.style.display = 'block';
+                    addressFormSection.style.animation = 'fadeIn 0.3s ease-out';
+                }
+                if (allAddressesSelection) {
+                    allAddressesSelection.style.display = 'none';
+                }
+                if (backToSavedAddresses) {
+                    backToSavedAddresses.style.display = 'block';
+                }
+                
+                // Uncheck all address radios
+                document.querySelectorAll('.address-radio').forEach(radio => radio.checked = false);
+                
+                // Make form fields required
+                const streetAddress = document.getElementById('street_address');
+                const city = document.getElementById('city');
+                const postalCode = document.getElementById('postal_code');
+                const country = document.getElementById('country');
+                const phone = document.getElementById('phone');
+                
+                if (streetAddress) streetAddress.required = true;
+                if (city) city.required = true;
+                if (postalCode) postalCode.required = true;
+                if (country) country.required = true;
+                if (phone) phone.required = true;
+            };
+
+            window.showSavedAddresses = function() {
+                console.log('showSavedAddresses called');
+                const addressFormSection = document.getElementById('addressFormSection');
+                const defaultAddressDisplay = document.getElementById('defaultAddressDisplay');
+                const allAddressesSelection = document.getElementById('allAddressesSelection');
+                const backToSavedAddresses = document.getElementById('backToSavedAddresses');
+                
+                if (addressFormSection) {
+                    addressFormSection.style.display = 'none';
+                }
+                if (backToSavedAddresses) {
+                    backToSavedAddresses.style.display = 'none';
+                }
+                
+                // Show default address if it exists, otherwise show all addresses
+                if (defaultAddressDisplay) {
+                    defaultAddressDisplay.style.display = 'block';
+                    defaultAddressDisplay.style.animation = 'fadeIn 0.3s ease-out';
+                }
+                if (allAddressesSelection) {
+                    allAddressesSelection.style.display = 'none';
+                }
+                
+                // Make form fields not required when using saved address
+                const streetAddress = document.getElementById('street_address');
+                const city = document.getElementById('city');
+                const postalCode = document.getElementById('postal_code');
+                const country = document.getElementById('country');
+                const phone = document.getElementById('phone');
+                
+                if (streetAddress) streetAddress.required = false;
+                if (city) city.required = false;
+                if (postalCode) postalCode.required = false;
+                if (country) country.required = false;
+                if (phone) phone.required = true;
+            };
+
+            // Handle saved address selection
+            document.querySelectorAll('.address-radio').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.checked) {
+                        // Hide new address form
+                        const addressFormSection = document.getElementById('addressFormSection');
+                        const backToSavedAddresses = document.getElementById('backToSavedAddresses');
+                        const allAddressesSelection = document.getElementById('allAddressesSelection');
+                        const defaultAddressDisplay = document.getElementById('defaultAddressDisplay');
+                        
+                        if (addressFormSection) {
+                            addressFormSection.style.display = 'none';
+                        }
+                        if (backToSavedAddresses) {
+                            backToSavedAddresses.style.display = 'none';
+                        }
+                        
+                        // If a saved address is selected, show default address display and hide all addresses selection
+                        if (defaultAddressDisplay && allAddressesSelection) {
+                            // Find which address was selected
+                            const selectedAddressId = this.value;
+                            const selectedAddress = document.querySelector(`[data-address-id="${selectedAddressId}"]`);
+                            
+                            // If default address is selected, show default display
+                            const defaultRadio = defaultAddressDisplay.querySelector('.address-radio');
+                            if (defaultRadio && defaultRadio.value === selectedAddressId) {
+                                defaultAddressDisplay.style.display = 'block';
+                                allAddressesSelection.style.display = 'none';
+                            } else {
+                                // Otherwise keep showing all addresses
+                                defaultAddressDisplay.style.display = 'none';
+                                allAddressesSelection.style.display = 'block';
+                            }
+                        }
+                        
+                        // Make form fields not required
+                        const streetAddress = document.getElementById('street_address');
+                        const city = document.getElementById('city');
+                        const postalCode = document.getElementById('postal_code');
+                        const country = document.getElementById('country');
+                        const phone = document.getElementById('phone');
+                        
+                        if (streetAddress) streetAddress.required = false;
+                        if (city) city.required = false;
+                        if (postalCode) postalCode.required = false;
+                        if (country) country.required = false;
+                        if (phone) phone.required = true;
+                    }
+                });
+            });
+
+            // Handle "Use a new address" button click
+            const useNewAddressBtn = document.getElementById('useNewAddressBtn');
+            if (useNewAddressBtn) {
+                useNewAddressBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Use new address button clicked');
+                    if (typeof showNewAddressForm === 'function') {
+                        showNewAddressForm();
+                    } else if (window.showNewAddressForm) {
+                        window.showNewAddressForm();
                     }
                 });
             }
@@ -408,19 +649,35 @@
 
             // Form validation function
             function validateForm() {
-                const streetAddress = document.getElementById('street_address').value.trim();
-                const city = document.getElementById('city').value.trim();
-                const postalCode = document.getElementById('postal_code').value.trim();
-                const country = document.getElementById('country').value;
-                const phone = document.getElementById('phone').value.trim();
+                // Check if a saved address is selected (either from default display or all addresses)
+                const selectedAddressRadio = document.querySelector('.address-radio:checked');
                 
-                if (!streetAddress || !city || !postalCode || !country || !phone) {
+                // Check if new address form is visible
+                const addressFormSection = document.getElementById('addressFormSection');
+                const isNewAddressFormVisible = addressFormSection && addressFormSection.style.display !== 'none';
+                
+                if (!selectedAddressRadio && isNewAddressFormVisible) {
+                    // Validate new address form
+                    const streetAddress = document.getElementById('street_address').value.trim();
+                    const city = document.getElementById('city').value.trim();
+                    const postalCode = document.getElementById('postal_code').value.trim();
+                    const country = document.getElementById('country').value;
+                    const phone = document.getElementById('phone').value.trim();
+                    
+                    if (!streetAddress || !city || !postalCode || !country || !phone) {
+                        if (window.toast && window.toast.error) {
+                            window.toast.error('Please select a saved address or fill in all required shipping address fields.');
+                        } else if (typeof showToast === 'function') {
+                            showToast('Please select a saved address or fill in all required shipping address fields.', 'error');
+                        } else {
+                            alert('Please select a saved address or fill in all required shipping address fields.');
+                        }
+                        return false;
+                    }
+                } else if (!selectedAddressRadio && !isNewAddressFormVisible) {
+                    // No address selected and form is hidden - this shouldn't happen but handle it
                     if (window.toast && window.toast.error) {
-                        window.toast.error('Please fill in all required shipping address fields.');
-                    } else if (typeof showToast === 'function') {
-                        showToast('Please fill in all required shipping address fields.', 'error');
-                    } else {
-                        alert('Please fill in all required shipping address fields.');
+                        window.toast.error('Please select a shipping address.');
                     }
                     return false;
                 }
@@ -509,14 +766,44 @@
                 confirmButton.addEventListener('click', function() {
                     console.log('Confirm button clicked - preparing to submit form');
                     
-                    // Combine address fields
-                    const streetAddress = document.getElementById('street_address').value.trim();
-                    const city = document.getElementById('city').value.trim();
-                    const postalCode = document.getElementById('postal_code').value.trim();
-                    const country = document.getElementById('country').value;
-                    const phone = document.getElementById('phone').value.trim();
+                    // Check if a saved address is selected
+                    const selectedAddressRadio = document.querySelector('.address-radio:checked');
+                    let shippingAddress = '';
                     
-                    let shippingAddress = `${streetAddress}\n${city}, ${postalCode}\n${country}\nPhone: ${phone}`;
+                    if (selectedAddressRadio) {
+                        // Use saved address
+                        const addressId = selectedAddressRadio.value;
+                        // Get address data from the selected address card (could be in default display or all addresses)
+                        const addressCard = selectedAddressRadio.closest('.address-option') || selectedAddressRadio.closest('#defaultAddressDisplay');
+                        let addressLines = [];
+                        
+                        if (addressCard) {
+                            const addressTextDivs = addressCard.querySelectorAll('.text-sm.text-gray-700 > div');
+                            if (addressTextDivs.length > 0) {
+                                addressLines = Array.from(addressTextDivs).map(div => div.textContent.trim());
+                            }
+                        }
+                        
+                        if (addressLines.length > 0) {
+                            shippingAddress = addressLines.join('\n');
+                        }
+                        
+                        // Add phone from form (if provided)
+                        const phone = document.getElementById('phone').value.trim();
+                        if (phone) {
+                            shippingAddress += `\nPhone: ${phone}`;
+                        }
+                    } else {
+                        // Use new address form
+                        const streetAddress = document.getElementById('street_address').value.trim();
+                        const city = document.getElementById('city').value.trim();
+                        const postalCode = document.getElementById('postal_code').value.trim();
+                        const country = document.getElementById('country').value;
+                        const phone = document.getElementById('phone').value.trim();
+                        
+                        shippingAddress = `${streetAddress}\n${city}, ${postalCode}\n${country}\nPhone: ${phone}`;
+                    }
+                    
                     const deliveryNotes = document.getElementById('delivery_notes').value.trim();
                     if (deliveryNotes) {
                         shippingAddress += `\nNotes: ${deliveryNotes}`;

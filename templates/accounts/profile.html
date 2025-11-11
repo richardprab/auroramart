@@ -38,14 +38,16 @@
         width: 100%;
         height: 100%;
         overflow: auto;
-        background-color: rgba(0, 0, 0, 0.5);
-        animation: fadeIn 0.3s ease-out;
+        background-color: rgba(0, 0, 0, 0);
+        transition: background-color 0.3s ease;
     }
 
     .modal.active {
         display: flex;
         align-items: center;
         justify-content: center;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease-out;
     }
 
     .modal-content {
@@ -59,6 +61,103 @@
         scrollbar-width: none; /* Firefox - hide scrollbar */
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         animation: slideUp 0.3s ease-out;
+    }
+    
+    /* Reduce spacing in address form */
+    #addressFormModal .modal-content {
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+    }
+    
+    #addressFormModal .form-group {
+        margin-bottom: 1rem;
+    }
+
+    /* Smooth transitions for address management */
+    #addressesList > div {
+        animation: fadeInUp 0.3s ease-out;
+        transition: all 0.3s ease;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Address card hover effects */
+    .address-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .address-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Button transitions */
+    .address-action-btn {
+        transition: all 0.2s ease;
+    }
+
+    .address-action-btn:hover {
+        transform: scale(1.1);
+    }
+
+    /* Modal content animation */
+    .modal-content {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .modal.active .modal-content {
+        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Form field transitions */
+    #addressForm .form-control {
+        transition: all 0.2s ease;
+    }
+
+    #addressForm .form-control:focus {
+        transform: scale(1.01);
+    }
+
+    /* Loading state */
+    .address-loading {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
     }
 
     @media (min-width: 768px) {
@@ -455,6 +554,16 @@
                         </div>
                         <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
                     </button>
+                    <button onclick="openAddressesModal()" class="settings-option">
+                        <div class="settings-option-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <i data-lucide="map-pin" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Manage Addresses</span>
+                            <span class="settings-option-desc">Save and manage your shipping addresses</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -476,7 +585,7 @@
                         <p class="text-sm text-gray-500">{{ order.created_at|date:"F d, Y" }}</p>
                     </div>
                     <div class="text-right">
-                        <p class="font-semibold text-gray-800">${{ order.total_price }}</p>
+                        <p class="font-semibold text-gray-800">${{ order.total|floatformat:2 }}</p>
                         <span class="text-xs px-2 py-1 rounded-full 
                             {% if order.status == 'delivered' %}bg-green-100 text-green-800
                             {% elif order.status == 'cancelled' %}bg-red-100 text-red-800
@@ -767,6 +876,175 @@
     </div>
 </div>
 
+<!-- Manage Addresses Modal -->
+<div id="addressesModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-6 h-6"></i>
+                Manage Addresses
+            </h2>
+            <button class="modal-close" onclick="closeAddressesModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <!-- Add New Address Button -->
+            <div id="addAddressBtnContainer" style="transition: all 0.3s ease;">
+                <button onclick="openAddAddressModal()" class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-all duration-300 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                    <i data-lucide="plus" class="w-5 h-5 transition-transform duration-300"></i>
+                    <span>Add a new address</span>
+                </button>
+            </div>
+
+            <!-- Addresses List -->
+            <div id="addressesList" class="space-y-3">
+                <!-- Addresses will be loaded here via AJAX -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyAddressesState" class="text-center py-8 hidden">
+                <i data-lucide="map-pin" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                <p class="text-gray-500 mb-4">No saved addresses yet</p>
+                <button onclick="openAddAddressModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Add Your First Address
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Address Confirmation Modal -->
+<div id="deleteAddressModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2" style="margin: 0; font-size: 1.25rem;">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600 flex-shrink-0"></i>
+                <span style="line-height: 1.5;">Delete Address</span>
+            </h2>
+            <button class="modal-close" onclick="closeDeleteAddressModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-700 mb-6">Are you sure you want to delete this address? This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeDeleteAddressModal()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="button" id="confirmDeleteAddressBtn" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Address Modal -->
+<div id="addressFormModal" class="modal">
+    <div class="modal-content" style="max-width: 700px; max-height: 95vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2" id="addressFormTitle">
+                <i data-lucide="map-pin" class="w-6 h-6"></i>
+                Add Address
+            </h2>
+            <button class="modal-close" onclick="closeAddressFormModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="addressForm" method="POST" class="auth-form" novalidate style="padding: 0;">
+            {% csrf_token %}
+
+            <!-- Address Line 1 -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="id_address_line1" class="form-label">
+                    Street Address<span class="required-mark">*</span>
+                </label>
+                <input type="text" name="address_line1" id="id_address_line1" class="form-control" 
+                       placeholder="Street address, P.O. box, etc." required>
+                <div class="form-error" id="error-address_line1" style="display: none;"></div>
+            </div>
+
+            <!-- Address Line 2 -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="id_address_line2" class="form-label">
+                    Address Line 2 (Optional)
+                </label>
+                <input type="text" name="address_line2" id="id_address_line2" class="form-control" 
+                       placeholder="Apartment, suite, unit, etc.">
+                <div class="form-error" id="error-address_line2" style="display: none;"></div>
+            </div>
+
+            <!-- City and State -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="id_city" class="form-label">
+                        City<span class="required-mark">*</span>
+                    </label>
+                    <input type="text" name="city" id="id_city" class="form-control" 
+                           placeholder="City" required>
+                    <div class="form-error" id="error-city" style="display: none;"></div>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="id_state" class="form-label">
+                        State<span class="required-mark">*</span>
+                    </label>
+                    <input type="text" name="state" id="id_state" class="form-control" 
+                           placeholder="State, province, or region" required>
+                    <div class="form-error" id="error-state" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- Postal Code and Country -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="id_postal_code" class="form-label">
+                        Postal Code<span class="required-mark">*</span>
+                    </label>
+                    <input type="text" name="postal_code" id="id_postal_code" class="form-control" 
+                           placeholder="Postal code" required>
+                    <div class="form-error" id="error-postal_code" style="display: none;"></div>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="id_country" class="form-label">
+                        Country<span class="required-mark">*</span>
+                    </label>
+                    <select name="country" id="id_country" class="form-control" required>
+                        <option value="">Select Country</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Thailand">Thailand</option>
+                        <option value="Indonesia">Indonesia</option>
+                        <option value="Philippines">Philippines</option>
+                        <option value="Vietnam">Vietnam</option>
+                        <option value="United States">United States</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Australia">Australia</option>
+                    </select>
+                    <div class="form-error" id="error-country" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- Default Address Checkbox -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="is_default" id="id_is_default" class="form-check-input mr-2">
+                    <span class="text-sm text-gray-700">Set as default shipping address</span>
+                </label>
+            </div>
+
+            <!-- Submit Button -->
+            <div style="margin-top: 1rem;">
+                <button type="submit" class="w-full btn-submit" id="addressSubmitBtn">
+                    Save Address
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -828,6 +1106,412 @@
         });
     }
 
+    // Address Management Functions
+    let currentEditingAddressId = null;
+
+    function openAddressesModal() {
+        const modal = document.getElementById('addressesModal');
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Smooth fade in
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            // Load addresses when modal opens
+            loadAddresses();
+        }, 50);
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeAddressesModal() {
+        const modal = document.getElementById('addressesModal');
+        modal.style.transition = 'opacity 0.2s ease';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }, 200);
+    }
+
+    function openAddAddressModal() {
+        currentEditingAddressId = null;
+        const modal = document.getElementById('addressFormModal');
+        document.getElementById('addressFormTitle').innerHTML = '<i data-lucide="map-pin" class="w-6 h-6"></i> Add Address';
+        document.getElementById('addressForm').reset();
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Smooth fade in
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 50);
+        
+        document.querySelectorAll('#addressForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function openEditAddressModal(addressId) {
+        currentEditingAddressId = addressId;
+        const modal = document.getElementById('addressFormModal');
+        document.getElementById('addressFormTitle').innerHTML = '<i data-lucide="map-pin" class="w-6 h-6"></i> Edit Address';
+        
+        // Try to get address data from the DOM first (faster)
+        const addressCard = document.querySelector(`[data-address-id="${addressId}"]`);
+        let address = null;
+        
+        if (addressCard) {
+            const addressDataStr = addressCard.getAttribute('data-address-data');
+            if (addressDataStr) {
+                try {
+                    address = JSON.parse(addressDataStr);
+                } catch (e) {
+                    console.error('Error parsing address data:', e);
+                }
+            }
+        }
+        
+        // Open modal first with smooth animation
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 50);
+        
+        // If not found in DOM, fetch from server
+        if (!address) {
+            fetch('{% url "accounts:addresses" %}', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    address = data.addresses.find(a => a.id == addressId);
+                    if (address) {
+                        fillAddressForm(address);
+                    } else {
+                        console.error('Address not found');
+                        if (window.toast) {
+                            window.toast.error('Address not found. Please refresh and try again.');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading address:', error);
+                    if (window.toast) {
+                        window.toast.error('Failed to load address data. Please try again.');
+                    }
+                });
+        } else {
+            // Fill form immediately if we have the data with smooth transition
+            setTimeout(() => {
+                fillAddressForm(address);
+            }, 100);
+        }
+        
+        document.querySelectorAll('#addressForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function fillAddressForm(address) {
+        // Fill in the form fields with existing address data with smooth transitions
+        const fields = [
+            { id: 'id_address_line1', value: address.address_line1 || '' },
+            { id: 'id_address_line2', value: address.address_line2 || '' },
+            { id: 'id_city', value: address.city || '' },
+            { id: 'id_state', value: address.state || '' },
+            { id: 'id_postal_code', value: address.postal_code || '' },
+            { id: 'id_country', value: address.country || '' }
+        ];
+        
+        fields.forEach((field, index) => {
+            setTimeout(() => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    element.style.transition = 'all 0.2s ease';
+                    element.value = field.value;
+                }
+            }, index * 30);
+        });
+        
+        // Set checkbox
+        const checkbox = document.getElementById('id_is_default');
+        if (checkbox) {
+            checkbox.checked = address.is_default || false;
+        }
+    }
+
+    function closeAddressFormModal() {
+        const modal = document.getElementById('addressFormModal');
+        modal.style.transition = 'opacity 0.2s ease';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            currentEditingAddressId = null;
+        }, 200);
+    }
+
+    function loadAddresses() {
+        const addressesList = document.getElementById('addressesList');
+        const emptyState = document.getElementById('emptyAddressesState');
+        const addBtnContainer = document.getElementById('addAddressBtnContainer');
+        
+        // Show loading state with smooth fade
+        addressesList.style.opacity = '0.5';
+        addressesList.innerHTML = '<div class="text-center py-4 text-gray-500 address-loading">Loading addresses...</div>';
+        
+        fetch('{% url "accounts:addresses" %}', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Fade out current content
+                addressesList.style.transition = 'opacity 0.2s ease';
+                addressesList.style.opacity = '0';
+                
+                setTimeout(() => {
+                    addressesList.innerHTML = '';
+                    addressesList.style.opacity = '1';
+                    
+                    if (data.addresses && data.addresses.length > 0) {
+                        emptyState.classList.add('hidden');
+                        addBtnContainer.style.display = data.address_count >= 3 ? 'none' : 'block';
+                        
+                        // Add addresses with staggered animation
+                        data.addresses.forEach((address, index) => {
+                            setTimeout(() => {
+                                const addressCard = createAddressCard(address);
+                                addressCard.style.animationDelay = `${index * 0.05}s`;
+                                addressesList.appendChild(addressCard);
+                                
+                                // Reinitialize Lucide icons for this card
+                                if (typeof lucide !== 'undefined') {
+                                    lucide.createIcons();
+                                }
+                            }, index * 50);
+                        });
+                    } else {
+                        emptyState.classList.remove('hidden');
+                        emptyState.style.animation = 'fadeIn 0.3s ease-out';
+                        addBtnContainer.style.display = 'block';
+                    }
+                }, 200);
+            })
+            .catch(error => {
+                console.error('Error loading addresses:', error);
+                addressesList.style.opacity = '1';
+                addressesList.innerHTML = '<div class="text-center py-4 text-red-500" style="animation: fadeIn 0.3s ease-out;">Error loading addresses. Please try again.</div>';
+                if (window.toast) {
+                    window.toast.error('Failed to load addresses. Please refresh the page.');
+                }
+            });
+    }
+
+    function createAddressCard(address) {
+        const card = document.createElement('div');
+        card.className = 'address-card border border-gray-200 rounded-lg p-4 hover:border-blue-500';
+        if (address.is_default) {
+            card.classList.add('bg-blue-50', 'border-blue-300');
+        }
+        
+        // Store address data in a data attribute for easy access
+        card.setAttribute('data-address-id', address.id);
+        card.setAttribute('data-address-data', JSON.stringify(address));
+        
+        const addressLines = [
+            address.address_line1,
+            address.address_line2,
+            `${address.city}, ${address.state} ${address.postal_code}`,
+            address.country
+        ].filter(line => line && line.trim());
+        
+        card.innerHTML = `
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    ${address.is_default ? '<span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded mb-2 transition-all duration-300">Default</span>' : ''}
+                    <div class="text-sm text-gray-700 space-y-1">
+                        ${addressLines.map(line => `<div class="transition-opacity duration-200">${line}</div>`).join('')}
+                    </div>
+                </div>
+                <div class="flex gap-2 ml-4">
+                    <button onclick="openEditAddressModal(${address.id})" class="address-action-btn p-2 text-blue-600 hover:bg-blue-50 rounded transition-all duration-200" title="Edit address">
+                        <i data-lucide="edit" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="deleteAddress(${address.id})" class="address-action-btn p-2 text-red-600 hover:bg-red-50 rounded transition-all duration-200" title="Delete address">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                    ${!address.is_default ? `<button onclick="setDefaultAddress(${address.id})" class="address-action-btn p-2 text-gray-600 hover:bg-gray-50 rounded transition-all duration-200" title="Set as default">
+                        <i data-lucide="star" class="w-4 h-4"></i>
+                    </button>` : ''}
+                </div>
+            </div>
+        `;
+        
+        return card;
+    }
+
+    let pendingDeleteAddressId = null;
+
+    function deleteAddress(addressId) {
+        pendingDeleteAddressId = addressId;
+        openDeleteAddressModal();
+    }
+
+    function openDeleteAddressModal() {
+        const modal = document.getElementById('deleteAddressModal');
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Smooth fade in
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 50);
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeDeleteAddressModal() {
+        const modal = document.getElementById('deleteAddressModal');
+        modal.style.transition = 'opacity 0.2s ease';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            pendingDeleteAddressId = null;
+        }, 200);
+    }
+
+    function confirmDeleteAddress() {
+        if (!pendingDeleteAddressId) {
+            return;
+        }
+        
+        const addressId = pendingDeleteAddressId;
+        const confirmBtn = document.getElementById('confirmDeleteAddressBtn');
+        const originalText = confirmBtn.textContent;
+        
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Delete';
+        
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch(`{% url "accounts:delete_address" 0 %}`.replace('0', addressId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (window.toast) {
+                    window.toast.success(data.message);
+                }
+                // Close modal with smooth transition
+                closeDeleteAddressModal();
+                // Reload addresses list after modal closes
+                setTimeout(() => {
+                    loadAddresses();
+                }, 250);
+            } else {
+                if (window.toast) {
+                    window.toast.error(data.message || 'Failed to delete address');
+                }
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            }
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = originalText;
+        });
+    }
+
+    function setDefaultAddress(addressId) {
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch(`{% url "accounts:set_default_address" 0 %}`.replace('0', addressId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (window.toast) {
+                    window.toast.success(data.message);
+                }
+                // Reload addresses list to show updated default status with smooth transition
+                setTimeout(() => {
+                    loadAddresses();
+                }, 200);
+            } else {
+                if (window.toast) {
+                    window.toast.error(data.message || 'Failed to set default address');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            }
+        });
+    }
+
     function openCompleteProfileModal() {
         const currentStep = window.questionnaireState.questions.findIndex(q => !window.questionnaireState.userAnswers[q.id]);
         window.questionnaireState.currentStep = currentStep === -1 ? 0 : currentStep;
@@ -870,6 +1554,111 @@
     document.getElementById('changePasswordModal').addEventListener('click', function(e) {
         if (e.target === this) {
             closeChangePasswordModal();
+        }
+    });
+
+    // Close addresses modal when clicking outside
+    document.getElementById('addressesModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAddressesModal();
+        }
+    });
+
+    // Close address form modal when clicking outside
+    document.getElementById('addressFormModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAddressFormModal();
+        }
+    });
+
+    // Close delete address modal when clicking outside
+    document.getElementById('deleteAddressModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDeleteAddressModal();
+        }
+    });
+
+    // Handle confirm delete button click
+    document.getElementById('confirmDeleteAddressBtn').addEventListener('click', confirmDeleteAddress);
+
+    // Handle address form submission
+    document.getElementById('addressForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+        
+        // Clear previous errors
+        document.querySelectorAll('#addressForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#addressForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        const formData = new FormData(form);
+        const url = currentEditingAddressId 
+            ? `{% url "accounts:edit_address" 0 %}`.replace('0', currentEditingAddressId)
+            : '{% url "accounts:add_address" %}';
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                if (window.toast) {
+                    window.toast.success(data.message);
+                }
+                
+                // Close modal with smooth transition
+                closeAddressFormModal();
+                // Reload addresses list after modal closes
+                setTimeout(() => {
+                    loadAddresses();
+                }, 250);
+            } else {
+                if (window.toast) {
+                    window.toast.error(data.message || 'Please correct the errors below.');
+                }
+                
+                // Display field errors
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorEl = document.getElementById(`error-${field}`);
+                        const inputEl = document.getElementById(`id_${field}`);
+                        
+                        if (errorEl && errors.length > 0) {
+                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.style.display = 'flex';
+                        }
+                        
+                        if (inputEl) {
+                            inputEl.classList.add('error');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            }
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
         }
     });
 
