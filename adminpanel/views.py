@@ -7,7 +7,8 @@ from django.template.loader import render_to_string
 import requests
 
 from products.models import Product, ProductVariant, ProductImage, Category
-from accounts.models import ChatConversation, ChatMessage, User
+from accounts.models import User
+from chat.models import ChatConversation, ChatMessage
 from orders.models import Order
 from .forms import ProductSearchForm, OrderSearchForm
 
@@ -549,7 +550,7 @@ def order_management(request):
             if not query_upper.startswith('ORD'):
                 search_q |= Q(order_number__icontains=f'ORD-{initial_query}')
             
-            matching_orders = Order.objects.filter(search_q).select_related('user').prefetch_related('items__variant__product').distinct()[:100]
+            matching_orders = Order.objects.filter(search_q).select_related('user').prefetch_related('items__product_variant__product').distinct()[:100]
             
             # Sort by relevance
             def get_relevance_score(order):
@@ -580,7 +581,7 @@ def order_management(request):
             ).distinct()[:20]
             
             for user in matching_users:
-                user_orders = Order.objects.filter(user=user).select_related('user').prefetch_related('items__variant__product').order_by('-created_at')[:10]
+                user_orders = Order.objects.filter(user=user).select_related('user').prefetch_related('items__product_variant__product').order_by('-created_at')[:10]
                 for order in user_orders:
                     orders_data.append({
                         'order': order,
@@ -592,7 +593,7 @@ def order_management(request):
             orders_data = orders_data[:50]
     else:
         # Show recent orders
-        orders = Order.objects.select_related('user').prefetch_related('items__variant__product').order_by('-created_at')[:50]
+        orders = Order.objects.select_related('user').prefetch_related('items__product_variant__product').order_by('-created_at')[:50]
         for order in orders:
             orders_data.append({
                 'order': order,
@@ -616,7 +617,7 @@ def search_order(request):
         
         if not query:
             # If empty query, return recent orders (limit to 50)
-            orders = Order.objects.select_related('user').prefetch_related('items__variant__product').order_by('-created_at')[:50]
+            orders = Order.objects.select_related('user').prefetch_related('items__product_variant__product').order_by('-created_at')[:50]
             for order in orders:
                 orders_data.append({
                     'order': order,
@@ -638,7 +639,7 @@ def search_order(request):
                 
                 matching_orders = Order.objects.filter(
                     search_q
-                ).select_related('user').prefetch_related('items__variant__product').distinct()[:100]
+                ).select_related('user').prefetch_related('items__product_variant__product').distinct()[:100]
                 
                 # Sort by relevance
                 def get_relevance_score(order):
@@ -683,7 +684,7 @@ def search_order(request):
                 
                 # For each user, get their most recent orders
                 for user in matching_users:
-                    user_orders = Order.objects.filter(user=user).select_related('user').prefetch_related('items__variant__product').order_by('-created_at')[:10]
+                    user_orders = Order.objects.filter(user=user).select_related('user').prefetch_related('items__product_variant__product').order_by('-created_at')[:10]
                     
                     for order in user_orders:
                         orders_data.append({
@@ -722,7 +723,7 @@ def search_order(request):
 def edit_order(request, order_id):
     """Display order edit form"""
     order = get_object_or_404(
-        Order.objects.select_related('user', 'address').prefetch_related('items__variant__product'),
+        Order.objects.select_related('user', 'address').prefetch_related('items__product_variant__product'),
         id=order_id
     )
     

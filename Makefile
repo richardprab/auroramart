@@ -28,7 +28,7 @@ install:
 migrations:
 	@echo "Creating migrations..."
 	python manage.py makemigrations products
-	python manage.py makemigrations accounts  # Includes BrowsingHistory (view_count, unique_together)
+	python manage.py makemigrations accounts 
 	python manage.py makemigrations chat
 	python manage.py makemigrations cart
 	python manage.py makemigrations orders
