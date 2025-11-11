@@ -7,6 +7,8 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.core.paginator import Paginator
 from products.models import Product
+from .models import Wishlist, Address
+from .forms import CustomUserCreationForm, UserProfileForm, AddressForm
 from .models import Wishlist, Customer
 from .forms import CustomUserCreationForm, UserProfileForm
 from django.contrib.auth import logout
@@ -445,5 +447,179 @@ def change_password(request):
             messages.error(request, 'Please correct the errors below.')
     
     return redirect('accounts:profile')
+
+
+@login_required
+def addresses(request):
+    """List user addresses"""
+    addresses_list = Address.objects.filter(user=request.user, address_type='shipping').order_by('-is_default', '-created_at')
+    
+    # Return JSON for AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        addresses_data = [{
+            'id': addr.id,
+            'address_line1': addr.address_line1,
+            'address_line2': addr.address_line2 or '',
+            'city': addr.city,
+            'state': addr.state,
+            'postal_code': addr.postal_code,
+            'country': addr.country,
+            'is_default': addr.is_default,
+        } for addr in addresses_list]
+        
+        return JsonResponse({
+            'addresses': addresses_data,
+            'address_count': addresses_list.count(),
+        })
+    
+    context = {
+        'addresses': addresses_list,
+        'address_count': addresses_list.count(),
+    }
+    return render(request, 'accounts/addresses.html', context)
+
+
+@require_http_methods(["GET", "POST"])
+@login_required
+def add_address(request):
+    """Add a new address (max 3 addresses)"""
+    # Check address limit
+    address_count = Address.objects.filter(user=request.user, address_type='shipping').count()
+    if address_count >= 3:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'message': 'You can only save up to 3 addresses. Please delete an existing address first.'
+            }, status=400)
+        messages.error(request, 'You can only save up to 3 addresses. Please delete an existing address first.')
+        return redirect('accounts:addresses')
+    
+    if request.method == 'POST':
+        form = AddressForm(request.POST, user=request.user)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if form.is_valid():
+                address = form.save()
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Address added successfully!',
+                    'address': {
+                        'id': address.id,
+                        'address_line1': address.address_line1,
+                        'address_line2': address.address_line2 or '',
+                        'city': address.city,
+                        'state': address.state,
+                        'postal_code': address.postal_code,
+                        'country': address.country,
+                        'is_default': address.is_default,
+                    }
+                })
+            else:
+                errors = {}
+                for field, error_list in form.errors.items():
+                    errors[field] = [str(error) for error in error_list]
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Please correct the errors below.',
+                    'errors': errors
+                }, status=400)
+        else:
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Address added successfully!')
+                return redirect('accounts:addresses')
+    else:
+        form = AddressForm(user=request.user)
+    
+    return render(request, 'accounts/add_address.html', {'form': form})
+
+
+@require_http_methods(["GET", "POST"])
+@login_required
+def edit_address(request, address_id):
+    """Edit an existing address"""
+    address = get_object_or_404(Address, id=address_id, user=request.user)
+    
+    if request.method == 'POST':
+        form = AddressForm(request.POST, instance=address, user=request.user)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if form.is_valid():
+                address = form.save()
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Address updated successfully!',
+                    'address': {
+                        'id': address.id,
+                        'address_line1': address.address_line1,
+                        'address_line2': address.address_line2 or '',
+                        'city': address.city,
+                        'state': address.state,
+                        'postal_code': address.postal_code,
+                        'country': address.country,
+                        'is_default': address.is_default,
+                    }
+                })
+            else:
+                errors = {}
+                for field, error_list in form.errors.items():
+                    errors[field] = [str(error) for error in error_list]
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Please correct the errors below.',
+                    'errors': errors
+                }, status=400)
+        else:
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Address updated successfully!')
+                return redirect('accounts:addresses')
+    else:
+        form = AddressForm(instance=address, user=request.user)
+    
+    return render(request, 'accounts/edit_address.html', {'form': form, 'address': address})
+
+
+@require_http_methods(["POST"])
+@login_required
+def delete_address(request, address_id):
+    """Delete an address"""
+    address = get_object_or_404(Address, id=address_id, user=request.user)
+    
+    if request.method == 'POST':
+        address.delete()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Address deleted successfully!'
+            })
+        
+        messages.success(request, 'Address deleted successfully!')
+        return redirect('accounts:addresses')
+    
+    return redirect('accounts:addresses')
+
+
+@require_http_methods(["POST"])
+@login_required
+def set_default_address(request, address_id):
+    """Set an address as default"""
+    address = get_object_or_404(Address, id=address_id, user=request.user)
+    
+    if request.method == 'POST':
+        address.is_default = True
+        address.save()  # This will automatically unset other defaults via the model's save method
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Default address updated successfully!'
+            })
+        
+        messages.success(request, 'Default address updated successfully!')
+        return redirect('accounts:addresses')
+    
+    return redirect('accounts:addresses')
 
 

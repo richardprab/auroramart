@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from .models import Address
 import re
 
 User = get_user_model()
@@ -496,3 +497,158 @@ class UserProfileForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+
+class AddressForm(forms.ModelForm):
+    """Form for managing user addresses"""
+    
+    address_line1 = forms.CharField(
+        required=True,
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Street address, P.O. box, etc.",
+                "autocomplete": "street-address",
+            }
+        ),
+        help_text="Street address, P.O. box, etc.",
+    )
+    
+    address_line2 = forms.CharField(
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Apartment, suite, unit, etc. (Optional)",
+                "autocomplete": "address-line2",
+            }
+        ),
+        help_text="Apartment, suite, unit, etc. (Optional)",
+    )
+    
+    city = forms.CharField(
+        required=True,
+        max_length=100,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "City",
+                "autocomplete": "address-level2",
+            }
+        ),
+    )
+    
+    state = forms.CharField(
+        required=True,
+        max_length=100,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "State, province, or region",
+                "autocomplete": "address-level1",
+            }
+        ),
+    )
+    
+    postal_code = forms.CharField(
+        required=True,
+        max_length=20,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Postal code",
+                "autocomplete": "postal-code",
+            }
+        ),
+    )
+    
+    country = forms.CharField(
+        required=True,
+        max_length=100,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+            },
+            choices=[
+                ("", "Select Country"),
+                ("Singapore", "Singapore"),
+                ("Malaysia", "Malaysia"),
+                ("Thailand", "Thailand"),
+                ("Indonesia", "Indonesia"),
+                ("Philippines", "Philippines"),
+                ("Vietnam", "Vietnam"),
+                ("United States", "United States"),
+                ("United Kingdom", "United Kingdom"),
+                ("Australia", "Australia"),
+            ]
+        ),
+    )
+    
+    is_default = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(
+            attrs={
+                "class": "form-check-input",
+            }
+        ),
+        help_text="Set as default shipping address",
+    )
+    
+    class Meta:
+        model = Address
+        fields = [
+            "address_line1",
+            "address_line2",
+            "city",
+            "state",
+            "postal_code",
+            "country",
+            "is_default",
+        ]
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+        
+        # Set address_type to 'shipping' by default
+        if not self.instance.pk:
+            self.instance.address_type = 'shipping'
+            if self.user:
+                self.instance.user = self.user
+    
+    def clean_postal_code(self):
+        """Validate postal code"""
+        postal_code = self.cleaned_data.get("postal_code", "").strip()
+        
+        if not postal_code:
+            raise ValidationError("Postal code is required.")
+        
+        # Allow alphanumeric postal codes
+        if not re.match(r"^[a-zA-Z0-9\s\-]+$", postal_code):
+            raise ValidationError("Postal code can only contain letters, numbers, spaces, and hyphens.")
+        
+        return postal_code
+    
+    def save(self, commit=True):
+        """Save the address"""
+        address = super().save(commit=False)
+        
+        if self.user:
+            address.user = self.user
+        
+        # Set address_type to shipping if not set
+        if not address.address_type:
+            address.address_type = 'shipping'
+        
+        # Set full_name from user if not provided
+        if not address.full_name and self.user:
+            address.full_name = self.user.get_full_name() or self.user.username
+        
+        # Set zip_code same as postal_code for compatibility
+        address.zip_code = address.postal_code
+        
+        if commit:
+            address.save()
+        return address

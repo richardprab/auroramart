@@ -11,6 +11,11 @@ urlpatterns = [
     path("profile/", views.profile, name="profile"),
     path("profile/update-demographics/", views.update_demographics, name="update_demographics"),
     path("profile/change-password/", views.change_password, name="change_password"),
+    path("addresses/", views.addresses, name="addresses"),
+    path("addresses/add/", views.add_address, name="add_address"),
+    path("addresses/<int:address_id>/edit/", views.edit_address, name="edit_address"),
+    path("addresses/<int:address_id>/delete/", views.delete_address, name="delete_address"),
+    path("addresses/<int:address_id>/set-default/", views.set_default_address, name="set_default_address"),
     path("wishlist/", views.wishlist, name="wishlist"),
     path(
         "wishlist/add/<int:product_id>/", views.add_to_wishlist, name="add_to_wishlist"

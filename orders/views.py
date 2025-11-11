@@ -26,6 +26,14 @@ def checkout(request):
     # Calculate totals using helper function
     totals = calculate_cart_totals(cart_items)
     
+    # Get user's saved addresses
+    from accounts.models import Address
+    all_saved_addresses = Address.objects.filter(user=request.user, address_type='shipping').order_by('-is_default', '-created_at')
+    default_address = all_saved_addresses.filter(is_default=True).first()
+    # If no default, use the first address
+    if not default_address and all_saved_addresses.exists():
+        default_address = all_saved_addresses.first()
+    
     context = {
         "cart_items": cart_items,
         "subtotal": totals['subtotal'],
@@ -33,6 +41,8 @@ def checkout(request):
         "shipping": totals['shipping'],
         "total": totals['total'],
         "user": request.user,
+        "saved_addresses": all_saved_addresses,
+        "default_address": default_address,
     }
 
     return render(request, "orders/checkout.html", context)
