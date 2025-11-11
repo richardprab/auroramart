@@ -73,32 +73,210 @@ const NavbarModule = {
 
     // Search bar functionality
     searchBar() {
-        const searchInput = document.querySelector('input[name="q"]');
-        if (!searchInput) return;
+        const searchInputs = document.querySelectorAll('input[name="q"]');
+        if (searchInputs.length === 0) return;
 
+        // Initialize for each search input (desktop and mobile)
+        searchInputs.forEach(searchInput => {
         let debounceTimer;
+
+            // Create suggestions container if it doesn't exist
+            // The input is inside a div.relative, so we append to that
+            const inputWrapper = searchInput.parentElement; // The div.relative
+            if (inputWrapper && !inputWrapper.querySelector('.search-suggestions')) {
+                const suggestionsContainer = document.createElement('div');
+                suggestionsContainer.className = 'search-suggestions absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto hidden';
+                // Ensure parent has relative positioning
+                if (window.getComputedStyle(inputWrapper).position === 'static') {
+                    inputWrapper.style.position = 'relative';
+                }
+                inputWrapper.appendChild(suggestionsContainer);
+            }
 
         searchInput.addEventListener('input', function () {
             clearTimeout(debounceTimer);
 
             debounceTimer = setTimeout(() => {
-                const query = this.value.trim();
+                    const query = searchInput.value.trim();
 
                 if (query.length > 2) {
-                    NavbarModule.searchSuggestions(query);
+                        NavbarModule.searchSuggestions(query, searchInput);
                 } else {
                     NavbarModule.hideSuggestions();
                 }
             }, 300);
         });
 
-        // Submit on Enter
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!inputWrapper.contains(e.target)) {
+                    NavbarModule.hideSuggestions();
+                }
+            });
+
+            // Handle keyboard navigation
+            searchInput.addEventListener('keydown', function(e) {
+                const suggestions = inputWrapper.querySelector('.search-suggestions');
+                const items = suggestions?.querySelectorAll('.suggestion-item');
+                
+                if (e.key === 'ArrowDown' && items && items.length > 0) {
+                    e.preventDefault();
+                    const current = suggestions.querySelector('.suggestion-item.highlighted');
+                    if (current) {
+                        current.classList.remove('highlighted');
+                        const next = current.nextElementSibling;
+                        if (next) {
+                            next.classList.add('highlighted');
+                        } else {
+                            items[0].classList.add('highlighted');
+                        }
+                    } else {
+                        items[0].classList.add('highlighted');
+                    }
+                } else if (e.key === 'ArrowUp' && items && items.length > 0) {
+                    e.preventDefault();
+                    const current = suggestions.querySelector('.suggestion-item.highlighted');
+                    if (current) {
+                        current.classList.remove('highlighted');
+                        const prev = current.previousElementSibling;
+                        if (prev) {
+                            prev.classList.add('highlighted');
+                        } else {
+                            items[items.length - 1].classList.add('highlighted');
+                        }
+                    } else {
+                        items[items.length - 1].classList.add('highlighted');
+                    }
+                } else if (e.key === 'Enter') {
+                    const highlighted = suggestions?.querySelector('.suggestion-item.highlighted a');
+                    if (highlighted) {
                 e.preventDefault();
+                        window.location.href = highlighted.href;
+                    } else {
+                        // Normal form submission
                 searchInput.closest('form').submit();
+                    }
+                } else if (e.key === 'Escape') {
+                    NavbarModule.hideSuggestions();
+                }
+            });
+        });
+    },
+
+    // Show search suggestions
+    searchSuggestions(query, searchInput = null) {
+        // If no specific input provided, find the active one (the one with the query)
+        if (!searchInput) {
+            const inputs = document.querySelectorAll('input[name="q"]');
+            searchInput = Array.from(inputs).find(input => input.value.trim() === query) || inputs[0];
+        }
+        
+        if (!searchInput) {
+            console.error('Search input not found');
+            return;
+        }
+        
+        const inputWrapper = searchInput.parentElement;
+        if (!inputWrapper) {
+            console.error('Input wrapper not found');
+            return;
+        }
+        
+        // Ensure suggestions container exists
+        let suggestionsContainer = inputWrapper.querySelector('.search-suggestions');
+        if (!suggestionsContainer) {
+            suggestionsContainer = document.createElement('div');
+            suggestionsContainer.className = 'search-suggestions absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto hidden';
+            if (window.getComputedStyle(inputWrapper).position === 'static') {
+                inputWrapper.style.position = 'relative';
+            }
+            inputWrapper.appendChild(suggestionsContainer);
+        }
+
+        // Show loading state
+        suggestionsContainer.innerHTML = '<div class="p-4 text-center text-gray-500">Searching...</div>';
+        suggestionsContainer.classList.remove('hidden');
+        suggestionsContainer.style.display = 'block';
+
+        // Fetch suggestions
+        fetch(`/products/search-suggestions/?q=${encodeURIComponent(query)}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.suggestions && data.suggestions.length > 0) {
+                let html = '';
+                const self = this;
+                data.suggestions.forEach(product => {
+                    html += `
+                        <a href="/products/${product.sku}/" class="suggestion-item flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0">
+                            ${product.image ? `
+                                <img src="${product.image}" alt="${self.escapeHtml(product.name)}" class="w-12 h-12 object-cover rounded">
+                            ` : `
+                                <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                                    <i data-lucide="package" class="w-6 h-6 text-gray-400"></i>
+                                </div>
+                            `}
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium text-gray-900 truncate">${self.escapeHtml(product.name)}</div>
+                                ${product.brand ? `<div class="text-sm text-gray-500">${self.escapeHtml(product.brand)}</div>` : ''}
+                                ${product.category ? `<div class="text-xs text-gray-400">${self.escapeHtml(product.category)}</div>` : ''}
+                            </div>
+                            <div class="text-right">
+                                <div class="font-semibold text-gray-900">$${product.price.toFixed(2)}</div>
+                            </div>
+                        </a>
+                    `;
+                });
+                suggestionsContainer.innerHTML = html;
+                suggestionsContainer.style.display = 'block';
+                
+                // Reinitialize Lucide icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            } else {
+                suggestionsContainer.innerHTML = '<div class="p-4 text-center text-gray-500">No products found</div>';
+                suggestionsContainer.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching suggestions:', error);
+            suggestionsContainer.classList.add('hidden');
+            suggestionsContainer.style.display = 'none';
+        });
+    },
+
+    // Hide search suggestions
+    hideSuggestions() {
+        const searchInputs = document.querySelectorAll('input[name="q"]');
+        searchInputs.forEach(searchInput => {
+            const inputWrapper = searchInput.parentElement;
+            const suggestionsContainer = inputWrapper?.querySelector('.search-suggestions');
+            
+            if (suggestionsContainer) {
+                suggestionsContainer.classList.add('hidden');
+                suggestionsContainer.style.display = 'none';
+                // Remove highlighted class
+                suggestionsContainer.querySelectorAll('.suggestion-item.highlighted').forEach(item => {
+                    item.classList.remove('highlighted');
+                });
             }
         });
+    },
+
+    // Escape HTML to prevent XSS
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     },
 
     stickyNav() {

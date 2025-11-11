@@ -406,3 +406,21 @@
         max-width: none;
     }
 }
+
+/* === SEARCH SUGGESTIONS === */
+.search-suggestions {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.suggestion-item {
+    text-decoration: none;
+    color: inherit;
+}
+
+.suggestion-item.highlighted {
+    background-color: #f3f4f6;
+}
+
+.suggestion-item:hover {
+    background-color: #f9fafb;
+}

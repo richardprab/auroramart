@@ -251,7 +251,7 @@
                             <!-- Product Info -->
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-semibold text-base mb-1">
-                                    <a href="{% url 'products:product_detail' item.product.slug %}" 
+                                    <a href="{% url 'products:product_detail' item.product.sku %}" 
                                        class="hover:text-blue-600 transition">
                                         {{ item.product.name }}
                                     </a>
@@ -394,10 +394,9 @@
         </div>
 
         <!-- ML-Powered Recommendations: People Also Bought -->
-        <div class="mt-12">
+        <div class="mt-12 hidden" id="order-recommendations-section">
             <div class="flex items-center gap-2 mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">People Also Bought</h2>
-                <span class="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-3 py-1 rounded-full font-semibold">AI Powered</span>
             </div>
             
             <!-- Loading State -->
@@ -542,6 +541,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (data.recommendations && data.recommendations.length > 0) {
             console.log('Showing recommendations');
+            document.getElementById('order-recommendations-section').classList.remove('hidden');
             if (contentState) contentState.classList.remove('hidden');
             const grid = document.getElementById('order-recommendations-grid');
             
@@ -557,8 +557,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } else {
-            console.log('No recommendations found, showing empty state');
-            if (emptyState) emptyState.classList.remove('hidden');
+            console.log('No recommendations found, hiding section');
+            document.getElementById('order-recommendations-section').classList.add('hidden');
         }
     })
     .catch(error => {
@@ -568,9 +568,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error stack:', error.stack);
         
         const loadingState = document.getElementById('order-recommendations-loading');
-        const emptyState = document.getElementById('order-recommendations-empty');
         if (loadingState) loadingState.classList.add('hidden');
-        if (emptyState) emptyState.classList.remove('hidden');
+        document.getElementById('order-recommendations-section').classList.add('hidden');
     });
 
     function createOrderRecommendationCard(product) {
@@ -611,7 +610,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 
                 <div class="p-4 flex-1 flex flex-col">
-                    <a href="/products/${product.slug}/" class="hover:text-blue-600 transition">
+                    <a href="/products/${product.sku}/" class="hover:text-blue-600 transition">
                         <h3 class="font-semibold text-sm mb-2 line-clamp-2 min-h-[2.5rem]">${product.name}</h3>
                     </a>
                     

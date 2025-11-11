@@ -187,7 +187,7 @@ def add_to_cart(request, product_id):
                     "message": "Please select size and color"
                 })
             # No toast, just redirect back
-            return redirect("products:product_detail", slug=product.slug)
+            return redirect("products:product_detail", sku=product.sku)
 
         variant = get_object_or_404(ProductVariant, id=variant_id, product=product)
 
@@ -199,7 +199,7 @@ def add_to_cart(request, product_id):
                     "message": f"Only {variant.stock} left in stock"
                 })
             # No toast, redirect back
-            return redirect("products:product_detail", slug=product.slug)
+            return redirect("products:product_detail", sku=product.sku)
 
         cart = get_or_create_cart(request)
 

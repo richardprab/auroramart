@@ -54,7 +54,7 @@
                     <!-- Product Info -->
                     <div class="flex-1 min-w-0">
                         <h3 class="font-semibold text-base mb-1 truncate">
-                            <a href="{% url 'products:product_detail' item.product.slug %}" class="hover:text-blue-600 transition">
+                            <a href="{% url 'products:product_detail' item.product.sku %}" class="hover:text-blue-600 transition">
                                 {{ item.product.name }}
                             </a>
                         </h3>
@@ -195,10 +195,9 @@
 
     <!-- ML-Powered Recommendations: Complete Your Purchase -->
     {% if cart_items %}
-    <div class="mt-12">
+    <div class="mt-12" id="cart-recommendations-section">
         <div class="flex items-center gap-2 mb-6">
             <h2 class="text-2xl font-bold">Complete Your Purchase</h2>
-            <span class="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full font-semibold">AI Powered</span>
         </div>
         <div id="cart-recommendations-loading" class="flex items-center justify-center py-12 bg-white rounded-xl">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -575,6 +574,7 @@
         loadingState.classList.add('hidden');
         
         if (data.recommendations && data.recommendations.length > 0) {
+            document.getElementById('cart-recommendations-section').classList.remove('hidden');
             contentState.classList.remove('hidden');
             const grid = document.getElementById('cart-recommendations-grid');
             
@@ -591,12 +591,12 @@
                 lucide.createIcons();
             }
         } else {
-            emptyState.classList.remove('hidden');
+            document.getElementById('cart-recommendations-section').classList.add('hidden');
         }
     })
     .catch(error => {
         document.getElementById('cart-recommendations-loading').classList.add('hidden');
-        document.getElementById('cart-recommendations-empty').classList.remove('hidden');
+        document.getElementById('cart-recommendations-section').classList.add('hidden');
     });
 
     function createProductCard(product) {
@@ -610,7 +610,7 @@
         return `
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 flex flex-col h-full">
                 <div class="relative">
-                    <a href="/products/${product.slug}/" class="block">
+                    <a href="/products/${product.sku}/" class="block">
                         ${primaryImage && primaryImage.url ? 
                             `<img src="${primaryImage.url}" alt="${primaryImage.alt_text || product.name}" class="w-full h-64 object-cover">` :
                             `<div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
@@ -629,7 +629,7 @@
                 </div>
                 
                 <div class="p-4 flex-1 flex flex-col">
-                    <a href="/products/${product.slug}/" class="hover:text-blue-600">
+                    <a href="/products/${product.sku}/" class="hover:text-blue-600">
                         <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
                     </a>
                     

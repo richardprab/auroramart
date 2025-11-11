@@ -92,11 +92,20 @@ def get_similar_products(request, product_id):
 @login_required
 def get_cart_recommendations(request):
     """Get product recommendations based on cart contents"""
-    from cart.models import CartItem
+    from cart.models import CartItem, Cart
+    
+    # Get user's cart
+    try:
+        cart = Cart.objects.get(user=request.user)
+    except Cart.DoesNotExist:
+        return JsonResponse({
+            'recommendations': [],
+            'message': 'Cart is empty'
+        })
     
     cart_items = CartItem.objects.filter(
-        user=request.user
-    ).select_related('product_variant__product')
+        cart=cart
+    ).select_related('product_variant__product', 'product')
     
     if not cart_items.exists():
         return JsonResponse({
@@ -112,28 +121,40 @@ def get_cart_recommendations(request):
         # Serialize products manually
         recommendations_data = []
         for prod in recommendations:
-            default_variant = prod.get_lowest_priced_variant()
-            image = prod.get_primary_image()
-            
-            # Get review count
-            recommendations_data.append({
-                'id': prod.id,
-                'name': prod.name,
-                'slug': prod.slug,
-                'sku': prod.sku,
-                'brand': prod.brand,
-                'rating': float(prod.rating) if prod.rating else 0.0,
-                'primary_image': {
-                    'url': image.image.url if image else None,
-                    'alt_text': image.alt_text if image else prod.name
-                } if image else None,
-                'lowest_variant': {
-                    'id': default_variant.id if default_variant else None,
-                    'price': float(default_variant.price) if default_variant else 0.0,
-                    'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
-                    'stock': default_variant.stock if default_variant else 0,
-                } if default_variant else None
-            })
+            try:
+                default_variant = prod.get_lowest_priced_variant()
+                image = prod.get_primary_image()
+                
+                # Safely get image URL
+                image_url = None
+                if image and hasattr(image, 'image') and image.image:
+                    try:
+                        image_url = image.image.url
+                    except (AttributeError, ValueError):
+                        image_url = None
+                
+                recommendations_data.append({
+                    'id': prod.id,
+                    'name': prod.name,
+                    'slug': prod.slug,
+                    'sku': prod.sku,
+                    'brand': prod.brand,
+                    'rating': float(prod.rating) if prod.rating else 0.0,
+                    'review_count': prod.reviews.count(),
+                    'primary_image': {
+                        'url': image_url,
+                        'alt_text': image.alt_text if image else prod.name
+                    } if image else None,
+                    'lowest_variant': {
+                        'id': default_variant.id if default_variant else None,
+                        'price': float(default_variant.price) if default_variant else 0.0,
+                        'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
+                        'stock': default_variant.stock if default_variant else 0,
+                    } if default_variant else None
+                })
+            except Exception:
+                # Skip products that fail to serialize
+                continue
         
         return JsonResponse({
             'recommendations': recommendations_data,
@@ -169,7 +190,7 @@ def get_personalized_recommendations(request):
             try:
                 default_variant = prod.get_lowest_priced_variant()
                 image = prod.get_primary_image()
-            
+                
                 # Safely get image URL
                 image_url = None
                 if image and hasattr(image, 'image') and image.image:
