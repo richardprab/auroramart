@@ -55,152 +55,8 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)  # Temporarily nullable for migration
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)  # Temporarily nullable for migration
     
-    # Override groups and user_permissions to add related_name for multi-table inheritance
-    groups = models.ManyToManyField(
-        'auth.Group',
-        verbose_name='groups',
-        blank=True,
-        help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.',
-        related_name='%(class)s_set',
-        related_query_name='user',
-    )
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        verbose_name='user permissions',
-        blank=True,
-        help_text='Specific permissions for this user.',
-        related_name='%(class)s_set',
-        related_query_name='user',
-    )
-
-    class Meta:
-        abstract = True
-        verbose_name = "User"
-        verbose_name_plural = "Users"
-
-    def __str__(self):
-        return self.username
-
-    def get_full_name(self):
-        """Returns the user's full name."""
-        return f"{self.first_name} {self.last_name}".strip()
-
-    def get_short_name(self):
-        """Returns the user's first name."""
-        return self.first_name
-    
-    def is_customer(self):
-        """Check if user is a customer (has Customer profile)."""
-        return hasattr(self, 'customer')
-    
-    def is_staff_member(self):
-        """Check if user is a staff member (has Staff profile)."""
-        return hasattr(self, 'staff')
-    
-    def is_superuser_account(self):
-        """Check if user is a superuser (not Customer or Staff)."""
-        return self.is_superuser and not hasattr(self, 'customer') and not hasattr(self, 'staff')
-    
-    # Backward compatibility properties for Customer fields
-    # These delegate to the Customer model if it exists
-    def _get_customer_instance(self):
-        """Get the Customer instance if this user is a Customer."""
-        # Import here to avoid forward reference
-        from django.apps import apps
-        Customer = apps.get_model('accounts', 'Customer')
-        
-        # Check if this is already a Customer instance
-        if isinstance(self, Customer):
-            return self
-        
-        # With multi-table inheritance, try to get the Customer instance
-        # by checking if there's a Customer record with the same ID
-        try:
-            return Customer.objects.get(id=self.id)
-        except Customer.DoesNotExist:
-            return None
-    
-    @property
-    def age(self):
-        """Get age from Customer profile if available."""
-        customer = self._get_customer_instance()
-        return customer.age if customer else None
-    
-    @property
-    def gender(self):
-        """Get gender from Customer profile if available."""
-        customer = self._get_customer_instance()
-        return customer.gender if customer else None
-    
-    @property
-    def employment_status(self):
-        """Get employment_status from Customer profile if available."""
-        customer = self._get_customer_instance()
-        return customer.employment_status if customer else None
-    
-    @property
-    def occupation(self):
-        """Get occupation from Customer profile if available."""
-        customer = self._get_customer_instance()
-        return customer.occupation if customer else None
-    
-    @property
-    def education(self):
-        """Get education from Customer profile if available."""
-        customer = self._get_customer_instance()
-        return customer.education if customer else None
-    
-    @property
-    def household_size(self):
-        """Get household_size from Customer profile if available."""
-        customer = self._get_customer_instance()
-        return customer.household_size if customer else None
-    
-    @property
-    def has_children(self):
-        """Get has_children from Customer profile if available."""
-        customer = self._get_customer_instance()
-        return customer.has_children if customer else None
-    
-    @property
-    def monthly_income_sgd(self):
-        """Get monthly_income_sgd from Customer profile if available."""
-        customer = self._get_customer_instance()
-        return customer.monthly_income_sgd if customer else None
-
-
-class Superuser(User):
-    """
-    Superuser model extending User with multi-table inheritance.
-    
-    Superusers are User instances with is_superuser=True that are not
-    Customer or Staff instances. This provides a convenient way
-    to query and manage superusers separately.
-    """
-    
-    class Meta:
-        db_table = "superusers"
-        verbose_name = "Superuser"
-        verbose_name_plural = "Superusers"
-    
-    def save(self, *args, **kwargs):
-        """Ensure superuser flag is set"""
-        self.is_superuser = True
-        self.is_staff = True  # Superusers are also staff
-        super().save(*args, **kwargs)
-    
-    def __str__(self):
-        return f"Superuser: {self.username}"
-
-
-class Customer(User):
-    """
-    Customer model extending User with customer-specific demographic fields.
-    
-    Only customers (not staff/superusers) should have a Customer profile.
-    This allows staff/superusers to exist without unnecessary demographic fields.
-    """
-    
+    # --- Customer Demographics (kept on User for migration compatibility) ---
+    # These fields are on User to match existing migrations, but are primarily used by Customer instances
     GENDER_CHOICES = [
         ('Male', 'Male'),
         ('Female', 'Female'),
@@ -284,6 +140,85 @@ class Customer(User):
         blank=True,
         help_text="Monthly income in SGD. Optional, kept private."
     )
+    
+    # Override groups and user_permissions to add related_name for multi-table inheritance
+    groups = models.ManyToManyField(
+        'auth.Group',
+        verbose_name='groups',
+        blank=True,
+        help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.',
+        related_name='%(class)s_set',
+        related_query_name='user',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        verbose_name='user permissions',
+        blank=True,
+        help_text='Specific permissions for this user.',
+        related_name='%(class)s_set',
+        related_query_name='user',
+    )
+
+    class Meta:
+        verbose_name = "User"
+        verbose_name_plural = "Users"
+
+    def __str__(self):
+        return self.username
+
+    def get_full_name(self):
+        """Returns the user's full name."""
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def get_short_name(self):
+        """Returns the user's first name."""
+        return self.first_name
+    
+    def is_customer(self):
+        """Check if user is a customer (has Customer profile)."""
+        return hasattr(self, 'customer')
+    
+    def is_staff_member(self):
+        """Check if user is a staff member (has Staff profile)."""
+        return hasattr(self, 'staff')
+    
+    def is_superuser_account(self):
+        """Check if user is a superuser (not Customer or Staff)."""
+        return self.is_superuser and not hasattr(self, 'customer') and not hasattr(self, 'staff')
+
+
+class Superuser(User):
+    """
+    Superuser model extending User with multi-table inheritance.
+    
+    Superusers are User instances with is_superuser=True that are not
+    Customer or Staff instances. This provides a convenient way
+    to query and manage superusers separately.
+    """
+    
+    class Meta:
+        db_table = "superusers"
+        verbose_name = "Superuser"
+        verbose_name_plural = "Superusers"
+    
+    def save(self, *args, **kwargs):
+        """Ensure superuser flag is set"""
+        self.is_superuser = True
+        self.is_staff = True  # Superusers are also staff
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"Superuser: {self.username}"
+
+
+class Customer(User):
+    """
+    Customer model extending User with multi-table inheritance.
+    
+    Customer instances inherit all fields from User, including demographic fields.
+    Only customers (not staff/superusers) should have a Customer profile.
+    This allows staff/superusers to exist without unnecessary demographic fields.
+    """
 
     class Meta:
         db_table = "customers"

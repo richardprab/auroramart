@@ -75,7 +75,8 @@ def register(request):
                 first_name=first_name,
                 last_name=last_name,
             )
-            login(request, user)
+            # Specify backend for login since multiple backends are configured
+            login(request, user, backend='accounts.backends.MultiUserModelBackend')
             # Redirect to home after registration
             return redirect("home:index")
         else:

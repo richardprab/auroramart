@@ -31,7 +31,7 @@ SECRET_KEY = "django-insecure-@*#gx&&s2h^h0cg(1nz-3!an7pwsh%=sr@iwwlk=_(q3!rx#mk
 DEBUG = True
 
 ALLOWED_HOSTS = []
-AUTH_USER_MODEL = "accounts.Superuser"  # Changed from User since User is now abstract
+AUTH_USER_MODEL = "accounts.User"  # User is now concrete and serves as the base for Customer, Staff, and Superuser
 
 # Custom authentication backend to support Customer, Staff, and Superuser
 AUTHENTICATION_BACKENDS = [
