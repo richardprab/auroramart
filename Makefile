@@ -109,5 +109,21 @@ setup: install migrations migrate
 	@echo "Run 'make superuser' to create an admin user"
 	@echo "Run 'make run' to start the development server"
 
+# Reset migrations only (keeps database, but migration history will be lost)
+reset-migrations:
+	@echo "WARNING: This will delete all migration files and clear migration history!"
+	@echo "Your database structure will remain, but migration history will be lost."
+	@echo "Press Ctrl+C to cancel, or Enter to continue..."
+	@read -r dummy
+	@echo "Clearing migration history from database..."
+	python manage.py shell -c "from django.db import connection; cursor = connection.cursor(); cursor.execute('DELETE FROM django_migrations'); connection.commit(); print('✅ Cleared migration history')"
+	@echo "Deleting all migration files from all apps..."
+	find . -path "*/migrations/*.py" ! -name "__init__.py" ! -path "./venv/*" -type f -delete
+	@echo "Creating fresh migrations for all apps..."
+	python manage.py makemigrations
+	@echo "Faking initial migrations (since tables already exist)..."
+	python manage.py migrate --fake-initial
+	@echo "Migrations reset complete!"
+
 # Quick reset and run (for development)
 dev-reset: resetdb superuser run

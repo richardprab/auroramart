@@ -2,6 +2,9 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     User,
+    Customer,
+    Staff,
+    Superuser,
     Address,
     Wishlist,
     SaleSubscription,
@@ -10,16 +13,34 @@ from .models import (
 from notifications.models import Notification
 
 
-@admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    """
-    Customizes the User display in the admin panel.
-    """
+# User is now abstract, so we can't register it in admin
+# Use CustomerAdmin, StaffAdmin, and SuperuserAdmin instead
 
-    list_display = ("username", "email", "first_name", "last_name", "is_staff")
-    list_filter = ("is_staff", "is_active", "gender", "employment_status")
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Customer model with demographic fields.
+    """
+    
+    list_display = ("username", "email", "first_name", "last_name", "age", "gender", "employment_status")
+    list_filter = ("gender", "employment_status", "occupation", "education", "has_children")
     search_fields = ("username", "email", "first_name", "last_name")
-    fieldsets = BaseUserAdmin.fieldsets + (
+    
+    fieldsets = (
+        (
+            "User Information",
+            {
+                "fields": (
+                    "username",
+                    "email",
+                    "first_name",
+                    "last_name",
+                    "phone",
+                    "avatar",
+                ),
+            },
+        ),
         (
             "Demographic Information",
             {
@@ -36,15 +57,136 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
         (
-            "Profile Details",
+            "Permissions",
             {
                 "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                ),
+            },
+        ),
+        (
+            "Important dates",
+            {
+                "fields": ("last_login", "date_joined"),
+            },
+        ),
+    )
+    
+    readonly_fields = ("last_login", "date_joined")
+
+
+@admin.register(Superuser)
+class SuperuserAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Superuser proxy model.
+    """
+    
+    list_display = ("username", "email", "first_name", "last_name", "is_active", "last_login")
+    list_filter = ("is_active", "date_joined")
+    search_fields = ("username", "email", "first_name", "last_name")
+    
+    fieldsets = (
+        (
+            "User Information",
+            {
+                "fields": (
+                    "username",
+                    "email",
+                    "first_name",
+                    "last_name",
                     "phone",
                     "avatar",
                 ),
             },
         ),
+        (
+            "Account Status",
+            {
+                "fields": (
+                    "is_active",
+                ),
+                "description": "Superusers have full admin access. This cannot be changed here.",
+            },
+        ),
+        (
+            "Important dates",
+            {
+                "fields": ("last_login", "date_joined"),
+            },
+        ),
     )
+    
+    readonly_fields = ("last_login", "date_joined")
+    
+    def has_add_permission(self, request):
+        """Superusers should be created via createsuperuser command."""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of superusers from admin."""
+        return False
+
+
+@admin.register(Staff)
+class StaffAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Staff model with permission management.
+    """
+    
+    list_display = ("username", "email", "first_name", "last_name", "permissions", "is_active")
+    list_filter = ("permissions", "is_active")
+    search_fields = ("username", "email", "first_name", "last_name")
+    
+    fieldsets = (
+        (
+            "User Information",
+            {
+                "fields": (
+                    "username",
+                    "email",
+                    "first_name",
+                    "last_name",
+                    "phone",
+                    "avatar",
+                ),
+            },
+        ),
+        (
+            "Staff Permissions",
+            {
+                "fields": (
+                    "permissions",
+                ),
+                "description": "Select which admin panel features this staff member can access. 'All Permissions' grants full access.",
+            },
+        ),
+        (
+            "Account Status",
+            {
+                "fields": (
+                    "is_active",
+                ),
+            },
+        ),
+        (
+            "Important dates",
+            {
+                "fields": ("last_login", "date_joined"),
+            },
+        ),
+    )
+    
+    readonly_fields = ("last_login", "date_joined")
+    
+    def save_model(self, request, obj, form, change):
+        """Ensure staff users have is_staff=True"""
+        obj.is_staff = True
+        obj.is_superuser = False  # Staff are not superusers
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Address)

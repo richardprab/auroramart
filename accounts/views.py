@@ -7,7 +7,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.core.paginator import Paginator
 from products.models import Product
-from .models import Wishlist
+from .models import Wishlist, Customer
 from .forms import CustomUserCreationForm, UserProfileForm
 from django.contrib.auth import logout
 from decimal import Decimal
@@ -59,12 +59,26 @@ def register(request):
     if request.method == "POST":
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            # Get cleaned data
+            username = form.cleaned_data['username']
+            email = form.cleaned_data['email'].lower()
+            password = form.cleaned_data['password1']
+            first_name = form.cleaned_data['first_name'].strip()
+            last_name = form.cleaned_data['last_name'].strip()
+            
+            # Create Customer directly (Customer extends User via multi-table inheritance)
+            # This automatically creates both User and Customer records
+            user = Customer.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+            )
             login(request, user)
             # Redirect to home after registration
             return redirect("home:index")
         else:
-            # Don't show generic error message, let form errors show
             pass
     else:
         form = CustomUserCreationForm()
@@ -164,25 +178,42 @@ def update_demographics(request):
     if request.method == "POST":
         user = request.user
         
+        # Get Customer profile
+        # With multi-table inheritance, check if user is a Customer instance
+        # or if there's a Customer record with the same ID
+        if isinstance(user, Customer):
+            customer = user
+        else:
+            # Try to get the Customer instance
+            try:
+                customer = Customer.objects.get(id=user.id)
+            except Customer.DoesNotExist:
+                # User doesn't have Customer profile - this shouldn't happen for regular users
+                # but could happen for staff/superusers
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Customer profile not found. Please contact support.'
+                }, status=400)
+        
         # Update demographic fields
         if request.POST.get('age'):
-            user.age = int(request.POST.get('age'))
+            customer.age = int(request.POST.get('age'))
         if request.POST.get('gender'):
-            user.gender = request.POST.get('gender')
+            customer.gender = request.POST.get('gender')
         if request.POST.get('employment_status'):
-            user.employment_status = request.POST.get('employment_status')
+            customer.employment_status = request.POST.get('employment_status')
         if request.POST.get('occupation'):
-            user.occupation = request.POST.get('occupation')
+            customer.occupation = request.POST.get('occupation')
         if request.POST.get('education'):
-            user.education = request.POST.get('education')
+            customer.education = request.POST.get('education')
         if request.POST.get('household_size'):
-            user.household_size = int(request.POST.get('household_size'))
+            customer.household_size = int(request.POST.get('household_size'))
         if request.POST.get('has_children') is not None:
-            user.has_children = request.POST.get('has_children') == 'true'
+            customer.has_children = request.POST.get('has_children') == 'true'
         if request.POST.get('monthly_income_sgd'):
-            user.monthly_income_sgd = Decimal(request.POST.get('monthly_income_sgd'))
+            customer.monthly_income_sgd = Decimal(request.POST.get('monthly_income_sgd'))
         
-        user.save()
+        customer.save()
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({

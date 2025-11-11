@@ -9,22 +9,27 @@ from .services import CustomerCategoryPredictor, ProductRecommender, Personalize
 @login_required
 def predict_user_category(request):
     """Predict user's preferred category based on demographics"""
+    from accounts.models import Customer
+    
     user = request.user
     
-    if not user.age or not user.gender:
+    # Check if user is a Customer instance
+    customer = user if isinstance(user, Customer) else (user.customer if hasattr(user, 'customer') else None)
+    
+    if not customer or not customer.age or not customer.gender:
         return JsonResponse({
             'error': 'User demographics incomplete. Please complete your profile.'
         }, status=400)
     
     try:
-        predicted_category = CustomerCategoryPredictor.predict(user)
+        predicted_category = CustomerCategoryPredictor.predict(customer)
         return JsonResponse({
             'predicted_category': predicted_category,
             'user': {
-                'age': user.age,
-                'gender': user.gender,
-                'occupation': user.occupation,
-                'education': user.education,
+                'age': customer.age,
+                'gender': customer.gender,
+                'occupation': customer.occupation,
+                'education': customer.education,
             }
         })
     except Exception as e:
@@ -46,7 +51,7 @@ def get_similar_products(request, product_id):
     top_n = int(request.GET.get('limit', 5))
     
     try:
-        recommendations = ProductRecommender.get_similar_products(product, top_n=top_n)
+        recommendations = ProductRecommender.get_recommendations(product, top_n=top_n)
         
         # Serialize products manually
         recommendations_data = []
@@ -116,7 +121,7 @@ def get_cart_recommendations(request):
     top_n = int(request.GET.get('limit', request.POST.get('limit', 5)))
     
     try:
-        recommendations = ProductRecommender.get_cart_recommendations(cart_items, top_n=top_n)
+        recommendations = ProductRecommender.get_recommendations(cart_items, top_n=top_n)
         
         # Serialize products manually
         recommendations_data = []
@@ -223,10 +228,15 @@ def get_personalized_recommendations(request):
                 # Continue with other products even if one fails
                 pass
         
+        # Check if user is a Customer with demographic data
+        from accounts.models import Customer
+        customer = request.user if isinstance(request.user, Customer) else (request.user.customer if hasattr(request.user, 'customer') else None)
+        has_demographics = customer and bool(customer.age) if customer else False
+        
         return JsonResponse({
             'recommendations': recommendations_data,
             'count': len(recommendations),
-            'personalized': request.user.is_authenticated and bool(request.user.age)
+            'personalized': request.user.is_authenticated and has_demographics
         })
     except Exception as e:
         return JsonResponse({
