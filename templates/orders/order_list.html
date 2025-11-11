@@ -225,10 +225,11 @@
                                 </a>
                                 
                                 {% if order.status == 'delivered' %}
-                                <button class="w-full bg-green-600 text-white text-center px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-2 text-sm">
+                                <a href="{% url 'orders:order_detail' order.id %}" 
+                                   class="w-full bg-green-600 text-white text-center px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-2 text-sm">
                                     <i data-lucide="star" class="w-4 h-4"></i>
                                     Rate Order
-                                </button>
+                                </a>
                                 {% endif %}
                                 
                                 {% if order.status != 'cancelled' and order.status != 'delivered' %}

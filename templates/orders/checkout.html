@@ -394,7 +394,7 @@
 
                                 <!-- Place Order Button -->
                                 <button type="button" id="submitButton"
-                                        class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 mt-4">
+                                        class="place-order-btn w-full text-white py-3 px-6 rounded-lg font-bold flex items-center justify-center gap-2 mt-4">
                                     <i data-lucide="lock" class="w-4 h-4"></i>
                                     <span id="buttonText">Place Order</span>
                                 </button>
@@ -432,6 +432,44 @@
 
         .summary-compact {
             transform: scale(0.95);
+        }
+
+        .place-order-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            border-radius: 0.625rem;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .place-order-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .place-order-btn:hover::before {
+            left: 100%;
+        }
+
+        .place-order-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .place-order-btn:active {
+            transform: translateY(0);
         }
         </style>
 

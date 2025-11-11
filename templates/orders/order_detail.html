@@ -215,7 +215,7 @@
                     {% elif order.status == 'shipped' %}
                         Your order is on its way! Expected delivery soon.
                     {% elif order.status == 'delivered' %}
-                        Your order has been delivered successfully.
+                        Your order has been delivered successfully. You can now review the products you received below.
                     {% elif order.status == 'cancelled' %}
                         This order has been cancelled.
                     {% endif %}
@@ -235,7 +235,8 @@
                     </h2>
                     
                     <div class="space-y-4">
-                        {% for item in order.items.all %}
+                        {% for item_data in items_with_reviews %}
+                        {% with item=item_data.item %}
                         <div class="flex gap-4 pb-4 border-b border-gray-200 last:border-0">
                             <!-- Product Image -->
                             <div class="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-100">
@@ -276,10 +277,29 @@
                                     {% endif %}
                                 {% endif %}
                                 
-                                <div class="flex items-center gap-4">
+                                <div class="flex items-center gap-4 mb-2">
                                     <p class="text-lg font-bold text-gray-900">${{ item.price|floatformat:2 }}</p>
                                     <p class="text-sm text-gray-600">Qty: {{ item.quantity }}</p>
                                 </div>
+                                
+                                <!-- Review Button (only for delivered orders) -->
+                                {% if order.status == 'delivered' %}
+                                <div class="mt-2">
+                                    {% if item_data.has_review %}
+                                    <a href="{% url 'products:submit_review' item.product.sku %}" 
+                                       class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                        <i data-lucide="star" class="w-4 h-4 fill-yellow-400 text-yellow-400"></i>
+                                        Edit Your Review
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'products:submit_review' item.product.sku %}" 
+                                       class="inline-flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg font-medium hover:bg-green-700 transition">
+                                        <i data-lucide="star" class="w-4 h-4"></i>
+                                        Rate This Product
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
 
                             <!-- Item Total -->
@@ -288,6 +308,7 @@
                                 <p class="text-xl font-bold text-gray-900">${{ item_total|floatformat:2 }}</p>
                             </div>
                         </div>
+                        {% endwith %}
                         {% endfor %}
                     </div>
                 </div>

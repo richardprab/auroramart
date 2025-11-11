@@ -160,8 +160,13 @@
 </div>
 
 <div class="admin-content-body">
-    <!-- Back to Search Button -->
-    {% if search_query %}
+    <!-- Back Button - Priority: Chat > Search > Products -->
+    {% if from_chat %}
+    <a href="{% url 'adminpanel:chat_conversation' from_chat %}" class="back-button">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        Back to Chat Conversation
+    </a>
+    {% elif search_query %}
     <a href="{% url 'adminpanel:products' %}?q={{ search_query|urlencode }}" class="back-button">
         <i data-lucide="arrow-left" class="w-4 h-4"></i>
         Back to Product Search
@@ -177,6 +182,9 @@
         {% csrf_token %}
         <input type="hidden" name="product_id" value="{{ product.id }}">
         <input type="hidden" name="search_query" value="{{ search_query }}">
+        {% if from_chat %}
+        <input type="hidden" name="from_chat" value="{{ from_chat }}">
+        {% endif %}
         
         <div class="product-section">
             <h3><i data-lucide="package" class="w-5 h-5 inline"></i> Product Information</h3>

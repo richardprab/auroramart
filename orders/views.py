@@ -219,11 +219,33 @@ def order_detail(request, order_id):
         'delivered': {'name': 'Delivered', 'color': 'success', 'icon': 'check-circle', 'description': 'Your order has been delivered successfully.'},
         'cancelled': {'name': 'Cancelled', 'color': 'danger', 'icon': 'times-circle', 'description': 'This order has been cancelled.'},
     }
+    
+    # Check review status for each product if order is delivered
+    from products.models import Review
+    items_with_reviews = []
+    if order.status == 'delivered':
+        for item in order.items.all():
+            existing_review = None
+            if request.user.is_authenticated:
+                existing_review = Review.objects.filter(
+                    user=request.user,
+                    product=item.product
+                ).first()
+            
+            items_with_reviews.append({
+                'item': item,
+                'has_review': existing_review is not None,
+                'existing_review': existing_review,
+            })
+    else:
+        # If not delivered, just add items without review info
+        items_with_reviews = [{'item': item, 'has_review': False, 'existing_review': None} for item in order.items.all()]
 
     context = {
         "order": order,
         "current_status": status_info.get(order.status, {}),
         "status_info": status_info,
+        "items_with_reviews": items_with_reviews,
     }
     return render(request, "orders/order_detail.html", context)
 

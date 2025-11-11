@@ -141,7 +141,9 @@ def chat_conversation(request, conversation_id):
             conversation.admin_has_unread = False
             conversation.save()
             
-            return redirect('adminpanel:chat_conversation', conversation_id=conversation_id)
+            from django.urls import reverse
+            url = reverse('adminpanel:chat_conversation', args=[conversation_id]) + '?replied=1'
+            return redirect(url)
     
     # Mark admin messages as read
     conversation.admin_has_unread = False
@@ -410,6 +412,9 @@ def edit_product(request, product_id):
     # Support both 'q' and 'query' for backward compatibility
     search_query = request.GET.get('q', request.GET.get('query', ''))
     
+    # Get conversation ID if coming from chat
+    from_chat = request.GET.get('from_chat', '')
+    
     # Get primary image
     primary_image = product.images.filter(is_primary=True).first()
     primary_image_url = ''
@@ -428,6 +433,7 @@ def edit_product(request, product_id):
         'primary_image_url': primary_image_url,
         'categories': categories,
         'search_query': search_query,
+        'from_chat': from_chat,
     }
     
     return render(request, 'adminpanel/edit_product.html', context)
@@ -444,6 +450,9 @@ def update_product(request):
         
         # Get search query to preserve it in redirect
         search_query = request.POST.get('search_query', '')
+        
+        # Get from_chat parameter to preserve it in redirect
+        from_chat = request.POST.get('from_chat', '')
         
         # Update basic product info
         product.name = request.POST.get('name', product.name)
@@ -520,10 +529,17 @@ def update_product(request):
         from django.urls import reverse
         messages.success(request, 'Product updated successfully!')
         
-        # Redirect back to edit product page with search query if provided
+        # Redirect back to edit product page with preserved parameters
+        edit_url = reverse('adminpanel:edit_product', kwargs={'product_id': product_id})
+        params = []
+        
+        if from_chat:
+            params.append(f'from_chat={from_chat}')
         if search_query:
-            edit_url = reverse('adminpanel:edit_product', kwargs={'product_id': product_id})
-            return redirect(f'{edit_url}?q={quote(search_query)}')
+            params.append(f'q={quote(search_query)}')
+        
+        if params:
+            return redirect(f'{edit_url}?{"&".join(params)}')
         else:
             return redirect('adminpanel:edit_product', product_id=product_id)
         
