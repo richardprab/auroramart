@@ -36,7 +36,7 @@ window.performLiveFilter = function(urlParams) {
     .catch(error => {
         // Only log if it's not a connection refused error (server might not be running)
         if (error.message && !error.message.includes('Failed to fetch') && !error.message.includes('ERR_CONNECTION_REFUSED')) {
-            console.error('Filter error:', error);
+        console.error('Filter error:', error);
         }
         hideLoadingState();
     });
@@ -51,49 +51,49 @@ document.addEventListener('DOMContentLoaded', function() {
         // Handle input changes
         // Only attach if we're on the products page to avoid conflicts with navbar suggestions
         if (window.location.pathname.includes('/products/')) {
-            input.addEventListener('input', function(e) {
-                const searchQuery = e.target.value.trim();
-                
-                // Clear previous timeout
-                if (searchTimeout) {
-                    clearTimeout(searchTimeout);
-                }
+        input.addEventListener('input', function(e) {
+            const searchQuery = e.target.value.trim();
+            
+            // Clear previous timeout
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
 
-                // If on product list page, do live search
+            // If on product list page, do live search
                 // Debounce the search
                 searchTimeout = setTimeout(() => {
                     performLiveSearch(searchQuery);
                 }, DEBOUNCE_DELAY);
             });
-        }
+            }
 
         // Handle Enter key - navigate to products page with search
         // Only prevent default and handle on products page, otherwise let navbar handle it
         if (window.location.pathname.includes('/products/')) {
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const searchQuery = e.target.value.trim();
-                    
-                    if (searchQuery) {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const searchQuery = e.target.value.trim();
+                
+                if (searchQuery) {
                         // If already on products page, trigger search
                         performLiveSearch(searchQuery);
-                    }
                 }
-            });
+            }
+        });
 
             // Prevent form submission, handle with AJAX instead (only on products page)
-            const form = input.closest('form');
-            if (form) {
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const searchQuery = input.value.trim();
-                    
-                    if (searchQuery) {
+        const form = input.closest('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const searchQuery = input.value.trim();
+                
+                if (searchQuery) {
                         performLiveSearch(searchQuery);
                     }
                 });
-            }
+                }
         }
     });
 

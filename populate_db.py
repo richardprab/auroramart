@@ -21,6 +21,8 @@ Product = apps.get_model("products", "Product")
 ProductImage = apps.get_model("products", "ProductImage")
 ProductVariant = apps.get_model("products", "ProductVariant")
 User = apps.get_model("accounts", "User")
+Customer = apps.get_model("accounts", "Customer")
+Staff = apps.get_model("accounts", "Staff")
 
 RNG = random.Random(42)
 
@@ -352,13 +354,16 @@ def create_sample_users():
             phone = f"+65{RNG.randint(8000, 9999)}{RNG.randint(1000, 9999)}"
             
             # Check if user already exists
-            if User.objects.filter(username=username).exists() or User.objects.filter(email=email).exists():
+            from accounts.models import Customer, Staff, Superuser
+            if (Customer.objects.filter(username=username).exists() or Customer.objects.filter(email=email).exists() or
+                Staff.objects.filter(username=username).exists() or Staff.objects.filter(email=email).exists() or
+                Superuser.objects.filter(username=username).exists() or Superuser.objects.filter(email=email).exists()):
                 skipped_count += 1
                 continue
             
-            # Create user
+            # Create customer (Customer extends User via multi-table inheritance)
             try:
-                user = User.objects.create_user(
+                user = Customer.objects.create_user(
                     username=username,
                     email=email,
                     password="Pass1234",
@@ -401,18 +406,19 @@ def create_staff_user():
     email = "staff_01@auroramart.com"
     
     # Check if user already exists
-    if User.objects.filter(username=username).exists():
+    if Staff.objects.filter(username=username).exists():
         print(f"Staff user '{username}' already exists. Skipping...")
-        return User.objects.get(username=username)
+        return Staff.objects.get(username=username)
     
-    # Create staff user
+    # Create staff user (Staff extends User via multi-table inheritance)
     try:
-        staff_user = User.objects.create_user(
+        staff_user = Staff.objects.create_user(
             username=username,
             email=email,
             password="Pass1234",
             first_name="Staff",
             last_name="User",
+            permissions='all',  # Default: all permissions
             is_staff=True,
             is_superuser=False,
         )

@@ -35,90 +35,139 @@ class CustomerCategoryPredictor:
     @staticmethod
     def _prepare_features(user):
         """Convert user data to model input format"""
-        # Use age directly (integer) or estimate from age if needed
-        age = user.age if user.age else 35
+        from accounts.models import Customer
         
-        # Use monthly_income_sgd directly (decimal) or convert to float
-        monthly_income = float(user.monthly_income_sgd) if user.monthly_income_sgd else 5000.0
+        # Ensure user is a Customer instance
+        if not isinstance(user, Customer):
+            if hasattr(user, 'customer'):
+                user = user.customer
+            else:
+                # Fallback to defaults if not a customer
+                user = None
+        
+        if user is None:
+            # Return default values if user is not a customer
+            user_age = 35
+            user_gender = 'Male'
+            user_employment = 'Full-time'
+            user_occupation = 'Service'
+            user_education = 'Bachelor'
+            user_household_size = 2
+            user_has_children = False
+            user_monthly_income = 5000.0
+        else:
+            user_age = user.age if user.age else 35
+            user_gender = user.gender or 'Male'
+            user_employment = user.employment_status or 'Full-time'
+            user_occupation = user.occupation or 'Service'
+            user_education = user.education or 'Bachelor'
+            user_household_size = user.household_size if user.household_size is not None else 2
+            user_has_children = user.has_children is True
+            user_monthly_income = float(user.monthly_income_sgd) if user.monthly_income_sgd else 5000.0
         
         data = {
-            'age': age,
-            'household_size': user.household_size if user.household_size is not None else 2,
-            'has_children': 1 if user.has_children is True else 0,
-            'monthly_income_sgd': monthly_income,
+            'age': user_age,
+            'household_size': user_household_size,
+            'has_children': 1 if user_has_children else 0,
+            'monthly_income_sgd': user_monthly_income,
         }
         
         # Add one-hot encoded gender
-        gender_value = user.gender or 'Male'
-        data['gender_Female'] = 1 if gender_value == 'Female' else 0
-        data['gender_Male'] = 1 if gender_value == 'Male' else 0
+        data['gender_Female'] = 1 if user_gender == 'Female' else 0
+        data['gender_Male'] = 1 if user_gender == 'Male' else 0
         
         # Add one-hot encoded employment status
-        employment = user.employment_status or 'Full-time'
-        data['employment_status_Full-time'] = 1 if employment == 'Full-time' else 0
-        data['employment_status_Part-time'] = 1 if employment == 'Part-time' else 0
-        data['employment_status_Retired'] = 1 if employment == 'Retired' else 0
-        data['employment_status_Self-employed'] = 1 if employment == 'Self-employed' else 0
-        data['employment_status_Student'] = 1 if employment == 'Student' else 0
+        data['employment_status_Full-time'] = 1 if user_employment == 'Full-time' else 0
+        data['employment_status_Part-time'] = 1 if user_employment == 'Part-time' else 0
+        data['employment_status_Retired'] = 1 if user_employment == 'Retired' else 0
+        data['employment_status_Self-employed'] = 1 if user_employment == 'Self-employed' else 0
+        data['employment_status_Student'] = 1 if user_employment == 'Student' else 0
         
         # Add one-hot encoded occupation
-        occupation = user.occupation or 'Service'
         occupations = ['Admin', 'Education', 'Sales', 'Service', 'Skilled Trades', 'Tech']
         for occ in occupations:
-            data[f'occupation_{occ}'] = 1 if occupation == occ else 0
+            data[f'occupation_{occ}'] = 1 if user_occupation == occ else 0
         
         # Add one-hot encoded education
-        education = user.education or 'Bachelor'
         educations = ['Bachelor', 'Diploma', 'Doctorate', 'Master', 'Secondary']
         for edu in educations:
-            data[f'education_{edu}'] = 1 if education == edu else 0
+            data[f'education_{edu}'] = 1 if user_education == edu else 0
         
         return pd.DataFrame([data])
-    
-    @staticmethod
-    def _estimate_age(age_range):
-        """Convert age range to midpoint"""
-        mapping = {
-            '18-24': 21,
-            '25-34': 29,
-            '35-44': 39,
-            '45-54': 49,
-            '55-64': 59,
-            '65+': 67,
-        }
-        return mapping.get(age_range, 35)
-    
-    @staticmethod
-    def _estimate_income(income_range):
-        """Convert income range to estimated value"""
-        mapping = {
-            'Under $2000': 1500,
-            '$2000-$4999': 3500,
-            '$5000-$7999': 6500,
-            '$8000-$11999': 10000,
-            '$12000+': 15000,
-        }
-        return mapping.get(income_range, 5000)
 
 
 class ProductRecommender:
     """Recommends products based on association rules (market basket analysis)"""
     
     @staticmethod
-    def get_recommendations(product_skus, metric='confidence', top_n=5):
+    def _extract_skus(input_data):
         """
-        Get product recommendations based on what customers bought together.
+        Extract SKU codes from various input types.
         
         Args:
-            product_skus: List of SKU codes or single SKU string
+            input_data: Can be:
+                - Product object (uses all variant SKUs or product SKU)
+                - List/QuerySet of cart items (extracts SKUs from items)
+                - List/string of SKU codes
+                - List of Product objects (extracts SKUs)
+        
+        Returns:
+            List of SKU codes
+        """
+        from products.models import ProductVariant
+        
+        skus = []
+        
+        # Handle Product object
+        if isinstance(input_data, Product):
+            variant_skus = list(input_data.variants.filter(is_active=True).values_list('sku', flat=True))
+            skus = variant_skus if variant_skus else [input_data.sku]
+        
+        # Handle cart items (CartItem objects)
+        elif hasattr(input_data, '__iter__') and not isinstance(input_data, str):
+            # Check if it's cart items (has product_variant or product attribute)
+            first_item = next(iter(input_data), None) if hasattr(input_data, '__iter__') else None
+            if first_item and (hasattr(first_item, 'product_variant') or hasattr(first_item, 'product')):
+                for item in input_data:
+                    if hasattr(item, 'product_variant') and item.product_variant:
+                        skus.append(item.product_variant.sku)
+                    elif hasattr(item, 'product') and item.product:
+                        skus.append(item.product.sku)
+            # Handle list of Product objects
+            elif first_item and isinstance(first_item, Product):
+                for product in input_data:
+                    variant_skus = list(product.variants.filter(is_active=True).values_list('sku', flat=True))
+                    if variant_skus:
+                        skus.extend(variant_skus)
+                    else:
+                        skus.append(product.sku)
+            # Handle list of SKU strings
+            else:
+                for item in input_data:
+                    if isinstance(item, str):
+                        skus.append(item)
+        
+        # Handle single SKU string
+        elif isinstance(input_data, str):
+            skus = [input_data]
+        
+        return skus
+    
+    @staticmethod
+    def _get_recommended_skus(product_skus, metric='confidence', top_n=5):
+        """
+        Core method: Get recommended SKU codes based on association rules.
+        
+        Args:
+            product_skus: List of SKU codes
             metric: 'confidence', 'lift', or 'support'
             top_n: Number of recommendations to return
             
         Returns:
             List of recommended SKU codes
         """
-        if isinstance(product_skus, str):
-            product_skus = [product_skus]
+        if not product_skus or association_rules is None:
+            return []
         
         recommendations = set()
         
@@ -139,86 +188,110 @@ class ProductRecommender:
         return list(recommendations)[:top_n]
     
     @staticmethod
-    def get_cart_recommendations(cart_items, top_n=5):
+    def _skus_to_products(recommended_skus, exclude_product_id=None, top_n=5):
         """
-        Get recommendations based on current cart contents.
+        Convert SKU codes to Product objects.
+        Handles both variant SKUs and product SKUs.
         
         Args:
-            cart_items: QuerySet or list of cart items with product/variant
-            top_n: Number of recommendations
+            recommended_skus: List of SKU codes
+            exclude_product_id: Product ID to exclude from results
+            top_n: Maximum number of products to return
             
         Returns:
             List of Product objects
         """
-        cart_skus = []
-        for item in cart_items:
-            # CartItem has product_variant and product fields
-            if hasattr(item, 'product_variant') and item.product_variant:
-                cart_skus.append(item.product_variant.sku)
-            elif hasattr(item, 'product') and item.product:
-                # If no variant, use product SKU
-                cart_skus.append(item.product.sku)
-        
-        if not cart_skus:
-            return []
-        
-        recommended_skus = ProductRecommender.get_recommendations(cart_skus, top_n=top_n)
-        
-        # Convert SKUs to actual products
-        products = Product.objects.filter(
-            sku__in=recommended_skus,
-            is_active=True
-        ).select_related('category')[:top_n]
-        
-        return list(products)
-    
-    @staticmethod
-    def get_similar_products(product, top_n=5):
-        """
-        Get products frequently bought with this product.
-        Uses all variant SKUs for fashion products to find better recommendations.
-        
-        Args:
-            product: Product object
-            top_n: Number of recommendations
-            
-        Returns:
-            List of Product objects
-        """
-        # Get all variant SKUs for this product (important for fashion products)
-        variant_skus = list(product.variants.filter(is_active=True).values_list('sku', flat=True))
-        
-        # If product has variants, use variant SKUs; otherwise use product SKU
-        if variant_skus:
-            # Query association rules with all variant SKUs
-            recommended_skus = ProductRecommender.get_recommendations(variant_skus, top_n=top_n * 2)
-        else:
-            # Fallback to product SKU if no variants
-            recommended_skus = ProductRecommender.get_recommendations(product.sku, top_n=top_n * 2)
-        
         if not recommended_skus:
             return []
         
-        # Convert recommended SKUs to products
-        # First try to match by variant SKU, then by product SKU
-        from products.models import ProductVariant
-        
-        # Get products from variant SKUs
         variant_products = Product.objects.filter(
             variants__sku__in=recommended_skus,
             is_active=True
-        ).distinct().exclude(id=product.id).select_related('category')
+        ).distinct().select_related('category')
+        
+        if exclude_product_id:
+            variant_products = variant_products.exclude(id=exclude_product_id)
         
         # Also try matching by product SKU (for products without variants)
-        product_skus = Product.objects.filter(
+        product_skus_query = Product.objects.filter(
             sku__in=recommended_skus,
             is_active=True
-        ).exclude(id=product.id).select_related('category')
+        )
+        
+        if exclude_product_id:
+            product_skus_query = product_skus_query.exclude(id=exclude_product_id)
         
         # Combine and deduplicate
-        all_products = list(variant_products) + [p for p in product_skus if p not in variant_products]
+        all_products = list(variant_products) + [
+            p for p in product_skus_query.select_related('category') 
+            if p not in variant_products
+        ]
         
         return all_products[:top_n]
+    
+    @staticmethod
+    def get_recommendations(input_data, metric='confidence', top_n=5, exclude_product_id=None, return_skus=False):
+        """
+        Unified method to get product recommendations.
+        Accepts various input types and returns Product objects (or SKUs if requested).
+        
+        Args:
+            input_data: Can be:
+                - Product object
+                - List/QuerySet of cart items
+                - List/string of SKU codes
+                - List of Product objects
+            metric: 'confidence', 'lift', or 'support' (default: 'confidence')
+            top_n: Number of recommendations (default: 5)
+            exclude_product_id: Product ID to exclude from results (optional)
+            return_skus: If True, returns SKU codes instead of Product objects (default: False)
+        
+        Returns:
+            List of Product objects (or SKU codes if return_skus=True)
+        
+        Examples:
+            # From a product
+            ProductRecommender.get_recommendations(product, top_n=5)
+            
+            # From cart items
+            ProductRecommender.get_recommendations(cart_items, top_n=5)
+            
+            # From SKU codes
+            ProductRecommender.get_recommendations(['SKU001', 'SKU002'], top_n=5)
+            
+            # Get SKU codes only
+            ProductRecommender.get_recommendations(product, return_skus=True)
+        """
+        # Extract SKUs from input
+        input_skus = ProductRecommender._extract_skus(input_data)
+        
+        if not input_skus:
+            return [] if not return_skus else []
+        
+        # Get recommended SKUs
+        # For product input, get more recommendations to account for filtering
+        multiplier = 2 if isinstance(input_data, Product) else 1
+        recommended_skus = ProductRecommender._get_recommended_skus(
+            input_skus, 
+            metric=metric, 
+            top_n=top_n * multiplier
+        )
+        
+        if return_skus:
+            return recommended_skus[:top_n]
+        
+        # Convert to Product objects
+        # If input is a Product, exclude it from results
+        if isinstance(input_data, Product):
+            exclude_id = exclude_product_id or input_data.id
+        else:
+            exclude_id = exclude_product_id
+        
+        return ProductRecommender._skus_to_products(
+            recommended_skus, 
+            exclude_product_id=exclude_id,
+            top_n=top_n
+        )
 
 
 class PersonalizedRecommendations:
@@ -237,9 +310,13 @@ class PersonalizedRecommendations:
             ).distinct().order_by('-rating', '-created_at')[:limit]
         
         # PRIORITY 1: Use ML model to predict category based on demographics
-        if user.age and user.gender:
+        # Check if user is a Customer with demographic data
+        from accounts.models import Customer
+        customer = user if isinstance(user, Customer) else (user.customer if hasattr(user, 'customer') else None)
+        
+        if customer and customer.age and customer.gender:
             try:
-                predicted_category_name = CustomerCategoryPredictor.predict(user)
+                predicted_category_name = CustomerCategoryPredictor.predict(customer)
                 
                 # Map ML model predictions to database category names
                 # The ML model might predict different names than what's in the database
