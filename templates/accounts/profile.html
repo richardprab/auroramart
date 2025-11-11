@@ -504,7 +504,7 @@
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {% for history_item in viewing_history_page %}
-                <a href="{% url 'products:product_detail' slug=history_item.product.slug %}" class="group">
+                <a href="{% url 'products:product_detail' sku=history_item.product.sku %}" class="group">
                     <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200">
                         <div class="relative h-48 bg-gray-100 overflow-hidden">
                             {% if history_item.product.images.first %}

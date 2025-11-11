@@ -132,7 +132,7 @@
             <div class="wishlist-item bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" data-wishlist-id="{{ item.id }}">
                 <!-- Product Image -->
                 <div class="relative">
-                    <a href="{% url 'products:product_detail' item.display_product.slug %}" class="block">
+                    <a href="{% url 'products:product_detail' item.display_product.sku %}" class="block">
                         <div class="aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
                             {% if item.display_product.images.first %}
                                 <img src="{{ item.display_product.images.first.image.url }}" 
@@ -169,7 +169,7 @@
 
                 <!-- Product Details -->
                 <div class="p-4">
-                    <a href="{% url 'products:product_detail' item.display_product.slug %}" 
+                    <a href="{% url 'products:product_detail' item.display_product.sku %}" 
                        class="block hover:text-blue-600 transition-colors">
                         <h3 class="font-semibold text-gray-900 mb-2 line-clamp-2 min-h-[3rem]">
                             {{ item.display_product.name }}

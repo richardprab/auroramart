@@ -263,7 +263,7 @@ def product_list(request):
     return render(request, "products/product_list.html", context)
 
 
-def product_detail(request, slug):
+def product_detail(request, sku):
     """Product detail page"""
     product = get_object_or_404(
         Product.objects.prefetch_related(
@@ -272,7 +272,7 @@ def product_detail(request, slug):
             ),
             Prefetch("images", queryset=ProductImage.objects.order_by("display_order")),
         ),
-        slug=slug,
+        sku=sku,
         is_active=True,
     )
 
@@ -454,6 +454,56 @@ def search(request):
     return render(request, "products/search.html", context)
 
 
+def search_suggestions(request):
+    """AJAX endpoint for search suggestions"""
+    query = request.GET.get("q", "").strip()
+    
+    if len(query) < 2:
+        return JsonResponse({"suggestions": []})
+    
+    # Get up to 5 product suggestions
+    products = Product.objects.filter(
+        is_active=True,
+        variants__is_active=True
+    ).filter(
+        Q(name__icontains=query)
+        | Q(brand__icontains=query)
+        | Q(category__name__icontains=query)
+    ).distinct()[:5]
+    
+    suggestions = []
+    for product in products:
+        try:
+            image = product.get_primary_image()
+            
+            # Safely get image URL
+            image_url = None
+            if image and hasattr(image, 'image') and image.image:
+                try:
+                    image_url = image.image.url
+                except (AttributeError, ValueError):
+                    image_url = None
+            
+            lowest_variant = product.get_lowest_priced_variant()
+            price = float(lowest_variant.price) if lowest_variant else 0.0
+            
+            suggestions.append({
+                "id": product.id,
+                "name": product.name,
+                "slug": product.slug,
+                "sku": product.sku,
+                "brand": product.brand or "",
+                "category": product.category.name if product.category else "",
+                "image": image_url,
+                "price": price,
+            })
+        except Exception:
+            # Skip products that fail to serialize
+            continue
+    
+    return JsonResponse({"suggestions": suggestions})
+
+
 def product_detail_ajax(request, product_id):
     """AJAX endpoint for product quick view (replacing DRF API)"""
     try:
@@ -500,9 +550,9 @@ def product_detail_ajax(request, product_id):
 
 
 @login_required
-def submit_review(request, slug):
+def submit_review(request, sku):
     """Submit or edit a product review"""
-    product = get_object_or_404(Product, slug=slug, is_active=True)
+    product = get_object_or_404(Product, sku=sku, is_active=True)
     
     # Check if user has purchased this product
     has_purchased = Order.objects.filter(
@@ -513,7 +563,7 @@ def submit_review(request, slug):
     
     if not has_purchased:
         messages.error(request, "You can only review products you have purchased and received.")
-        return redirect('products:product_detail', slug=slug)
+        return redirect('products:product_detail', sku=sku)
     
     # Check if user already has a review
     existing_review = Review.objects.filter(user=request.user, product=product).first()
@@ -532,7 +582,7 @@ def submit_review(request, slug):
             else:
                 messages.success(request, "Thank you for your review!")
             
-            return redirect('products:product_detail', slug=slug)
+            return redirect('products:product_detail', sku=sku)
     else:
         form = ReviewForm(instance=existing_review)
     
@@ -549,12 +599,12 @@ def submit_review(request, slug):
 def delete_review(request, review_id):
     """Delete a user's review"""
     review = get_object_or_404(Review, id=review_id, user=request.user)
-    product_slug = review.product.slug
+    product_sku = review.product.sku
     
     if request.method == 'POST':
         review.delete()
         messages.success(request, "Your review has been deleted.")
-        return redirect('products:product_detail', slug=product_slug)
+        return redirect('products:product_detail', sku=product_sku)
     
     # If not POST, redirect back to product page
-    return redirect('products:product_detail', slug=product_slug)
+    return redirect('products:product_detail', sku=product_sku)

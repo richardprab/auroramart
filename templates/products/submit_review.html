@@ -6,7 +6,7 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8 max-w-3xl">
     <!-- Back to Product -->
-    <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline mb-6 inline-block">
+    <a href="{% url 'products:product_detail' product.sku %}" class="text-blue-600 hover:underline mb-6 inline-block">
         ← Back to {{ product.name }}
     </a>
     
@@ -74,7 +74,7 @@
             <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
                 {% if existing_review %}Update Review{% else %}Submit Review{% endif %}
             </button>
-            <a href="{% url 'products:product_detail' product.slug %}" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
+            <a href="{% url 'products:product_detail' product.sku %}" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
                 Cancel
             </a>
         </div>

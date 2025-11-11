@@ -197,7 +197,7 @@
                     <button type="button" 
                         id="chat-with-seller-btn"
                         data-product-id="{{ product.id }}"
-                        data-product-url="{% url 'products:product_detail' slug=product.slug %}"
+                        data-product-url="{% url 'products:product_detail' sku=product.sku %}"
                         data-product-name="{{ product.name }}"
                         class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
                         title="Chat with Seller">
@@ -211,6 +211,7 @@
     {% endwith %}
 
     <!-- Reviews Section -->
+    {% if review_count > 0 %}
     <div class="mb-12" id="reviews-section">
         <!-- Review Summary -->
         <div class="mb-8">
@@ -232,12 +233,12 @@
             {% if can_review or existing_review %}
                 <div class="mb-6">
                     {% if existing_review %}
-                        <a href="{% url 'products:submit_review' product.slug %}" 
+                        <a href="{% url 'products:submit_review' product.sku %}" 
                            class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
                             Edit Your Review
                         </a>
                     {% elif can_review %}
-                        <a href="{% url 'products:submit_review' product.slug %}" 
+                        <a href="{% url 'products:submit_review' product.sku %}" 
                            class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
                             Write a Review
                         </a>
@@ -291,7 +292,7 @@
                     <!-- Edit/Delete buttons for user's own review -->
                     {% if user == review.user %}
                     <div class="flex gap-2">
-                        <a href="{% url 'products:submit_review' product.slug %}" 
+                        <a href="{% url 'products:submit_review' product.sku %}" 
                            class="text-blue-600 hover:underline text-sm">Edit</a>
                         <form method="post" action="{% url 'products:delete_review' review.id %}" 
                               onsubmit="return confirm('Are you sure you want to delete this review?');" class="inline">
@@ -315,9 +316,10 @@
         </div>
         {% endif %}
     </div>
+    {% endif %}
 
     <!-- ML-Powered Recommendations: Customers Also Bought -->
-    <div class="mb-12" id="recommendations-section">
+    <div class="mb-12 hidden" id="recommendations-section">
         <div class="mb-6">
             <h2 class="text-2xl font-bold">Customers Also Bought</h2>
         </div>
@@ -615,6 +617,7 @@
                     loadingState.classList.add('hidden');
                     
                     if (data.recommendations && data.recommendations.length > 0) {
+                        document.getElementById('recommendations-section').classList.remove('hidden');
                         contentState.classList.remove('hidden');
                         
                         data.recommendations.forEach(product => {
@@ -631,12 +634,12 @@
                             lucide.createIcons();
                         }
                     } else {
-                        emptyState.classList.remove('hidden');
+                        document.getElementById('recommendations-section').classList.add('hidden');
                     }
                 })
                 .catch(error => {
                     loadingState.classList.add('hidden');
-                    emptyState.classList.remove('hidden');
+                    document.getElementById('recommendations-section').classList.add('hidden');
                 });
             
             // Create product card HTML
@@ -651,7 +654,7 @@
                 return `
                     <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 flex flex-col h-full">
                         <div class="relative">
-                            <a href="/products/${product.slug}/" class="block">
+                            <a href="/products/${product.sku}/" class="block">
                                 ${primaryImage && primaryImage.url ? 
                                     `<img src="${primaryImage.url}" alt="${primaryImage.alt_text || product.name}" class="w-full h-64 object-cover">` :
                                     `<div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
@@ -670,7 +673,7 @@
                         </div>
                         
                         <div class="p-4 flex-1 flex flex-col">
-                            <a href="/products/${product.slug}/" class="hover:text-blue-600">
+                            <a href="/products/${product.sku}/" class="hover:text-blue-600">
                                 <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
                             </a>
                             

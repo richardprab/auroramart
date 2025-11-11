@@ -5,6 +5,11 @@
 
 // Global function to perform live filtering (can be called from anywhere)
 window.performLiveFilter = function(urlParams) {
+    // Only run if we're on the products page
+    if (!window.location.pathname.includes('/products/')) {
+        return;
+    }
+    
     const searchUrl = `/products/?${urlParams.toString()}`;
     
     // Update browser URL without reload
@@ -19,12 +24,20 @@ window.performLiveFilter = function(urlParams) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.text())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    })
     .then(html => {
         updateProductDisplay(html);
     })
     .catch(error => {
-        console.error('Filter error:', error);
+        // Only log if it's not a connection refused error (server might not be running)
+        if (error.message && !error.message.includes('Failed to fetch') && !error.message.includes('ERR_CONNECTION_REFUSED')) {
+            console.error('Filter error:', error);
+        }
         hideLoadingState();
     });
 };
@@ -36,56 +49,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
     searchInputs.forEach(input => {
         // Handle input changes
-        input.addEventListener('input', function(e) {
-            const searchQuery = e.target.value.trim();
-            
-            // Clear previous timeout
-            if (searchTimeout) {
-                clearTimeout(searchTimeout);
-            }
+        // Only attach if we're on the products page to avoid conflicts with navbar suggestions
+        if (window.location.pathname.includes('/products/')) {
+            input.addEventListener('input', function(e) {
+                const searchQuery = e.target.value.trim();
+                
+                // Clear previous timeout
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
 
-            // If on product list page, do live search
-            if (window.location.pathname.includes('/products/')) {
+                // If on product list page, do live search
                 // Debounce the search
                 searchTimeout = setTimeout(() => {
                     performLiveSearch(searchQuery);
                 }, DEBOUNCE_DELAY);
-            }
-        });
+            });
+        }
 
         // Handle Enter key - navigate to products page with search
-        input.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const searchQuery = e.target.value.trim();
-                
-                if (searchQuery) {
-                    // If not on products page, navigate there
-                    if (!window.location.pathname.includes('/products/')) {
-                        window.location.href = `/products/?q=${encodeURIComponent(searchQuery)}`;
-                    } else {
+        // Only prevent default and handle on products page, otherwise let navbar handle it
+        if (window.location.pathname.includes('/products/')) {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const searchQuery = e.target.value.trim();
+                    
+                    if (searchQuery) {
                         // If already on products page, trigger search
                         performLiveSearch(searchQuery);
                     }
                 }
-            }
-        });
+            });
 
-        // Prevent form submission, handle with AJAX instead
-        const form = input.closest('form');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const searchQuery = input.value.trim();
-                
-                if (searchQuery) {
-                    if (!window.location.pathname.includes('/products/')) {
-                        window.location.href = `/products/?q=${encodeURIComponent(searchQuery)}`;
-                    } else {
+            // Prevent form submission, handle with AJAX instead (only on products page)
+            const form = input.closest('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const searchQuery = input.value.trim();
+                    
+                    if (searchQuery) {
                         performLiveSearch(searchQuery);
                     }
-                }
-            });
+                });
+            }
         }
     });
 
@@ -125,6 +133,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
+        // Update product count
+        const newProductCount = doc.querySelector('#product-count-text');
+        const currentProductCount = document.querySelector('#product-count-text');
+        
+        if (newProductCount && currentProductCount) {
+            currentProductCount.textContent = newProductCount.textContent;
+        }
+        
         // Extract the products grid
         const newProductsGrid = doc.querySelector('.products-grid-container');
         const currentProductsGrid = document.querySelector('.products-grid-container');
@@ -135,6 +151,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reinitialize Lucide icons for new content
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
+            }
+            
+            // Re-render star ratings for new products
+            if (typeof StarRating !== 'undefined') {
+                StarRating.render(currentProductsGrid);
             }
         }
         

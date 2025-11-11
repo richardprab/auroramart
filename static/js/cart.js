@@ -133,7 +133,7 @@ const CartModule = {
             font-size: 30px;
             z-index: 9999;
             pointer-events: none;
-            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transition: all 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         `;
 
         document.body.appendChild(flyingIcon);
@@ -157,7 +157,7 @@ const CartModule = {
                     cartBadge.style.animation = 'pulse 0.5s ease';
                 }, 10);
             }
-        }, 1000);
+        }, 2100);
     }
 };
 

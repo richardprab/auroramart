@@ -152,9 +152,11 @@ class ProductRecommender:
         """
         cart_skus = []
         for item in cart_items:
-            if hasattr(item, 'variant'):
-                cart_skus.append(item.variant.sku)
-            elif hasattr(item, 'product'):
+            # CartItem has product_variant and product fields
+            if hasattr(item, 'product_variant') and item.product_variant:
+                cart_skus.append(item.product_variant.sku)
+            elif hasattr(item, 'product') and item.product:
+                # If no variant, use product SKU
                 cart_skus.append(item.product.sku)
         
         if not cart_skus:

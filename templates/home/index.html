@@ -128,7 +128,7 @@
 
 <!-- ML-Powered Personalized Recommendations / Featured Products -->
 {% if featured_products or user.is_authenticated %}
-<section class="py-16" id="personalized-recommendations-section">
+<section class="py-16 {% if not featured_products and user.is_authenticated %}hidden{% endif %}" id="personalized-recommendations-section">
     <div class="container mx-auto px-4">
         <div class="mb-12 flex items-center justify-between">
             <h2 class="text-3xl font-bold" id="recommendations-title">
@@ -214,6 +214,8 @@
                 
                 // Only replace featured products if we have ML recommendations
                 if (data.recommendations && data.recommendations.length > 0) {
+                    document.getElementById('personalized-recommendations-section').classList.remove('hidden');
+                    
                     // Clear grid first
                     grid.innerHTML = '';
                     
@@ -275,12 +277,15 @@
                             });
                         });
                     }
+                } else {
+                    // Hide section if no recommendations
+                    document.getElementById('personalized-recommendations-section').classList.add('hidden');
                 }
-                // If no recommendations, keep featured products visible (do nothing)
             })
             .catch(error => {
                 console.error('Error fetching recommendations:', error);
-                // Keep featured products visible on error
+                // Hide section on error
+                document.getElementById('personalized-recommendations-section').classList.add('hidden');
             });
         
         function createProductCard(product) {
@@ -297,7 +302,7 @@
             return `
                 <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 relative flex flex-col h-full">
                     <div class="relative shrink-0">
-                        <a href="/products/${product.slug}/" class="block relative z-0">
+                        <a href="/products/${product.sku}/" class="block relative z-0">
                             ${primaryImage && primaryImage.url ? 
                                 `<img src="${primaryImage.url}" alt="${primaryImage.alt_text || product.name}" class="w-full h-64 object-cover">` :
                                 `<div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
@@ -330,7 +335,7 @@
                     <div class="p-4 flex flex-col grow">
                         ${product.brand ? `<p class="text-xs text-gray-500 mb-1 uppercase tracking-wide">${product.brand}</p>` : ''}
                         
-                        <a href="/products/${product.slug}/" class="block">
+                        <a href="/products/${product.sku}/" class="block">
                             <h3 class="text-lg font-semibold text-gray-800 hover:text-blue-600 transition line-clamp-2 min-h-[3.5rem]">${product.name}</h3>
                         </a>
                         

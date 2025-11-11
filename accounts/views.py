@@ -251,7 +251,7 @@ def add_to_wishlist(request, product_id):
             )
 
         # No toast for wishlist actions
-        return redirect("products:product_detail", slug=product.slug)
+        return redirect("products:product_detail", sku=product.sku)
 
     return redirect("products:product_list")
 

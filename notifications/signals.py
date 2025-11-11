@@ -101,7 +101,7 @@ def check_wishlist_sale(sender, instance, created, **kwargs):
             existing = Notification.objects.filter(
                 user=wishlist_item.user,
                 notification_type='sale',
-                link=f'/products/{instance.product.slug}/',
+                link=f'/products/{instance.product.sku}/',
                 created_at__gte=timezone.now() - timedelta(hours=24)  # Within last 24 hours
             ).exists()
             
