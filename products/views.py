@@ -11,6 +11,7 @@ from products.models import (
     Review,
 )
 from products.forms import ReviewForm
+from products.utils import update_product_rating
 from django.http import JsonResponse
 from orders.models import Order
 
@@ -577,6 +578,9 @@ def submit_review(request, sku):
             review.is_verified_purchase = True
             review.save()
             
+            # Update product rating after saving review
+            update_product_rating(product)
+            
             if existing_review:
                 messages.success(request, "Your review has been updated successfully!")
             else:
@@ -599,10 +603,15 @@ def submit_review(request, sku):
 def delete_review(request, review_id):
     """Delete a user's review"""
     review = get_object_or_404(Review, id=review_id, user=request.user)
-    product_sku = review.product.sku
+    product = review.product
+    product_sku = product.sku
     
     if request.method == 'POST':
         review.delete()
+        
+        # Update product rating after deleting review
+        update_product_rating(product)
+        
         messages.success(request, "Your review has been deleted.")
         return redirect('products:product_detail', sku=product_sku)
     
