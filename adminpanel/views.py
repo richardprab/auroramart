@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from django.db.models import Q
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
+from urllib.parse import quote
 import requests
 
 from products.models import Product, ProductVariant, ProductImage, Category
@@ -402,7 +403,8 @@ def edit_product(request, product_id):
     )
     
     # Get search query from request if coming from search page
-    search_query = request.GET.get('q', '')
+    # Support both 'q' and 'query' for backward compatibility
+    search_query = request.GET.get('q', request.GET.get('query', ''))
     
     # Get primary image
     primary_image = product.images.filter(is_primary=True).first()
@@ -428,7 +430,7 @@ def edit_product(request, product_id):
 
 @staff_member_required
 def update_product(request):
-    """Update product details and redirect"""
+    """Update product details and redirect back to edit page"""
     if request.method != 'POST':
         return redirect('adminpanel:products')
     
@@ -509,13 +511,17 @@ def update_product(request):
                 print(f"Error updating variant {variant_id}: {e}")
                 continue
         
-        # Redirect back to products page with search query if provided
+        # Add success message and redirect back to edit page with search query
+        from django.contrib import messages
         from django.urls import reverse
+        messages.success(request, 'Product updated successfully!')
+        
+        # Redirect back to edit product page with search query if provided
         if search_query:
-            products_url = reverse('adminpanel:products')
-            return redirect(f'{products_url}?q={search_query}')
+            edit_url = reverse('adminpanel:edit_product', kwargs={'product_id': product_id})
+            return redirect(f'{edit_url}?q={quote(search_query)}')
         else:
-            return redirect('adminpanel:products')
+            return redirect('adminpanel:edit_product', product_id=product_id)
         
     except Exception as e:
         print(f"Error in update_product: {e}")
@@ -734,19 +740,43 @@ def edit_order(request, order_id):
     # Get all available variants for order editing
     all_variants = ProductVariant.objects.filter(stock__gt=0).select_related('product')
     
+    # Calculate current location index and progress for tracking visualization
+    current_location_index = None
+    progress_percentage = 0
+    total_locations = len(Order.LOCATION_CHOICES)
+    
+    for index, (value, label) in enumerate(Order.LOCATION_CHOICES):
+        if order.current_location == value:
+            current_location_index = index
+            # Calculate progress percentage for the tracking line
+            # With space-between layout, dots are evenly distributed from 0% to 100%
+            # Progress extends from left edge to center of active dot
+            if total_locations > 1:
+                # Calculate position: (index / (total - 1)) * 100
+                # But ensure minimum visibility for first step
+                if index == 0:
+                    progress_percentage = 8  # Show small progress for first step
+                else:
+                    progress_percentage = (index / (total_locations - 1)) * 100
+            else:
+                progress_percentage = 50
+            break
+    
     context = {
         'order': order,
         'search_query': search_query,
         'all_variants': all_variants,
         'location_choices': Order.LOCATION_CHOICES,
         'status_choices': Order.STATUS_CHOICES,
+        'current_location_index': current_location_index,
+        'progress_percentage': progress_percentage,
     }
     
     return render(request, 'adminpanel/edit_order.html', context)
 
 @staff_member_required
 def update_order(request, order_id):
-    """Update order details and redirect"""
+    """Update order details and redirect back to edit page"""
     if request.method != 'POST':
         return redirect('adminpanel:order_management')
     
@@ -778,13 +808,17 @@ def update_order(request, order_id):
         
         order.save()
         
-        # Redirect back to order management page with search query if provided
+        # Add success message and redirect back to edit page with search query
+        from django.contrib import messages
         from django.urls import reverse
+        messages.success(request, 'Order updated successfully!')
+        
+        # Redirect back to edit order page with search query if provided
         if search_query:
-            orders_url = reverse('adminpanel:order_management')
-            return redirect(f'{orders_url}?q={search_query}')
+            edit_url = reverse('adminpanel:edit_order', kwargs={'order_id': order_id})
+            return redirect(f'{edit_url}?q={quote(search_query)}')
         else:
-            return redirect('adminpanel:order_management')
+            return redirect('adminpanel:edit_order', order_id=order_id)
         
     except Exception as e:
         print(f"Error in update_order: {e}")

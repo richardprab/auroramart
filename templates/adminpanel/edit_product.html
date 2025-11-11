@@ -161,10 +161,17 @@
 
 <div class="admin-content-body">
     <!-- Back to Search Button -->
-    <a href="{% url 'adminpanel:products' %}{% if search_query %}?q={{ search_query }}{% endif %}" class="back-button">
+    {% if search_query %}
+    <a href="{% url 'adminpanel:products' %}?q={{ search_query|urlencode }}" class="back-button">
         <i data-lucide="arrow-left" class="w-4 h-4"></i>
         Back to Product Search
     </a>
+    {% else %}
+    <a href="{% url 'adminpanel:products' %}" class="back-button">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        Back to Product Search
+    </a>
+    {% endif %}
 
     <form method="POST" action="{% url 'adminpanel:update_product' %}" enctype="multipart/form-data" id="updateProductForm">
         {% csrf_token %}
