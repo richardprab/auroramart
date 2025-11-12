@@ -1,4 +1,4 @@
-.PHONY: help install migrate migrations superuser run test clean resetdb shell collectstatic
+.PHONY: help install migrate migrations superuser run test clean resetdb shell collectstatic assign-vouchers
 
 # Default target
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "make resetdb       - Delete database and recreate (WARNING: destroys data!)"
 	@echo "make collectstatic - Collect static files"
 	@echo "make check         - Run system checks"
+	@echo "make assign-vouchers - Assign WELCOME voucher to all users"
 
 # Install dependencies
 install:
@@ -125,6 +126,12 @@ reset-migrations:
 	@echo "Faking initial migrations (since tables already exist)..."
 	python manage.py migrate --fake-initial
 	@echo "Migrations reset complete!"
+
+# Assign vouchers to all users
+assign-vouchers:
+	@echo "Assigning WELCOME voucher to all users..."
+	python manage.py shell -c "from populate_db import assign_profile_completion_vouchers; assign_profile_completion_vouchers()"
+	@echo "✅ Voucher assignment complete!"
 
 # Quick reset and run (for development)
 dev-reset: resetdb superuser run

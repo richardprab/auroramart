@@ -6,14 +6,11 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.core.paginator import Paginator
+from django.db.models import Q
 from products.models import Product
-from .models import Wishlist, Address
+from .models import Wishlist, Address, Customer
 from .forms import CustomUserCreationForm, UserProfileForm, AddressForm
-from .models import Wishlist, Customer
-from .forms import CustomUserCreationForm, UserProfileForm
-from django.contrib.auth import logout
 from decimal import Decimal
-import json
 
 User = get_user_model()
 
@@ -99,13 +96,27 @@ def profile(request):
     total_orders = 0
     wishlist_count = Wishlist.objects.filter(user=request.user).count()
     recent_orders = []
-    viewing_history = []
+    voucher_count = 0
     
     try:
         from orders.models import Order
         total_orders = Order.objects.filter(user=request.user).count()
         recent_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
-    except:
+    except Exception:
+        pass
+    
+    try:
+        from vouchers.models import Voucher
+        from django.utils import timezone
+        now = timezone.now()
+        # Count available vouchers (user-specific + public)
+        voucher_count = Voucher.objects.filter(
+            Q(user=request.user) | Q(user__isnull=True),
+            is_active=True,
+            start_date__lte=now,
+            end_date__gte=now
+        ).distinct().count()
+    except Exception:
         pass
     
     # Get viewing history with pagination (10 per page)
@@ -121,7 +132,7 @@ def profile(request):
         paginator = Paginator(viewing_history_list, 8)
         page_number = request.GET.get('page', 1)
         viewing_history_page = paginator.get_page(page_number)
-    except:
+    except Exception:
         pass
 
     # Handle AJAX form submission
@@ -178,6 +189,7 @@ def profile(request):
         "form": form,
         "total_orders": total_orders,
         "wishlist_count": wishlist_count,
+        "voucher_count": voucher_count,
         "recent_orders": recent_orders,
         "viewing_history_page": viewing_history_page,
     }

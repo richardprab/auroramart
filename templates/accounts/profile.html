@@ -461,20 +461,21 @@
                 </a>
             </div>
 
-            <!-- Account Age Card -->
+            <!-- Vouchers Card -->
             <div class="stat-card">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-gray-500 text-sm">Member Since</p>
-                        <p class="text-xl font-bold text-green-600">{{ user.date_joined|date:"M Y" }}</p>
+                        <p class="text-gray-500 text-sm">My Vouchers</p>
+                        <p class="text-3xl font-bold text-orange-600">{{ voucher_count|default:0 }}</p>
                     </div>
-                    <div class="bg-green-100 rounded-full p-3">
-                        <i data-lucide="clock" class="w-8 h-8 text-green-600"></i>
+                    <div class="bg-orange-100 rounded-full p-3">
+                        <i data-lucide="ticket" class="w-8 h-8 text-orange-600"></i>
                     </div>
                 </div>
-                <p class="text-gray-600 text-sm mt-2">
-                    {{ user.date_joined|timesince }} ago
-                </p>
+                <a href="{% url 'vouchers:my_vouchers' %}"
+                    class="text-orange-600 text-sm mt-2 inline-block hover:underline">
+                    View my vouchers →
+                </a>
             </div>
         </div>
 

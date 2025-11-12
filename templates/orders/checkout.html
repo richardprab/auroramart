@@ -372,23 +372,70 @@
                                     {% endfor %}
                                 </div>
 
+                                <!-- Voucher Code Section -->
+                                <div class="py-4 border-t border-gray-200">
+                                    <div id="voucherSection">
+                                        {% if voucher_code %}
+                                        <!-- Applied Voucher Display -->
+                                        <div id="appliedVoucher" class="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center gap-2">
+                                                    <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-green-900">{{ voucher_code }}</p>
+                                                        <p class="text-xs text-green-700">Discount: ${{ discount|floatformat:2 }}</p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" id="removeVoucherBtn" class="text-red-600 hover:text-red-700 text-sm font-medium">
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <!-- Voucher Input Form -->
+                                        <div id="voucherInputForm">
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Have a voucher code?</label>
+                                            <div class="flex gap-2">
+                                                <input type="text" 
+                                                       id="voucherCodeInput" 
+                                                       placeholder="Enter code"
+                                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm uppercase"
+                                                       maxlength="100">
+                                                <button type="button" 
+                                                        id="applyVoucherBtn"
+                                                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                                                    Apply
+                                                </button>
+                                            </div>
+                                            <div id="voucherMessage" class="mt-2 text-sm"></div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
                                 <!-- Price Breakdown -->
                                 <div class="space-y-2 py-4 border-t border-gray-200">
                                     <div class="flex justify-between text-sm">
                                         <span class="text-gray-600">Subtotal</span>
-                                        <span class="text-gray-900">${{ subtotal|floatformat:2 }}</span>
+                                        <span class="text-gray-900" id="displaySubtotal">${{ subtotal|floatformat:2 }}</span>
                                     </div>
+                                    {% if discount %}
+                                    <div class="flex justify-between text-sm text-green-600">
+                                        <span>Discount</span>
+                                        <span id="displayDiscount">-${{ discount|floatformat:2 }}</span>
+                                    </div>
+                                    {% endif %}
                                     <div class="flex justify-between text-sm">
                                         <span class="text-gray-600">Tax (10%)</span>
-                                        <span class="text-gray-900">${{ tax|floatformat:2 }}</span>
+                                        <span class="text-gray-900" id="displayTax">${{ tax|floatformat:2 }}</span>
                                     </div>
                                     <div class="flex justify-between text-sm">
                                         <span class="text-gray-600">Shipping</span>
-                                        <span class="text-gray-900">${{ shipping|floatformat:2 }}</span>
+                                        <span class="text-gray-900" id="displayShipping">${{ shipping|floatformat:2 }}</span>
                                     </div>
                                     <div class="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
                                         <span class="text-gray-900">Total</span>
-                                        <span class="text-blue-600">${{ total|floatformat:2 }}</span>
+                                        <span class="text-blue-600" id="displayTotal">${{ total|floatformat:2 }}</span>
                                     </div>
                                 </div>
 
@@ -885,6 +932,235 @@
                     // Submit form
                     checkoutForm.submit();
                 });
+            }
+
+            // Voucher Code Functionality
+            const applyVoucherBtn = document.getElementById('applyVoucherBtn');
+            const removeVoucherBtn = document.getElementById('removeVoucherBtn');
+            const voucherCodeInput = document.getElementById('voucherCodeInput');
+            const voucherMessage = document.getElementById('voucherMessage');
+            const voucherSection = document.getElementById('voucherSection');
+
+            // Apply voucher
+            if (applyVoucherBtn && voucherCodeInput) {
+                applyVoucherBtn.addEventListener('click', function() {
+                    const code = voucherCodeInput.value.trim().toUpperCase();
+                    
+                    if (!code) {
+                        showVoucherMessage('Please enter a voucher code.', 'error');
+                        return;
+                    }
+
+                    // Show loading state
+                    applyVoucherBtn.disabled = true;
+                    applyVoucherBtn.textContent = 'Applying...';
+                    voucherMessage.innerHTML = '';
+
+                    // Make AJAX request
+                    fetch('{% url "orders:apply_voucher" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: `voucher_code=${encodeURIComponent(code)}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update UI with applied voucher
+                            updateOrderSummary(data);
+                            showAppliedVoucher(code, data.discount, data.voucher_description);
+                            showVoucherMessage(data.message, 'success');
+                            
+                            // Reload page to show applied voucher
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showVoucherMessage(data.error || 'Failed to apply voucher.', 'error');
+                            applyVoucherBtn.disabled = false;
+                            applyVoucherBtn.textContent = 'Apply';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showVoucherMessage('An error occurred. Please try again.', 'error');
+                        applyVoucherBtn.disabled = false;
+                        applyVoucherBtn.textContent = 'Apply';
+                    });
+                });
+
+                // Allow Enter key to apply voucher
+                voucherCodeInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyVoucherBtn.click();
+                    }
+                });
+            }
+
+            // Remove voucher
+            if (removeVoucherBtn) {
+                removeVoucherBtn.addEventListener('click', function() {
+                    // Make AJAX request
+                    fetch('{% url "orders:remove_voucher" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update UI
+                            updateOrderSummary(data);
+                            showVoucherInputForm();
+                            showVoucherMessage(data.message, 'success');
+                            
+                            // Reload page
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showVoucherMessage(data.error || 'Failed to remove voucher.', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showVoucherMessage('An error occurred. Please try again.', 'error');
+                    });
+                });
+            }
+
+            function showVoucherMessage(message, type) {
+                if (!voucherMessage) return;
+                
+                const colors = {
+                    success: 'text-green-600 bg-green-50 border-green-200',
+                    error: 'text-red-600 bg-red-50 border-red-200'
+                };
+                
+                voucherMessage.innerHTML = `<div class="p-2 rounded border ${colors[type] || colors.error}">${message}</div>`;
+                
+                // Clear message after 5 seconds
+                setTimeout(() => {
+                    voucherMessage.innerHTML = '';
+                }, 5000);
+            }
+
+            function updateOrderSummary(data) {
+                // Update displayed totals
+                const displaySubtotal = document.getElementById('displaySubtotal');
+                const displayTax = document.getElementById('displayTax');
+                const displayShipping = document.getElementById('displayShipping');
+                const displayTotal = document.getElementById('displayTotal');
+                const displayDiscount = document.getElementById('displayDiscount');
+
+                if (displaySubtotal) displaySubtotal.textContent = `$${parseFloat(data.subtotal).toFixed(2)}`;
+                if (displayTax) displayTax.textContent = `$${parseFloat(data.tax).toFixed(2)}`;
+                if (displayShipping) displayShipping.textContent = `$${parseFloat(data.shipping).toFixed(2)}`;
+                if (displayTotal) displayTotal.textContent = `$${parseFloat(data.total).toFixed(2)}`;
+                
+                // Show/hide discount row
+                if (parseFloat(data.discount) > 0) {
+                    if (!displayDiscount) {
+                        // Create discount row if it doesn't exist
+                        const priceBreakdown = document.querySelector('.space-y-2.py-4.border-t');
+                        if (priceBreakdown) {
+                            const discountRow = document.createElement('div');
+                            discountRow.className = 'flex justify-between text-sm text-green-600';
+                            discountRow.id = 'discountRow';
+                            discountRow.innerHTML = `
+                                <span>Discount</span>
+                                <span id="displayDiscount">-$${parseFloat(data.discount).toFixed(2)}</span>
+                            `;
+                            // Insert before tax row
+                            const taxRow = priceBreakdown.querySelector('.flex.justify-between.text-sm');
+                            if (taxRow) {
+                                priceBreakdown.insertBefore(discountRow, taxRow);
+                            }
+                        }
+                    } else {
+                        displayDiscount.textContent = `-$${parseFloat(data.discount).toFixed(2)}`;
+                    }
+                } else {
+                    // Remove discount row if discount is 0
+                    const discountRow = document.getElementById('discountRow');
+                    if (discountRow) discountRow.remove();
+                }
+            }
+
+            function showAppliedVoucher(code, discount, description) {
+                if (!voucherSection) return;
+                
+                voucherSection.innerHTML = `
+                    <div id="appliedVoucher" class="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                                <div>
+                                    <p class="text-sm font-semibold text-green-900">${code}</p>
+                                    <p class="text-xs text-green-700">Discount: $${parseFloat(discount).toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <button type="button" id="removeVoucherBtn" class="text-red-600 hover:text-red-700 text-sm font-medium">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Re-initialize remove button
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+                
+                const newRemoveBtn = document.getElementById('removeVoucherBtn');
+                if (newRemoveBtn) {
+                    newRemoveBtn.addEventListener('click', function() {
+                        removeVoucherBtn.click();
+                    });
+                }
+            }
+
+            function showVoucherInputForm() {
+                if (!voucherSection) return;
+                
+                voucherSection.innerHTML = `
+                    <div id="voucherInputForm">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Have a voucher code?</label>
+                        <div class="flex gap-2">
+                            <input type="text" 
+                                   id="voucherCodeInput" 
+                                   placeholder="Enter code"
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm uppercase"
+                                   maxlength="100">
+                            <button type="button" 
+                                    id="applyVoucherBtn"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                                Apply
+                            </button>
+                        </div>
+                        <div id="voucherMessage" class="mt-2 text-sm"></div>
+                    </div>
+                `;
+                
+                // Re-initialize apply button
+                const newApplyBtn = document.getElementById('applyVoucherBtn');
+                const newInput = document.getElementById('voucherCodeInput');
+                if (newApplyBtn && newInput) {
+                    newApplyBtn.addEventListener('click', function() {
+                        applyVoucherBtn.click();
+                    });
+                    newInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            newApplyBtn.click();
+                        }
+                    });
+                }
             }
         });
         </script>

@@ -604,7 +604,7 @@ def seed_from_csv(csv_path, reset=True):
         Address = apps.get_model("accounts", "Address")
         SaleSubscription = apps.get_model("accounts", "SaleSubscription")
         Review = apps.get_model("reviews", "Review")
-        Coupon = apps.get_model("adminpanel", "Coupon")
+        Voucher = apps.get_model("vouchers", "Voucher")
         HomepageBanner = apps.get_model("adminpanel", "HomepageBanner")
         
         # Delete in correct order respecting foreign key constraints
@@ -650,8 +650,8 @@ def seed_from_csv(csv_path, reset=True):
         print("Deleting reviews (depends on User and Product)...")
         Review.objects.all().delete()
         
-        print("Deleting coupons (depends on User)...")
-        Coupon.objects.all().delete()
+        print("Deleting vouchers (depends on User)...")
+        Voucher.objects.all().delete()
         
         print("Deleting homepage banners...")
         HomepageBanner.objects.all().delete()
@@ -682,6 +682,9 @@ def seed_from_csv(csv_path, reset=True):
     
     # Create NUS Computing t-shirt
     create_nus_computing_tshirt()
+    
+    # Create sample vouchers
+    create_sample_vouchers()
     
     with transaction.atomic():
         # Cache for categories
@@ -815,6 +818,209 @@ def seed_from_csv(csv_path, reset=True):
     
     # Create sample orders and reviews
     create_sample_orders_and_reviews()
+    
+    # Assign 5% profile completion voucher to all users
+    assign_profile_completion_vouchers()
+
+
+def create_sample_vouchers():
+    """
+    Create sample vouchers for testing.
+    """
+    print("\n" + "=" * 60)
+    print("CREATING SAMPLE VOUCHERS")
+    print("=" * 60)
+    
+    Voucher = apps.get_model("vouchers", "Voucher")
+    VoucherUsage = apps.get_model("vouchers", "VoucherUsage")
+    User = apps.get_model("accounts", "Superuser")
+    
+    # Get or create a superuser for created_by
+    superuser = User.objects.filter(is_superuser=True).first()
+    if not superuser:
+        superuser = None
+    
+    vouchers_created = 0
+    
+    # Create various types of vouchers
+    now = timezone.now()
+    
+    voucher_data = [
+        {
+            'name': 'Welcome Discount',
+            'promo_code': 'WELCOME10',
+            'description': '10% off your first order!',
+            'discount_type': 'percent',
+            'discount_value': Decimal('10.00'),
+            'max_discount': Decimal('50.00'),
+            'min_purchase': Decimal('20.00'),
+            'first_time_only': True,
+            'max_uses': 100,
+            'max_uses_per_user': 1,
+            'start_date': now - timedelta(days=30),
+            'end_date': now + timedelta(days=365),
+            'is_active': True,
+        },
+        {
+            'name': 'Summer Sale',
+            'promo_code': 'SUMMER2024',
+            'description': '20% off on all items!',
+            'discount_type': 'percent',
+            'discount_value': Decimal('20.00'),
+            'max_discount': Decimal('100.00'),
+            'min_purchase': Decimal('50.00'),
+            'first_time_only': False,
+            'max_uses': 500,
+            'max_uses_per_user': 3,
+            'start_date': now - timedelta(days=15),
+            'end_date': now + timedelta(days=45),
+            'is_active': True,
+        },
+        {
+            'name': 'Free Shipping',
+            'promo_code': 'FREESHIP',
+            'description': 'Free shipping on any order!',
+            'discount_type': 'free_shipping',
+            'discount_value': Decimal('10.00'),
+            'min_purchase': Decimal('0.00'),
+            'first_time_only': False,
+            'max_uses': 1000,
+            'max_uses_per_user': 5,
+            'start_date': now - timedelta(days=7),
+            'end_date': now + timedelta(days=30),
+            'is_active': True,
+        },
+        {
+            'name': 'Fixed Discount',
+            'promo_code': 'SAVE20',
+            'description': 'Save $20 on orders over $100!',
+            'discount_type': 'fixed',
+            'discount_value': Decimal('20.00'),
+            'min_purchase': Decimal('100.00'),
+            'first_time_only': False,
+            'max_uses': 200,
+            'max_uses_per_user': 2,
+            'start_date': now - timedelta(days=10),
+            'end_date': now + timedelta(days=60),
+            'is_active': True,
+        },
+        {
+            'name': 'Big Discount',
+            'promo_code': 'BIG50',
+            'description': '50% off (max $200 discount)!',
+            'discount_type': 'percent',
+            'discount_value': Decimal('50.00'),
+            'max_discount': Decimal('200.00'),
+            'min_purchase': Decimal('150.00'),
+            'first_time_only': False,
+            'max_uses': 50,
+            'max_uses_per_user': 1,
+            'start_date': now - timedelta(days=5),
+            'end_date': now + timedelta(days=15),
+            'is_active': True,
+        },
+        {
+            'name': 'Expired Voucher',
+            'promo_code': 'EXPIRED',
+            'description': 'This voucher has expired',
+            'discount_type': 'percent',
+            'discount_value': Decimal('15.00'),
+            'min_purchase': Decimal('30.00'),
+            'first_time_only': False,
+            'max_uses': 100,
+            'max_uses_per_user': 1,
+            'start_date': now - timedelta(days=60),
+            'end_date': now - timedelta(days=30),
+            'is_active': True,
+        },
+    ]
+    
+    for v_data in voucher_data:
+        # Check if voucher already exists
+        if Voucher.objects.filter(promo_code=v_data['promo_code']).exists():
+            continue
+        
+        try:
+            voucher = Voucher.objects.create(
+                name=v_data['name'],
+                promo_code=v_data['promo_code'],
+                description=v_data['description'],
+                discount_type=v_data['discount_type'],
+                discount_value=v_data['discount_value'],
+                max_discount=v_data.get('max_discount'),
+                min_purchase=v_data['min_purchase'],
+                first_time_only=v_data['first_time_only'],
+                max_uses=v_data['max_uses'],
+                max_uses_per_user=v_data['max_uses_per_user'],
+                start_date=v_data['start_date'],
+                end_date=v_data['end_date'],
+                is_active=v_data['is_active'],
+                created_by=superuser,
+            )
+            vouchers_created += 1
+            print(f"  ✅ Created voucher: {voucher.promo_code}")
+        except Exception as e:
+            print(f"  ❌ Error creating voucher {v_data['promo_code']}: {e}")
+    
+    print(f"✅ Created {vouchers_created} vouchers")
+    print()
+
+
+def assign_profile_completion_vouchers():
+    """
+    Create a shared 5% voucher (code: WELCOME) that all users can use once.
+    This is a public voucher with per-user usage limit of 1.
+    """
+    print("\n" + "=" * 60)
+    print("CREATING PROFILE COMPLETION VOUCHER (5% OFF - CODE: WELCOME)")
+    print("=" * 60)
+    
+    Voucher = apps.get_model("vouchers", "Voucher")
+    User = apps.get_model("accounts", "Superuser")
+    
+    # Get or create a superuser for created_by
+    superuser = User.objects.filter(is_superuser=True).first()
+    if not superuser:
+        superuser = None
+    
+    now = timezone.now()
+    promo_code = "WELCOME"
+    
+    # Check if voucher already exists
+    existing_voucher = Voucher.objects.filter(promo_code=promo_code).first()
+    
+    if existing_voucher:
+        print(f"  ℹ️  Voucher '{promo_code}' already exists. Skipping creation.")
+        print()
+        return
+    
+    try:
+        voucher = Voucher.objects.create(
+            name='Welcome Discount',
+            promo_code=promo_code,
+            description='5% off your order as a thank you for completing your profile! Use code WELCOME at checkout.',
+            discount_type='percent',
+            discount_value=Decimal('5.00'),
+            max_discount=Decimal('50.00'),  # Max $50 discount
+            min_purchase=Decimal('10.00'),  # Minimum $10 purchase
+            first_time_only=False,
+            max_uses=None,  # Unlimited total uses (but each user can only use once)
+            max_uses_per_user=1,  # Each user can only use this once
+            start_date=now,
+            end_date=now + timedelta(days=365),  # Valid for 1 year
+            is_active=True,
+            user=None,  # Public voucher - available to all users
+            created_by=superuser,
+        )
+        print(f"  ✅ Created voucher: {voucher.promo_code}")
+        print(f"     - 5% discount (max $50)")
+        print(f"     - Minimum purchase: $10")
+        print(f"     - Each user can use once")
+        print(f"     - Valid until: {voucher.end_date.strftime('%Y-%m-%d')}")
+    except Exception as e:
+        print(f"  ❌ Error creating voucher: {e}")
+    
+    print()
 
 
 def create_sample_orders_and_reviews():
@@ -830,6 +1036,8 @@ def create_sample_orders_and_reviews():
     OrderItem = apps.get_model("orders", "OrderItem")
     Address = apps.get_model("accounts", "Address")
     Review = apps.get_model("reviews", "Review")
+    Voucher = apps.get_model("vouchers", "Voucher")
+    VoucherUsage = apps.get_model("vouchers", "VoucherUsage")
     
     # Get customers and products
     customers = list(Customer.objects.all()[:20])  # Use first 20 customers
@@ -901,8 +1109,48 @@ def create_sample_orders_and_reviews():
             
             # Calculate tax and shipping
             tax_rate = Decimal('0.10')  # 10% tax
-            tax = subtotal * tax_rate
             shipping_cost = Decimal('10.00') if subtotal < Decimal('100.00') else Decimal('0.00')
+            
+            # Apply voucher 30% of the time
+            voucher = None
+            voucher_code = ''
+            discount_amount = Decimal('0.00')
+            
+            if RNG.random() < 0.3:  # 30% chance to use voucher
+                # Get valid vouchers for this customer
+                # Get valid vouchers (simpler check without F() expression)
+                valid_vouchers = []
+                all_vouchers = Voucher.objects.filter(
+                    is_active=True,
+                    start_date__lte=timezone.now(),
+                    end_date__gte=timezone.now()
+                )
+                for v in all_vouchers:
+                    if v.max_uses is None or v.current_uses < v.max_uses:
+                        valid_vouchers.append(v)
+                
+                # Filter vouchers that can be used by this customer
+                applicable_vouchers = []
+                for v in valid_vouchers:
+                    if v.can_be_used_by_user(customer) and subtotal >= v.min_purchase:
+                        applicable_vouchers.append(v)
+                
+                if applicable_vouchers:
+                    voucher = RNG.choice(applicable_vouchers)
+                    voucher_code = voucher.promo_code
+                    
+                    # Calculate discount
+                    from vouchers.utils import calculate_voucher_discount
+                    discount_amount = calculate_voucher_discount(voucher, subtotal, shipping_cost)
+                    
+                    # Adjust subtotal or shipping based on voucher type
+                    if voucher.discount_type == 'free_shipping':
+                        shipping_cost = max(Decimal('0.00'), shipping_cost - discount_amount)
+                    else:
+                        subtotal = max(Decimal('0.00'), subtotal - discount_amount)
+            
+            # Calculate tax on adjusted subtotal
+            tax = subtotal * tax_rate
             total = subtotal + tax + shipping_cost
             
             # Create order with delivered status (so customers can review)
@@ -921,6 +1169,8 @@ def create_sample_orders_and_reviews():
                 subtotal=subtotal,
                 tax=tax,
                 shipping_cost=shipping_cost,
+                voucher_code=voucher_code,
+                discount_amount=discount_amount,
                 total=total,
                 status='delivered',  # Delivered so customers can review
                 payment_status='paid',
@@ -931,6 +1181,21 @@ def create_sample_orders_and_reviews():
                 expected_delivery_date=delivered_date.date(),
                 delivered_at=delivered_date,
             )
+            
+            # Track voucher usage if voucher was applied
+            if voucher and discount_amount > 0:
+                try:
+                    VoucherUsage.objects.create(
+                        voucher=voucher,
+                        user=customer,
+                        order=order,
+                        discount_amount=discount_amount
+                    )
+                    # Update voucher usage count
+                    voucher.current_uses += 1
+                    voucher.save()
+                except Exception as e:
+                    print(f"  ⚠️  Error tracking voucher usage: {e}")
             # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
             Order.objects.filter(id=order.id).update(created_at=order_date)
             
@@ -1027,7 +1292,7 @@ def delete_all_data():
     Address = apps.get_model("accounts", "Address")
     SaleSubscription = apps.get_model("accounts", "SaleSubscription")
     Review = apps.get_model("products", "Review")
-    Coupon = apps.get_model("adminpanel", "Coupon")
+    Voucher = apps.get_model("vouchers", "Voucher")
     HomepageBanner = apps.get_model("adminpanel", "HomepageBanner")
     
     with transaction.atomic():
@@ -1073,8 +1338,8 @@ def delete_all_data():
         print("Deleting reviews (depends on User and Product)...")
         Review.objects.all().delete()
         
-        print("Deleting coupons (depends on User)...")
-        Coupon.objects.all().delete()
+        print("Deleting vouchers (depends on User)...")
+        Voucher.objects.all().delete()
         
         print("Deleting homepage banners...")
         HomepageBanner.objects.all().delete()

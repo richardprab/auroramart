@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 from django.db import transaction
+from django.http import JsonResponse
 from .models import Order, OrderItem
 from cart.models import Cart
 from cart.views import get_or_create_cart, calculate_cart_totals
@@ -23,8 +24,11 @@ def checkout(request):
         messages.info(request, "Your cart is empty. Add some items before checkout.")
         return redirect("cart:cart_detail")
 
-    # Calculate totals using helper function
-    totals = calculate_cart_totals(cart_items)
+    # Get voucher code from session or request
+    voucher_code = request.session.get('applied_voucher_code', None)
+    
+    # Calculate totals using helper function (with voucher if applied)
+    totals = calculate_cart_totals(cart_items, voucher_code=voucher_code, user=request.user)
     
     # Get user's saved addresses
     from accounts.models import Address
@@ -39,7 +43,9 @@ def checkout(request):
         "subtotal": totals['subtotal'],
         "tax": totals['tax'],
         "shipping": totals['shipping'],
+        "discount": totals.get('discount', 0),
         "total": totals['total'],
+        "voucher_code": totals.get('voucher_code'),
         "user": request.user,
         "saved_addresses": all_saved_addresses,
         "default_address": default_address,
@@ -89,14 +95,49 @@ def process_checkout(request):
 
     try:
         with transaction.atomic():
-            # Calculate totals
-            totals = calculate_cart_totals(cart_items)
+            # Get voucher code from session
+            voucher_code = request.session.get('applied_voucher_code', None)
+            voucher = None
+            discount_amount = Decimal('0.00')
+            
+            # Validate and apply voucher if present
+            if voucher_code:
+                try:
+                    from vouchers.utils import apply_voucher_to_cart
+                    
+                    # Calculate subtotal for voucher validation
+                    subtotal_before_voucher = sum(
+                        ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
+                        for item in cart_items
+                    )
+                    
+                    # Calculate shipping for voucher validation
+                    if subtotal_before_voucher < Decimal(str(settings.FREE_SHIPPING_THRESHOLD)):
+                        shipping_before_voucher = Decimal(str(settings.SHIPPING_COST))
+                    else:
+                        shipping_before_voucher = Decimal("0.00")
+                    
+                    # Apply voucher
+                    voucher_result = apply_voucher_to_cart(
+                        voucher_code, request.user, cart_items, subtotal_before_voucher, shipping_before_voucher
+                    )
+                    voucher = voucher_result['voucher']
+                    discount_amount = voucher_result['discount_amount']
+                    logger.info(f"✅ Voucher {voucher_code} applied - Discount: ${discount_amount}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Voucher validation failed: {str(e)}")
+                    # Continue without voucher if validation fails
+                    voucher_code = None
+                    discount_amount = Decimal('0.00')
+            
+            # Calculate totals (with voucher if applied)
+            totals = calculate_cart_totals(cart_items, voucher_code=voucher_code, user=request.user)
             
             # Extract phone number from shipping address
             phone_match = re.search(r'Phone:\s*(.+?)(?:\n|$)', shipping_address)
             contact_number = phone_match.group(1).strip() if phone_match else ''
             
-            logger.info(f"Creating order - Subtotal: {totals['subtotal']}, Tax: {totals['tax']}, Shipping: {totals['shipping']}, Total: {totals['total']}")
+            logger.info(f"Creating order - Subtotal: {totals['subtotal']}, Tax: {totals['tax']}, Shipping: {totals['shipping']}, Discount: {discount_amount}, Total: {totals['total']}")
             logger.info(f"Contact number: {contact_number}")
             
             # Create order - ONLY using fields that exist in Order model
@@ -110,11 +151,34 @@ def process_checkout(request):
                 subtotal=totals['subtotal'],
                 tax=totals['tax'],
                 shipping_cost=totals['shipping'],
+                voucher_code=voucher_code or '',
+                discount_amount=discount_amount,
                 total=totals['total'],  # Use 'total' field only
                 payment_status='pending'
             )
             
             logger.info(f"✅ Order created successfully: {order.order_number} (ID: {order.id})")
+            
+            # Track voucher usage if voucher was applied
+            if voucher and discount_amount > 0:
+                from vouchers.models import VoucherUsage
+                VoucherUsage.objects.create(
+                    voucher=voucher,
+                    user=request.user,
+                    order=order,
+                    discount_amount=discount_amount
+                )
+                
+                # Update voucher usage count
+                voucher.current_uses += 1
+                voucher.save()
+                
+                logger.info(f"✅ Voucher usage tracked for {voucher_code}")
+            
+            # Clear voucher from session after successful order
+            if 'applied_voucher_code' in request.session:
+                del request.session['applied_voucher_code']
+                request.session.modified = True
             
             # Create order items
             for cart_item in cart_items:
@@ -293,3 +357,102 @@ def cancel_order(request, order_id):
         messages.error(request, "An error occurred while cancelling the order. Please try again.")
     
     return redirect('orders:order_detail', order_id=order_id)
+
+
+@login_required
+def apply_voucher(request):
+    """AJAX endpoint to apply a voucher code to the cart"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    voucher_code = request.POST.get('voucher_code', '').strip()
+    
+    if not voucher_code:
+        return JsonResponse({'success': False, 'error': 'Please enter a voucher code.'})
+    
+    cart = get_or_create_cart(request)
+    cart_items = cart.items.select_related("product", "product_variant").all()
+    
+    if not cart_items:
+        return JsonResponse({'success': False, 'error': 'Your cart is empty.'})
+    
+    try:
+        from vouchers.utils import apply_voucher_to_cart
+        
+        # Calculate subtotal first
+        from decimal import Decimal
+        subtotal = sum(
+            ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
+            for item in cart_items
+        )
+        
+        # Calculate shipping
+        if subtotal < Decimal(str(settings.FREE_SHIPPING_THRESHOLD)):
+            shipping = Decimal(str(settings.SHIPPING_COST))
+        else:
+            shipping = Decimal("0.00")
+        
+        # Apply voucher
+        voucher_result = apply_voucher_to_cart(
+            voucher_code, request.user, cart_items, subtotal, shipping
+        )
+        
+        # Store voucher in session
+        request.session['applied_voucher_code'] = voucher_code
+        request.session.modified = True
+        
+        # Recalculate totals with voucher
+        totals = calculate_cart_totals(cart_items, voucher_code=voucher_code, user=request.user)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Voucher "{voucher_code}" applied successfully!',
+            'discount': str(totals['discount']),
+            'subtotal': str(totals['subtotal']),
+            'tax': str(totals['tax']),
+            'shipping': str(totals['shipping']),
+            'total': str(totals['total']),
+            'voucher_code': voucher_code,
+            'voucher_description': voucher_result['voucher'].description or f"{voucher_result['voucher'].name} applied"
+        })
+        
+    except Exception as e:
+        # Remove voucher from session if validation failed
+        if 'applied_voucher_code' in request.session:
+            del request.session['applied_voucher_code']
+            request.session.modified = True
+        
+        error_message = str(e)
+        logger.error(f"Voucher application error: {error_message}")
+        return JsonResponse({
+            'success': False,
+            'error': error_message
+        })
+
+
+@login_required
+def remove_voucher(request):
+    """AJAX endpoint to remove applied voucher"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    # Remove voucher from session
+    if 'applied_voucher_code' in request.session:
+        del request.session['applied_voucher_code']
+        request.session.modified = True
+    
+    cart = get_or_create_cart(request)
+    cart_items = cart.items.select_related("product", "product_variant").all()
+    
+    # Recalculate totals without voucher
+    totals = calculate_cart_totals(cart_items, voucher_code=None, user=request.user)
+    
+    return JsonResponse({
+        'success': True,
+        'message': 'Voucher removed successfully.',
+        'discount': '0.00',
+        'subtotal': str(totals['subtotal']),
+        'tax': str(totals['tax']),
+        'shipping': str(totals['shipping']),
+        'total': str(totals['total']),
+    })
