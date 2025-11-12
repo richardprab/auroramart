@@ -386,13 +386,9 @@ def create_sample_users():
                     print(f"  Created {created_count} users...")
             except Exception as e:
                 print(f"  ERROR creating user {username}: {e}")
-                skipped_count += 1
                 continue
     
     print(f"Created {created_count} users from CSV")
-    if skipped_count > 0:
-        print(f"Skipped {skipped_count} users (already exist or error)")
-    print()
     return created_count
 
 
