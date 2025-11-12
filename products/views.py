@@ -8,8 +8,8 @@ from products.models import (
     ProductVariant,
     ProductImage,
     Category,
-    Review,
 )
+from reviews.models import Review
 from products.forms import ReviewForm
 from products.utils import update_product_rating
 from django.http import JsonResponse
@@ -374,14 +374,20 @@ def product_detail(request, sku):
     # Review functionality
     reviews_list = product.reviews.select_related('user').all()
     
-    # Sort reviews based on query parameter
-    sort_by = request.GET.get('sort_by', 'recent')
-    if sort_by == 'highest':
-        reviews_list = reviews_list.order_by('-rating', '-created_at')
-    elif sort_by == 'lowest':
-        reviews_list = reviews_list.order_by('rating', '-created_at')
-    else:  # 'recent' (default)
-        reviews_list = reviews_list.order_by('-created_at')
+    # Sort reviews based on query parameter (matching products page style)
+    sort_field = request.GET.get('sort', 'created')  # Default: created (most recent)
+    sort_direction = request.GET.get('direction', 'desc')  # Default: descending
+    
+    if sort_field == 'rating':
+        if sort_direction == 'asc':
+            reviews_list = reviews_list.order_by('rating', '-created_at')  # Lowest rating first
+        else:  # desc
+            reviews_list = reviews_list.order_by('-rating', '-created_at')  # Highest rating first
+    else:  # 'created' (default - most recent)
+        if sort_direction == 'asc':
+            reviews_list = reviews_list.order_by('created_at')  # Oldest first
+        else:  # desc
+            reviews_list = reviews_list.order_by('-created_at')  # Most recent first
     
     # Check if user can review this product
     can_review = False
@@ -415,10 +421,59 @@ def product_detail(request, sku):
         "can_review": can_review,
         "existing_review": existing_review,
         "has_purchased": has_purchased,
-        "sort_by": sort_by,
+        "sort_field": sort_field,
+        "sort_direction": sort_direction,
     }
 
     return render(request, "products/product_detail.html", context)
+
+
+def get_reviews_ajax(request, sku):
+    """AJAX endpoint to get sorted reviews for a product"""
+    from django.template.loader import render_to_string
+    from django.http import JsonResponse
+    
+    product = get_object_or_404(Product, sku=sku, is_active=True)
+    
+    # Get sort parameters
+    sort_field = request.GET.get('sort', 'created')
+    sort_direction = request.GET.get('direction', 'desc')
+    
+    # Get and sort reviews
+    reviews_list = product.reviews.select_related('user').all()
+    
+    if sort_field == 'rating':
+        if sort_direction == 'asc':
+            reviews_list = reviews_list.order_by('rating', '-created_at')
+        else:  # desc
+            reviews_list = reviews_list.order_by('-rating', '-created_at')
+    else:  # 'created' (default)
+        if sort_direction == 'asc':
+            reviews_list = reviews_list.order_by('created_at')
+        else:  # desc
+            reviews_list = reviews_list.order_by('-created_at')
+    
+    # Render reviews HTML
+    reviews_html = render_to_string('products/reviews_list.html', {
+        'reviews': reviews_list,
+        'product': product,
+        'user': request.user,
+    }, request=request)
+    
+    # Render updated sort buttons HTML
+    sort_buttons_html = render_to_string('products/review_sort_buttons.html', {
+        'sort_field': sort_field,
+        'sort_direction': sort_direction,
+        'product': product,
+    }, request=request)
+    
+    return JsonResponse({
+        'success': True,
+        'html': reviews_html,
+        'sort_buttons_html': sort_buttons_html,
+        'sort_field': sort_field,
+        'sort_direction': sort_direction,
+    })
 
 
 def category_list(request, slug):

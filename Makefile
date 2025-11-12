@@ -29,6 +29,7 @@ migrations:
 	@echo "Creating migrations..."
 	python manage.py makemigrations products
 	python manage.py makemigrations accounts 
+	python manage.py makemigrations reviews
 	python manage.py makemigrations chat
 	python manage.py makemigrations cart
 	python manage.py makemigrations orders
@@ -40,7 +41,7 @@ migrations:
 migrate:
 	@echo "Applying migrations..."
 	python manage.py migrate
-	@echo "✅ Migrations applied successfully!"
+	@echo "Migrations applied successfully!"
 
 # Create superuser
 superuser:
@@ -73,7 +74,7 @@ check:
 collectstatic:
 	@echo "Collecting static files..."
 	python manage.py collectstatic --noinput
-	@echo "✅ Static files collected!"
+	@echo "Static files collected!"
 
 # Clean Python cache
 clean:
@@ -82,12 +83,12 @@ clean:
 	find . -type f -name "*.pyc" -not -path "./venv/*" -delete
 	find . -type f -name "*.pyo" -not -path "./venv/*" -delete
 	find . -type f -name ".DS_Store" -delete
-	@echo "✅ Cache cleaned!"
+	@echo "Cache cleaned!"
 
-# Reset database (DANGER!)
+# Reset database
 resetdb:
-	@echo "⚠️  WARNING: This will delete your database!"
-	@echo "⚠️  Press Ctrl+C to cancel, or Enter to continue..."
+	@echo "WARNING: This will delete your database!"
+	@echo "Press Ctrl+C to cancel, or Enter to continue..."
 	@read -r dummy
 	@echo "Deleting database..."
 	rm -f db.sqlite3
@@ -100,12 +101,12 @@ resetdb:
 	$(MAKE) migrations
 	@echo "Applying migrations..."
 	$(MAKE) migrate
-	@echo "✅ Database reset complete!"
+	@echo "Database reset complete!"
 	@echo "Don't forget to run: make superuser"
 
 # Full setup for new developers
 setup: install migrations migrate
-	@echo "✅ Setup complete!"
+	@echo "Setup complete!"
 	@echo "Run 'make superuser' to create an admin user"
 	@echo "Run 'make run' to start the development server"
 

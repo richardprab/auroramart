@@ -5,6 +5,8 @@ from decimal import Decimal
 from pathlib import Path
 import urllib.request
 import csv
+from django.utils import timezone
+from datetime import timedelta
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "auroramartproject.settings")
 import django  # noqa: E402
@@ -20,9 +22,10 @@ Category = apps.get_model("products", "Category")
 Product = apps.get_model("products", "Product")
 ProductImage = apps.get_model("products", "ProductImage")
 ProductVariant = apps.get_model("products", "ProductVariant")
-User = apps.get_model("accounts", "User")
+# Note: User is abstract, so we use concrete models directly
 Customer = apps.get_model("accounts", "Customer")
 Staff = apps.get_model("accounts", "Staff")
+Superuser = apps.get_model("accounts", "Superuser")
 
 RNG = random.Random(42)
 
@@ -353,15 +356,14 @@ def create_sample_users():
             # Generate phone number (optional field)
             phone = f"+65{RNG.randint(8000, 9999)}{RNG.randint(1000, 9999)}"
             
-            # Check if user already exists
-            from accounts.models import Customer, Staff, Superuser
+            # Check if user already exists (across all user types)
             if (Customer.objects.filter(username=username).exists() or Customer.objects.filter(email=email).exists() or
                 Staff.objects.filter(username=username).exists() or Staff.objects.filter(email=email).exists() or
                 Superuser.objects.filter(username=username).exists() or Superuser.objects.filter(email=email).exists()):
                 skipped_count += 1
                 continue
             
-            # Create customer (Customer extends User via multi-table inheritance)
+            # Create customer (Customer extends abstract User)
             try:
                 user = Customer.objects.create_user(
                     username=username,
@@ -410,7 +412,7 @@ def create_staff_user():
         print(f"Staff user '{username}' already exists. Skipping...")
         return Staff.objects.get(username=username)
     
-    # Create staff user (Staff extends User via multi-table inheritance)
+    # Create staff user (Staff extends abstract User)
     try:
         staff_user = Staff.objects.create_user(
             username=username,
@@ -605,7 +607,7 @@ def seed_from_csv(csv_path, reset=True):
         BrowsingHistory = apps.get_model("accounts", "BrowsingHistory")
         Address = apps.get_model("accounts", "Address")
         SaleSubscription = apps.get_model("accounts", "SaleSubscription")
-        Review = apps.get_model("products", "Review")
+        Review = apps.get_model("reviews", "Review")
         Coupon = apps.get_model("adminpanel", "Coupon")
         HomepageBanner = apps.get_model("adminpanel", "HomepageBanner")
         
@@ -814,6 +816,193 @@ def seed_from_csv(csv_path, reset=True):
     print(
         f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
     )
+    
+    # Create sample orders and reviews
+    create_sample_orders_and_reviews()
+
+
+def create_sample_orders_and_reviews():
+    """
+    Create sample orders and reviews for testing.
+    Customers need to have ordered items to review them.
+    """
+    print("\n" + "=" * 60)
+    print("CREATING SAMPLE ORDERS AND REVIEWS")
+    print("=" * 60)
+    
+    Order = apps.get_model("orders", "Order")
+    OrderItem = apps.get_model("orders", "OrderItem")
+    Address = apps.get_model("accounts", "Address")
+    Review = apps.get_model("reviews", "Review")
+    
+    # Get customers and products
+    customers = list(Customer.objects.all()[:20])  # Use first 20 customers
+    products = list(Product.objects.filter(is_active=True, variants__is_active=True).distinct()[:50])  # Use first 50 products
+    
+    if not customers:
+        print("⚠️  No customers found. Skipping orders and reviews.")
+        return
+    
+    if not products:
+        print("⚠️  No products found. Skipping orders and reviews.")
+        return
+    
+    orders_created = 0
+    reviews_created = 0
+    
+    # Create orders for customers
+    for customer in customers:
+        # Create an address for the customer if they don't have one
+        address, _ = Address.objects.get_or_create(
+            user=customer,
+            address_type='shipping',
+            defaults={
+                'full_name': f"{customer.first_name} {customer.last_name}",
+                'address_line1': f"{RNG.randint(1, 999)} Main Street",
+                'address_line2': f"Unit {RNG.randint(1, 50)}",
+                'city': 'Singapore',
+                'state': 'Singapore',
+                'postal_code': f"{RNG.randint(100000, 999999)}",
+                'zip_code': f"{RNG.randint(100000, 999999)}",
+                'country': 'Singapore',
+                'is_default': True,
+            }
+        )
+        
+        # Create 1-3 orders per customer
+        num_orders = RNG.randint(1, 3)
+        for order_num in range(num_orders):
+            # Select 1-4 random products for this order
+            order_products = RNG.sample(products, min(RNG.randint(1, 4), len(products)))
+            
+            if not order_products:
+                continue
+            
+            # Calculate order totals
+            subtotal = Decimal('0.00')
+            order_items_data = []
+            
+            for product in order_products:
+                # Get a variant for this product
+                variant = product.variants.filter(is_active=True).first()
+                if not variant:
+                    continue
+                
+                quantity = RNG.randint(1, 3)
+                item_price = variant.price
+                item_subtotal = item_price * quantity
+                subtotal += item_subtotal
+                
+                order_items_data.append({
+                    'product': product,
+                    'product_variant': variant,
+                    'quantity': quantity,
+                    'price': item_price,
+                })
+            
+            if not order_items_data:
+                continue
+            
+            # Calculate tax and shipping
+            tax_rate = Decimal('0.10')  # 10% tax
+            tax = subtotal * tax_rate
+            shipping_cost = Decimal('10.00') if subtotal < Decimal('100.00') else Decimal('0.00')
+            total = subtotal + tax + shipping_cost
+            
+            # Create order with delivered status (so customers can review)
+            order_date = timezone.now() - timedelta(days=RNG.randint(1, 90))  # Orders from 1-90 days ago
+            delivered_date = order_date + timedelta(days=RNG.randint(3, 7))  # Delivered 3-7 days after order
+            
+            # Generate unique order number
+            import uuid
+            order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
+            
+            order = Order.objects.create(
+                user=customer,
+                address=address,
+                delivery_address=f"{address.address_line1}, {address.address_line2}, {address.city} {address.postal_code}, {address.country}",
+                order_number=order_number,
+                subtotal=subtotal,
+                tax=tax,
+                shipping_cost=shipping_cost,
+                total=total,
+                status='delivered',  # Delivered so customers can review
+                payment_status='paid',
+                payment_method=RNG.choice(['Credit Card', 'PayPal', 'Bank Transfer']),
+                current_location='delivered',
+                contact_number=customer.phone or f"+65{RNG.randint(8000, 9999)}{RNG.randint(1000, 9999)}",
+                tracking_number=f"TRK{RNG.randint(100000000, 999999999)}",
+                expected_delivery_date=delivered_date.date(),
+                delivered_at=delivered_date,
+            )
+            # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
+            Order.objects.filter(id=order.id).update(created_at=order_date)
+            
+            # Create order items
+            for item_data in order_items_data:
+                OrderItem.objects.create(
+                    order=order,
+                    product=item_data['product'],
+                    product_variant=item_data['product_variant'],
+                    quantity=item_data['quantity'],
+                    price=item_data['price'],
+                )
+            
+            orders_created += 1
+            
+            # Create reviews for some products in this order (50% chance per product)
+            for item_data in order_items_data:
+                if RNG.random() < 0.5:  # 50% chance to review
+                    product = item_data['product']
+                    
+                    # Check if customer already reviewed this product
+                    if Review.objects.filter(user=customer, product=product).exists():
+                        continue
+                    
+                    # Create review
+                    rating = RNG.randint(3, 5)  # Mostly positive reviews (3-5 stars)
+                    review_titles = [
+                        "Great product!",
+                        "Very satisfied",
+                        "Good quality",
+                        "Would recommend",
+                        "Excellent purchase",
+                        "Love it!",
+                        "As described",
+                        "Fast delivery",
+                    ]
+                    review_comments = [
+                        "Really happy with this purchase. Quality is great and delivery was fast.",
+                        "Product met my expectations. Would buy again.",
+                        "Good value for money. Highly recommend.",
+                        "Excellent quality and fast shipping. Very satisfied!",
+                        "Great product, exactly as described. Very happy with my purchase.",
+                        "Love this product! Quality is excellent and it arrived quickly.",
+                        "Good product, good service. Would recommend to others.",
+                        "Satisfied with the purchase. Product is as described.",
+                    ]
+                    
+                    review = Review.objects.create(
+                        user=customer,
+                        product=product,
+                        rating=rating,
+                        title=RNG.choice(review_titles),
+                        comment=RNG.choice(review_comments),
+                        is_verified_purchase=True,  # All reviews are from verified purchases
+                    )
+                    # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
+                    Review.objects.filter(id=review.id).update(
+                        created_at=delivered_date + timedelta(days=RNG.randint(1, 7))
+                    )
+                    reviews_created += 1
+                    
+                    # Update product rating based on all reviews
+                    from products.utils import update_product_rating
+                    update_product_rating(product)
+    
+    print(f"✅ Created {orders_created} orders")
+    print(f"✅ Created {reviews_created} reviews")
+    print()
 
 
 def delete_all_data():
@@ -913,7 +1102,7 @@ def delete_all_data():
         # create_sample_users() uses get_or_create(), so it will handle existing users
         
         print("\n✅ All data deleted successfully!")
-    print(f"Remaining superusers: {User.objects.filter(is_superuser=True).count()}")
+    print(f"Remaining superusers: {Superuser.objects.count()}")
     print("=" * 60)
 
 

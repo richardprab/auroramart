@@ -2,35 +2,12 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
 from django.db.models import Q
+from django.utils import timezone
 
 # Note: We use string references ("products.Category", "products.Product", "products.ProductVariant")
 # to prevent circular import errors, which is a Django best practice.
 
 
-def user_exists(username=None, email=None):
-    """
-    Check if a user exists with the given username or email.
-    Since User is abstract, we check Customer, Staff, and Superuser.
-    """
-    from .models import Customer, Staff, Superuser
-    
-    if username:
-        if Customer.objects.filter(username=username).exists():
-            return True
-        if Staff.objects.filter(username=username).exists():
-            return True
-        if Superuser.objects.filter(username=username).exists():
-            return True
-    
-    if email:
-        if Customer.objects.filter(email__iexact=email).exists():
-            return True
-        if Staff.objects.filter(email__iexact=email).exists():
-            return True
-        if Superuser.objects.filter(email__iexact=email).exists():
-            return True
-    
-    return False
 
 
 class User(AbstractUser):
@@ -48,15 +25,76 @@ class User(AbstractUser):
     first_name = models.CharField(max_length=150, blank=False)
     last_name = models.CharField(max_length=150, blank=False)
 
-    # --- Optional Profile Fields ---
-    phone = models.CharField(max_length=20, blank=True, null=True)
-    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)  # Temporarily nullable for migration
-    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)  # Temporarily nullable for migration
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    # --- Customer Demographics (kept on User for migration compatibility) ---
-    # These fields are on User to match existing migrations, but are primarily used by Customer instances
+    # Override groups and user_permissions to add related_name for multi-table inheritance
+    groups = models.ManyToManyField(
+        'auth.Group',
+        verbose_name='groups',
+        blank=True,
+        help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.',
+        related_name='%(class)s_set',
+        related_query_name='user',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        verbose_name='user permissions',
+        blank=True,
+        help_text='Specific permissions for this user.',
+        related_name='%(class)s_set',
+        related_query_name='user',
+    )
+
+    class Meta:
+        abstract = True
+        verbose_name = "User"
+        verbose_name_plural = "Users"
+
+    def __str__(self):
+        return self.username
+
+    def get_full_name(self):
+        """Returns the user's full name."""
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def get_short_name(self):
+        """Returns the user's first name."""
+        return self.first_name
+
+
+class Superuser(User):
+    """
+    Superuser model extending User with multi-table inheritance.
+    
+    Superusers are User instances with is_superuser=True that are not
+    Customer or Staff instances. This provides a convenient way
+    to query and manage superusers separately.
+    """
+    
+    class Meta:
+        db_table = "superusers"
+        verbose_name = "Superuser"
+        verbose_name_plural = "Superusers"
+    
+    def save(self, *args, **kwargs):
+        """Ensure superuser flag is set"""
+        self.is_superuser = True
+        self.is_staff = True  # Superusers are also staff
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"Superuser: {self.username}"
+
+
+class Customer(User):
+    """
+    Customer model extending User with customer-specific demographic fields.
+    
+    Only customers (not staff/superusers) should have a Customer profile.
+    This allows staff/superusers to exist without unnecessary demographic fields.
+    """
+    
     GENDER_CHOICES = [
         ('Male', 'Male'),
         ('Female', 'Female'),
@@ -85,8 +123,8 @@ class User(AbstractUser):
     EDUCATION_CHOICES = [
         ('Secondary', 'Secondary/High School'),
         ('Diploma', 'Diploma/Certificate'),
-        ('Bachelor', 'Bachelor\'s Degree'),
-        ('Master', 'Master\'s Degree'),
+        ('Bachelor', "Bachelor's Degree"),
+        ('Master', "Master's Degree"),
         ('Doctorate', 'Doctorate/PhD'),
     ]
     
@@ -140,85 +178,8 @@ class User(AbstractUser):
         blank=True,
         help_text="Monthly income in SGD. Optional, kept private."
     )
-    
-    # Override groups and user_permissions to add related_name for multi-table inheritance
-    groups = models.ManyToManyField(
-        'auth.Group',
-        verbose_name='groups',
-        blank=True,
-        help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.',
-        related_name='%(class)s_set',
-        related_query_name='user',
-    )
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        verbose_name='user permissions',
-        blank=True,
-        help_text='Specific permissions for this user.',
-        related_name='%(class)s_set',
-        related_query_name='user',
-    )
-
-    class Meta:
-        verbose_name = "User"
-        verbose_name_plural = "Users"
-
-    def __str__(self):
-        return self.username
-
-    def get_full_name(self):
-        """Returns the user's full name."""
-        return f"{self.first_name} {self.last_name}".strip()
-
-    def get_short_name(self):
-        """Returns the user's first name."""
-        return self.first_name
-    
-    def is_customer(self):
-        """Check if user is a customer (has Customer profile)."""
-        return hasattr(self, 'customer')
-    
-    def is_staff_member(self):
-        """Check if user is a staff member (has Staff profile)."""
-        return hasattr(self, 'staff')
-    
-    def is_superuser_account(self):
-        """Check if user is a superuser (not Customer or Staff)."""
-        return self.is_superuser and not hasattr(self, 'customer') and not hasattr(self, 'staff')
-
-
-class Superuser(User):
-    """
-    Superuser model extending User with multi-table inheritance.
-    
-    Superusers are User instances with is_superuser=True that are not
-    Customer or Staff instances. This provides a convenient way
-    to query and manage superusers separately.
-    """
-    
-    class Meta:
-        db_table = "superusers"
-        verbose_name = "Superuser"
-        verbose_name_plural = "Superusers"
-    
-    def save(self, *args, **kwargs):
-        """Ensure superuser flag is set"""
-        self.is_superuser = True
-        self.is_staff = True  # Superusers are also staff
-        super().save(*args, **kwargs)
-    
-    def __str__(self):
-        return f"Superuser: {self.username}"
-
-
-class Customer(User):
-    """
-    Customer model extending User with multi-table inheritance.
-    
-    Customer instances inherit all fields from User, including demographic fields.
-    Only customers (not staff/superusers) should have a Customer profile.
-    This allows staff/superusers to exist without unnecessary demographic fields.
-    """
+    phone = models.CharField(max_length=20, blank=True, null=True, help_text="Phone number. Optional.")
+    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
 
     class Meta:
         db_table = "customers"
@@ -242,11 +203,6 @@ class Customer(User):
             self.monthly_income_sgd is not None,
         ])
         return int((completed_fields / total_fields) * 100)
-    
-    def has_complete_profile_for_ml(self):
-        """Check if customer has enough data for ML recommendations."""
-        # At minimum, we need age and gender for reasonable predictions
-        return bool(self.age) and bool(self.gender)
 
 
 class Staff(User):
@@ -317,7 +273,7 @@ class Address(models.Model):
     """
 
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,  # Best practice: links to User model in settings
+        'Customer',  # Addresses are customer-specific
         on_delete=models.CASCADE,  # If user is deleted, delete their addresses
         related_name="addresses",
     )
@@ -367,7 +323,7 @@ class Wishlist(models.Model):
     Links a User to a ProductVariant they have "wishlisted".
     """
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wishlist_items')
+    user = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='wishlist_items')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE,  null=True, blank=True)
     product = models.ForeignKey('products.Product', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -386,7 +342,7 @@ class SaleSubscription(models.Model):
     ProductVariant goes on sale.
     """
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sale_subscriptions')
+    user = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='sale_subscriptions')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE)
     category = models.ForeignKey('products.Category', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -407,7 +363,7 @@ class BrowsingHistory(models.Model):
     Used for "Recently Viewed" feature and analytics.
     """
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='browsing_history')
+    user = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='browsing_history')
     product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='browsing_history')
     viewed_at = models.DateTimeField(auto_now=True)
     view_count = models.IntegerField(default=1)

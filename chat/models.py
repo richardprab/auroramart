@@ -18,9 +18,9 @@ class ChatConversation(models.Model):
         ('replied', 'Replied'),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations')
+    user = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, related_name='conversations')  # Customers start chats
     product = models.ForeignKey('products.Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='chats')
-    admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_chats')
+    admin = models.ForeignKey('accounts.Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_chats')  # Staff handle chats
     
     # NEW FIELDS
     subject = models.CharField(max_length=200, default='General Inquiry')
@@ -46,7 +46,10 @@ class ChatMessage(models.Model):
     """
 
     conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='messages')
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    # Sender can be Customer (customer messages) or Staff (staff replies)
+    sender = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, null=True, blank=True)
+    # Alternative: staff_sender for staff messages (if needed)
+    staff_sender = models.ForeignKey('accounts.Staff', on_delete=models.CASCADE, null=True, blank=True)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -54,4 +57,11 @@ class ChatMessage(models.Model):
         ordering = ['created_at']
 
     def __str__(self):
-        return f"{self.sender.username}: {self.content[:50]}"
+        sender_name = (self.sender.username if self.sender else 
+                      self.staff_sender.username if self.staff_sender else 'Unknown')
+        return f"{sender_name}: {self.content[:50]}"
+    
+    @property
+    def actual_sender(self):
+        """Return the actual sender (Customer or Staff)"""
+        return self.staff_sender if self.staff_sender else self.sender

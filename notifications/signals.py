@@ -64,10 +64,11 @@ def create_chat_notification(sender, instance, created, **kwargs):
         return
     
     # Only create notification if message is from staff (admin)
-    if instance.sender.is_staff:
+    actual_sender = instance.actual_sender
+    if actual_sender and hasattr(actual_sender, 'is_staff') and actual_sender.is_staff:
         # Notify the customer (conversation user)
         customer = instance.conversation.user
-        if customer != instance.sender:  # Don't notify if customer sent the message
+        if customer != actual_sender:  # Don't notify if customer sent the message
             notification = Notification.objects.create(
                 user=customer,
                 message=f"You have a new message from support team",

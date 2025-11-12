@@ -221,7 +221,7 @@ def order_detail(request, order_id):
     }
     
     # Check review status for each product if order is delivered
-    from products.models import Review
+    from reviews.models import Review
     items_with_reviews = []
     if order.status == 'delivered':
         for item in order.items.all():

@@ -428,10 +428,10 @@
 
     <div class="messages-container">
         {% for msg in messages %}
-        <div class="message-bubble {% if msg.sender.is_staff %}staff{% else %}customer{% endif %}">
+        <div class="message-bubble {% if msg.staff_sender %}staff{% else %}customer{% endif %}">
             <div class="message-sender">
-                {% if msg.sender.is_staff %}
-                    Staff: {{ msg.sender.username|upper }}
+                {% if msg.staff_sender %}
+                    Staff: {{ msg.staff_sender.username|upper }}
                 {% else %}
                     {{ msg.sender.get_full_name|default:msg.sender.username }}
                 {% endif %}

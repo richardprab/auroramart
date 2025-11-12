@@ -119,7 +119,7 @@ def chat_conversation(request, conversation_id):
     )
     
     # Get all messages in this conversation
-    messages_list = conversation.messages.select_related('sender').order_by('created_at')
+    messages_list = conversation.messages.select_related('sender', 'staff_sender').order_by('created_at')
     
     # Get customer's latest order
     latest_order = Order.objects.filter(user=conversation.user).order_by('-created_at').first()
@@ -128,12 +128,18 @@ def chat_conversation(request, conversation_id):
     if request.method == 'POST':
         content = request.POST.get('message')
         if content:
-            # Create new message
-            ChatMessage.objects.create(
-                conversation=conversation,
-                sender=request.user,
-                content=content
-            )
+            # Create new message (staff sending reply)
+            from accounts.models import Staff
+            if isinstance(request.user, Staff):
+                ChatMessage.objects.create(
+                    conversation=conversation,
+                    staff_sender=request.user,
+                    content=content
+                )
+            else:
+                # Superuser or other types - skip for now
+                # Superusers should ideally be handled separately if needed
+                pass
             
             # Update conversation status to 'replied'
             conversation.status = 'replied'

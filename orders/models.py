@@ -41,8 +41,8 @@ class Order(models.Model):
 
     # Core Order Details
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE, # If user is deleted, delete their orders
+        'accounts.Customer',  
+        on_delete=models.CASCADE,
         related_name="orders"
     )
     address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True)

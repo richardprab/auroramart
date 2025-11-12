@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from .models import Address
+from .models import Address, Customer
 import re
 
 User = get_user_model()
@@ -492,7 +492,17 @@ class UserProfileForm(forms.ModelForm):
         user.email = self.cleaned_data["email"].lower()
         user.first_name = self.cleaned_data["first_name"].strip()
         user.last_name = self.cleaned_data["last_name"].strip()
-        user.phone = self.cleaned_data.get("phone", "").strip()
+        
+        # Phone is only for Customer instances
+        phone = self.cleaned_data.get("phone", "").strip()
+        if isinstance(user, Customer) or hasattr(user, 'customer'):
+            try:
+                customer = Customer.objects.get(id=user.id)
+                customer.phone = phone
+                if commit:
+                    customer.save()
+            except Customer.DoesNotExist:
+                pass
 
         if commit:
             user.save()

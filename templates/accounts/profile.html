@@ -407,15 +407,22 @@
     <div class="max-w-6xl mx-auto">
         <!-- Profile Header -->
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div class="flex items-center space-x-6 flex-wrap">
-                <div class="profile-avatar">
-                    {{ user.first_name.0|upper }}{{ user.last_name.0|upper }}
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center space-x-6 flex-1 min-w-0">
+                    <div class="profile-avatar">
+                        {{ user.first_name.0|upper }}{{ user.last_name.0|upper }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h1 class="text-3xl font-bold text-gray-800 truncate">{{ user.get_full_name }}</h1>
+                        <p class="text-gray-600">@{{ user.username }}</p>
+                        <p class="text-gray-500">{{ user.email }}</p>
+                    </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <h1 class="text-3xl font-bold text-gray-800 truncate">{{ user.get_full_name }}</h1>
-                    <p class="text-gray-600">@{{ user.username }}</p>
-                    <p class="text-gray-500">{{ user.email }}</p>
-                </div>
+                <button onclick="openEditModal()" 
+                        class="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap">
+                    <i data-lucide="edit-2" class="w-5 h-5"></i>
+                    Edit Profile
+                </button>
             </div>
         </div>
 
@@ -534,16 +541,6 @@
                     Account Settings
                 </h2>
                 <div class="space-y-3">
-                    <button onclick="openEditModal()" class="settings-option">
-                        <div class="settings-option-icon">
-                            <i data-lucide="user" class="w-5 h-5"></i>
-                        </div>
-                        <div class="settings-option-content">
-                            <span class="settings-option-title">Edit Profile</span>
-                            <span class="settings-option-desc">Update your personal information</span>
-                        </div>
-                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
-                    </button>
                     <button onclick="openChangePasswordModal()" class="settings-option">
                         <div class="settings-option-icon">
                             <i data-lucide="lock" class="w-5 h-5"></i>

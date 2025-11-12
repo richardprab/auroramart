@@ -130,6 +130,15 @@ def profile(request):
         
         if form.is_valid():
             form.save()
+            # Get phone from Customer if user is a Customer
+            phone = ''
+            if isinstance(request.user, Customer) or hasattr(request.user, 'customer'):
+                try:
+                    customer = Customer.objects.get(id=request.user.id)
+                    phone = customer.phone or ''
+                except Customer.DoesNotExist:
+                    pass
+            
             return JsonResponse({
                 'success': True,
                 'message': 'Profile updated successfully!',
@@ -138,7 +147,7 @@ def profile(request):
                     'last_name': request.user.last_name,
                     'full_name': request.user.get_full_name(),
                     'email': request.user.email,
-                    'phone': request.user.phone or '',
+                    'phone': phone,
                 }
             })
         else:

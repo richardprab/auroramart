@@ -245,7 +245,7 @@ class ProductRecommender:
             top_n: Number of recommendations (default: 5)
             exclude_product_id: Product ID to exclude from results (optional)
             return_skus: If True, returns SKU codes instead of Product objects (default: False)
-        
+            
         Returns:
             List of Product objects (or SKU codes if return_skus=True)
         

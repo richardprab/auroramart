@@ -136,39 +136,7 @@ class ProductImage(models.Model):
         return f"{self.product.name} - Image {self.display_order}"
 
 
-class Review(models.Model):
-    """
-    Product reviews (from your existing snippet).
-    """
-
-    product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="reviews"
-    )
-    # Use settings.AUTH_USER_MODEL string reference instead of get_user_model()
-    # Note: nullable initially to avoid circular migration dependency with accounts
-    # This will be made required in a later migration
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-    )
-    rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
-    title = models.CharField(max_length=200)
-    comment = models.TextField()
-    is_verified_purchase = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        unique_together = ("product", "user")
-
-    def __str__(self):
-        return f"{self.product.name} - {self.rating}★"
-
+# Review model moved to reviews app to break circular dependency
 
 class ProductVariant(models.Model):
     """

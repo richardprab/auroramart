@@ -228,84 +228,109 @@
             </div>
         </div>
 
-        <!-- Write Review Button / Message -->
-        {% if user.is_authenticated %}
-            {% if can_review or existing_review %}
-                <div class="mb-6">
-                    {% if existing_review %}
-                        <a href="{% url 'products:submit_review' product.sku %}" 
-                           class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                            Edit Your Review
-                        </a>
-                    {% elif can_review %}
-                        <a href="{% url 'products:submit_review' product.sku %}" 
-                           class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                            Write a Review
-                        </a>
-                    {% endif %}
-                </div>
-            {% elif has_purchased %}
-                <div class="mb-6 bg-gray-100 p-4 rounded-lg text-gray-600">
-                    You have already reviewed this product.
-                </div>
-            {% else %}
-                <div class="mb-6 bg-gray-100 p-4 rounded-lg text-gray-600">
-                    Purchase this product to leave a review.
-                </div>
-            {% endif %}
-        {% else %}
-            <div class="mb-6 bg-gray-100 p-4 rounded-lg text-gray-600">
-                <a href="{% url 'accounts:login' %}" class="text-blue-600 hover:underline">Sign in</a> to write a review.
-            </div>
-        {% endif %}
-
         <!-- Review Sorting -->
         {% if review_count > 0 %}
         <div class="mb-6">
-            <form method="get" class="inline-block">
-                <label for="sort_by" class="text-sm font-semibold mr-2">Sort by:</label>
-                <select name="sort_by" id="sort_by" onchange="this.form.submit()" 
-                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <option value="recent" {% if sort_by == 'recent' %}selected{% endif %}>Most Recent</option>
-                    <option value="highest" {% if sort_by == 'highest' %}selected{% endif %}>Highest Rating</option>
-                    <option value="lowest" {% if sort_by == 'lowest' %}selected{% endif %}>Lowest Rating</option>
-                </select>
-            </form>
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-600 flex items-center gap-1">
+                        <i data-lucide="arrow-up-down" class="w-4 h-4"></i>
+                        Sort by:
+                    </span>
+                    <div class="flex items-center gap-2" id="review-sort-buttons">
+                        <!-- Most Recent -->
+                        <button type="button" 
+                            data-sort="created" 
+                            data-direction="{% if sort_field == 'created' and sort_direction == 'desc' %}asc{% else %}desc{% endif %}"
+                            class="review-sort-btn px-4 py-2 text-sm border rounded-lg transition flex items-center gap-1.5 {% if sort_field == 'created' %}bg-blue-50 border-blue-500 text-blue-700 font-medium{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">
+                            Most Recent
+                            {% if sort_field == 'created' %}
+                            <i data-lucide="{% if sort_direction == 'asc' %}arrow-up{% else %}arrow-down{% endif %}" class="w-4 h-4"></i>
+                            {% endif %}
+                        </button>
+                        
+                        <!-- Rating (toggles between highest/lowest) -->
+                        <button type="button" 
+                            data-sort="rating" 
+                            data-direction="{% if sort_field == 'rating' and sort_direction == 'desc' %}asc{% else %}desc{% endif %}"
+                            class="review-sort-btn px-4 py-2 text-sm border rounded-lg transition flex items-center gap-1.5 {% if sort_field == 'rating' %}bg-blue-50 border-blue-500 text-blue-700 font-medium{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">
+                            Rating
+                            {% if sort_field == 'rating' %}
+                            <i data-lucide="{% if sort_direction == 'asc' %}arrow-up{% else %}arrow-down{% endif %}" class="w-4 h-4"></i>
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+                <!-- Write Review Button -->
+                {% if user.is_authenticated %}
+                    {% if can_review or existing_review %}
+                        {% if existing_review %}
+                            <a href="{% url 'products:submit_review' product.sku %}" 
+                               class="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap">
+                                <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                Edit Your Review
+                            </a>
+                        {% elif can_review %}
+                            <a href="{% url 'products:submit_review' product.sku %}" 
+                               class="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap">
+                                <i data-lucide="star" class="w-4 h-4"></i>
+                                Write a Review
+                            </a>
+                        {% endif %}
+                    {% elif has_purchased %}
+                        <div class="flex items-center gap-2 text-gray-500 text-sm">
+                            <i data-lucide="check-circle" class="w-4 h-4"></i>
+                            <span>You have already reviewed this product.</span>
+                        </div>
+                    {% else %}
+                        <div class="flex items-center gap-2 text-gray-500 text-sm">
+                            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                            <span>Purchase this product to leave a review.</span>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" 
+                       class="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm">
+                        <i data-lucide="log-in" class="w-4 h-4"></i>
+                        Sign in to write a review
+                    </a>
+                {% endif %}
+            </div>
         </div>
 
         <!-- Reviews List -->
-        <div class="space-y-6">
+        <div class="space-y-4" id="reviews-list">
             {% for review in reviews %}
-            <div class="border-b border-gray-200 pb-6">
+            <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
                 <!-- Review Header -->
-                <div class="flex items-start justify-between mb-3">
-                    <div>
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="font-semibold">{{ review.user.get_full_name|default:review.user.username }}</span>
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="font-semibold text-gray-900">{{ review.user.get_full_name|default:review.user.username }}</span>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-3">
                             <div class="flex text-yellow-400 product-rating-stars" data-rating="{{ review.rating }}"></div>
-                            <span class="text-sm text-gray-600">{{ review.created_at|date:"F d, Y" }}</span>
+                            <span class="text-sm text-gray-500">{{ review.created_at|date:"F d, Y" }}</span>
                         </div>
                     </div>
                     
                     <!-- Edit/Delete buttons for user's own review -->
                     {% if user == review.user %}
-                    <div class="flex gap-2">
+                    <div class="flex items-center gap-3 ml-4 flex-shrink-0">
                         <a href="{% url 'products:submit_review' product.sku %}" 
-                           class="text-blue-600 hover:underline text-sm">Edit</a>
+                           class="text-blue-600 hover:text-blue-700 hover:underline text-sm font-medium whitespace-nowrap">Edit</a>
                         <form method="post" action="{% url 'products:delete_review' review.id %}" 
-                              onsubmit="return confirm('Are you sure you want to delete this review?');" class="inline">
+                              onsubmit="return confirm('Are you sure you want to delete this review?');" class="inline m-0">
                             {% csrf_token %}
-                            <button type="submit" class="text-red-600 hover:underline text-sm">Delete</button>
+                            <button type="submit" class="text-red-600 hover:text-red-700 hover:underline text-sm font-medium whitespace-nowrap">Delete</button>
                         </form>
                     </div>
                     {% endif %}
                 </div>
                 
                 <!-- Review Content -->
-                <h3 class="font-semibold mb-2">{{ review.title }}</h3>
-                <p class="text-gray-700">{{ review.comment }}</p>
+                <h3 class="font-semibold text-lg text-gray-900 mb-2">{{ review.title }}</h3>
+                <p class="text-gray-700 leading-relaxed">{{ review.comment }}</p>
             </div>
             {% endfor %}
         </div>
@@ -698,6 +723,57 @@
                         </div>
                     </div>
                 `;
+            }
+        });
+
+        // Review sorting with AJAX
+        document.addEventListener('DOMContentLoaded', function() {
+            const reviewSortButtonsContainer = document.getElementById('review-sort-buttons');
+            const reviewsList = document.getElementById('reviews-list');
+            const productSku = '{{ product.sku }}';
+            
+            // Use event delegation for dynamically updated buttons
+            if (reviewSortButtonsContainer && reviewsList) {
+                reviewSortButtonsContainer.addEventListener('click', function(e) {
+                    const button = e.target.closest('.review-sort-btn');
+                    if (!button) return;
+                    
+                    const sort = button.dataset.sort;
+                    const direction = button.dataset.direction;
+                    
+                    // Show loading state
+                    reviewsList.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>';
+                    
+                    // Fetch reviews via AJAX
+                    fetch(`/products/${productSku}/reviews/?sort=${sort}&direction=${direction}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update reviews list
+                                reviewsList.innerHTML = data.html;
+                                
+                                // Update sort buttons
+                                if (data.sort_buttons_html) {
+                                    reviewSortButtonsContainer.innerHTML = data.sort_buttons_html;
+                                    lucide.createIcons();
+                                }
+                                
+                                // Re-render star ratings
+                                if (window.StarRating) {
+                                    StarRating.render(reviewsList);
+                                }
+                                
+                                // Re-initialize lucide icons
+                                lucide.createIcons();
+                            } else {
+                                reviewsList.innerHTML = '<div class="text-center py-8 text-red-500">Error loading reviews. Please refresh the page.</div>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            reviewsList.innerHTML = '<div class="text-center py-8 text-red-500">Error loading reviews. Please refresh the page.</div>';
+                        });
+                });
             }
         });
     </script>

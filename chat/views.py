@@ -18,11 +18,11 @@ def list_conversations(request):
     data = []
     for conv in conversations:
         messages_data = []
-        for msg in conv.messages.all().select_related('sender')[:50]:  # Last 50 messages
+        for msg in conv.messages.all().select_related('sender', 'staff_sender')[:50]:  # Last 50 messages
             messages_data.append({
                 'id': msg.id,
                 'content': msg.content,
-                'sender': msg.sender.id,
+                'sender': msg.actual_sender.id if msg.actual_sender else None,
                 'created_at': msg.created_at.isoformat(),
             })
         
@@ -82,19 +82,28 @@ def create_conversation(request):
                 product_url = f"{request.scheme}://{current_site.domain}{product_url}"
             
             initial_message = f"Hi! I'm interested in this product: {product_url}"
-            ChatMessage.objects.create(
-                conversation=conversation,
-                sender=request.user,
-                content=initial_message
-            )
+            # Determine if sender is Customer or Staff
+            from accounts.models import Customer, Staff
+            if isinstance(request.user, Customer):
+                ChatMessage.objects.create(
+                    conversation=conversation,
+                    sender=request.user,
+                    content=initial_message
+                )
+            elif isinstance(request.user, Staff):
+                ChatMessage.objects.create(
+                    conversation=conversation,
+                    staff_sender=request.user,
+                    content=initial_message
+                )
         
         # Get messages for response
         messages_data = []
-        for msg in conversation.messages.all().select_related('sender').order_by('created_at'):
+        for msg in conversation.messages.all().select_related('sender', 'staff_sender').order_by('created_at'):
             messages_data.append({
                 'id': msg.id,
                 'content': msg.content,
-                'sender': msg.sender.id,
+                'sender': msg.actual_sender.id if msg.actual_sender else None,
                 'created_at': msg.created_at.isoformat(),
             })
         
@@ -124,11 +133,11 @@ def get_conversation(request, conversation_id):
     )
     
     messages_data = []
-    for msg in conversation.messages.all().select_related('sender'):
+    for msg in conversation.messages.all().select_related('sender', 'staff_sender'):
         messages_data.append({
             'id': msg.id,
             'content': msg.content,
-            'sender': msg.sender.id,
+            'sender': msg.actual_sender.id if msg.actual_sender else None,
             'created_at': msg.created_at.isoformat(),
         })
     
@@ -162,11 +171,22 @@ def send_message(request, conversation_id):
         if not content:
             return JsonResponse({'error': 'Message content is required'}, status=400)
         
-        message = ChatMessage.objects.create(
-            conversation=conversation,
-            sender=request.user,
-            content=content
-        )
+        # Determine if sender is Customer or Staff
+        from accounts.models import Customer, Staff
+        if isinstance(request.user, Customer):
+            message = ChatMessage.objects.create(
+                conversation=conversation,
+                sender=request.user,
+                content=content
+            )
+        elif isinstance(request.user, Staff):
+            message = ChatMessage.objects.create(
+                conversation=conversation,
+                staff_sender=request.user,
+                content=content
+            )
+        else:
+            return JsonResponse({'error': 'Invalid user type'}, status=400)
         
         # Update conversation status
         conversation.status = 'pending'
@@ -176,7 +196,7 @@ def send_message(request, conversation_id):
         return JsonResponse({
             'id': message.id,
             'content': message.content,
-            'sender': message.sender.id,
+            'sender': message.actual_sender.id if message.actual_sender else None,
             'created_at': message.created_at.isoformat(),
         }, status=201)
     except Exception as e:
