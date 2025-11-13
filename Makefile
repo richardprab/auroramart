@@ -68,7 +68,7 @@ shell:
 check:
 	@echo "Running system checks..."
 	python manage.py check
-	@echo "✅ No issues found!"
+	@echo "No issues found!"
 
 # Collect static files
 collectstatic:

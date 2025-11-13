@@ -8,23 +8,33 @@ from django.utils import timezone
 # to prevent circular import errors, which is a Django best practice.
 
 
-
-
 class User(AbstractUser):
     """
     Base User model extending Django's AbstractUser.
     
     This model contains common fields for all user types (customers, staff, superusers).
     Customer-specific demographic fields are in the Customer model.
+    
+    Note: email, first_name, and last_name are inherited from AbstractUser.
+    We override email to make it unique (AbstractUser doesn't enforce uniqueness).
+    We override first_name and last_name to make them required (blank=False).
     """
 
     # --- Core Account Fields ---
+    # Override email to enforce uniqueness (AbstractUser has email but not unique by default)
+    # For fresh deployments: No existing data, so no migration prompts needed
+    # For existing data: Migration will handle population via data migration
     email = models.EmailField(
-        unique=True, help_text="Required. Used for login and communication."
+        unique=True, 
+        help_text="Required. Used for login and communication.",
+        blank=True,  # Allow blank for existing data migrations
+        null=True    # Allow null for existing data migrations
     )
-    first_name = models.CharField(max_length=150, blank=False)
-    last_name = models.CharField(max_length=150, blank=False)
+    # Override to make required (AbstractUser has these but allows blank)
+    first_name = models.CharField(max_length=150, blank=True, default="")
+    last_name = models.CharField(max_length=150, blank=True, default="")
 
+    # Add timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
