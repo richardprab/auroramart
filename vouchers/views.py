@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.db.models import Q
+from django.http import JsonResponse
 from .models import Voucher, VoucherUsage
 
 
@@ -123,4 +124,93 @@ def voucher_detail(request, voucher_id):
     }
     
     return render(request, 'vouchers/voucher_detail.html', context)
+
+
+@login_required
+def my_vouchers_json(request):
+    """
+    AJAX endpoint to get all vouchers for the current user (for popup display).
+    Returns available, used, and expired vouchers.
+    """
+    now = timezone.now()
+    
+    # Get user-specific vouchers
+    user_vouchers = Voucher.objects.filter(
+        user=request.user,
+        is_active=True,
+        start_date__lte=now,
+        end_date__gte=now
+    ).order_by('-created_at')
+    
+    # Get public vouchers (no user assigned)
+    public_vouchers = Voucher.objects.filter(
+        user__isnull=True,
+        is_active=True,
+        start_date__lte=now,
+        end_date__gte=now
+    ).order_by('-created_at')
+    
+    # Get used vouchers for this user
+    used_vouchers = Voucher.objects.filter(
+        usages__user=request.user
+    ).distinct().order_by('-usages__used_at')
+    
+    # Get expired vouchers
+    expired_vouchers = Voucher.objects.filter(
+        Q(user=request.user) | Q(user__isnull=True),
+        is_active=True
+    ).filter(
+        Q(end_date__lt=now) | Q(start_date__gt=now)
+    ).order_by('-end_date')
+    
+    # Check usage status for each voucher
+    def get_voucher_status(voucher):
+        is_valid = voucher.is_valid()
+        
+        if not is_valid:
+            return 'expired'
+        
+        # Check usage count once and reuse it
+        usage_count = VoucherUsage.objects.filter(
+            voucher=voucher,
+            user=request.user
+        ).count()
+        
+        if usage_count >= voucher.max_uses_per_user:
+            return 'used'
+        
+        # Check other restrictions (user-specific, first-time, etc.)
+        # Pass usage_count to avoid duplicate query
+        can_use = voucher.can_be_used_by_user(request.user, usage_count=usage_count)
+        if not can_use:
+            return 'unavailable'
+        
+        return 'available'
+    
+    def voucher_to_dict(voucher):
+        usage_count = VoucherUsage.objects.filter(
+            voucher=voucher,
+            user=request.user
+        ).count()
+        
+        return {
+            'id': voucher.id,
+            'promo_code': voucher.promo_code,
+            'name': voucher.name,
+            'description': voucher.description or '',
+            'discount_type': voucher.discount_type,
+            'discount_value': str(voucher.discount_value),
+            'max_discount': str(voucher.max_discount) if voucher.max_discount else None,
+            'end_date': voucher.end_date.strftime('%b %d, %Y'),
+            'status': get_voucher_status(voucher),
+            'remaining_uses': max(0, voucher.max_uses_per_user - usage_count),
+        }
+    
+    return JsonResponse({
+        'success': True,
+        'available': [voucher_to_dict(v) for v in user_vouchers if get_voucher_status(v) == 'available'] + 
+                     [voucher_to_dict(v) for v in public_vouchers if get_voucher_status(v) == 'available'],
+        'used': [voucher_to_dict(v) for v in used_vouchers],
+        'expired': [voucher_to_dict(v) for v in expired_vouchers],
+    })
 

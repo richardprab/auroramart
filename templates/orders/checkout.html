@@ -39,6 +39,29 @@
             </div>
         </div>
 
+        <!-- Voucher Selection Modal -->
+        <div id="voucherModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
+            <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col transform transition-all scale-95 opacity-0" id="voucherModalContent">
+                <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                    <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <i data-lucide="gift" class="w-6 h-6 text-blue-600"></i>
+                        Available Vouchers
+                    </h3>
+                    <button type="button" id="closeVoucherModal" class="text-gray-400 hover:text-gray-600 transition">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto flex-1" id="voucherListContainer">
+                    <div class="flex items-center justify-center py-8">
+                        <div class="text-center">
+                            <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                            <p class="text-gray-600">Loading vouchers...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Confirmation Modal -->
         <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
             <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all scale-95 opacity-0" id="modalContent">
@@ -395,7 +418,7 @@
                                         <!-- Voucher Input Form -->
                                         <div id="voucherInputForm">
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Have a voucher code?</label>
-                                            <div class="flex gap-2">
+                                            <div class="flex gap-2 mb-2">
                                                 <input type="text" 
                                                        id="voucherCodeInput" 
                                                        placeholder="Enter code"
@@ -407,6 +430,12 @@
                                                     Apply
                                                 </button>
                                             </div>
+                                            <button type="button" 
+                                                    id="browseVouchersBtn"
+                                                    class="w-full px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition font-medium border border-blue-200">
+                                                <i data-lucide="gift" class="w-4 h-4 inline mr-1"></i>
+                                                Browse Available Vouchers
+                                            </button>
                                             <div id="voucherMessage" class="mt-2 text-sm"></div>
                                         </div>
                                         {% endif %}
@@ -473,7 +502,8 @@
             display: flex !important;
         }
 
-        .modal-show #modalContent {
+        .modal-show #modalContent,
+        .modal-show #voucherModalContent {
             animation: modalSlideIn 0.3s ease-out forwards;
         }
 
@@ -940,6 +970,180 @@
             const voucherCodeInput = document.getElementById('voucherCodeInput');
             const voucherMessage = document.getElementById('voucherMessage');
             const voucherSection = document.getElementById('voucherSection');
+            const browseVouchersBtn = document.getElementById('browseVouchersBtn');
+            const voucherModal = document.getElementById('voucherModal');
+            const voucherModalContent = document.getElementById('voucherModalContent');
+            const closeVoucherModal = document.getElementById('closeVoucherModal');
+            const voucherListContainer = document.getElementById('voucherListContainer');
+
+            // Voucher Modal Functions
+            function showVoucherModal() {
+                voucherModal.classList.add('modal-show');
+                loadAvailableVouchers();
+            }
+
+            function hideVoucherModal() {
+                voucherModalContent.style.animation = 'none';
+                voucherModal.classList.remove('modal-show');
+            }
+
+            function loadAvailableVouchers() {
+                voucherListContainer.innerHTML = `
+                    <div class="flex items-center justify-center py-8">
+                        <div class="text-center">
+                            <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                            <p class="text-gray-600">Loading vouchers...</p>
+                        </div>
+                    </div>
+                `;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+
+                fetch('{% url "orders:get_available_vouchers" %}')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            displayVouchers(data.vouchers, data.cart_subtotal);
+                        } else {
+                            voucherListContainer.innerHTML = `
+                                <div class="text-center py-8">
+                                    <i data-lucide="alert-circle" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+                                    <p class="text-gray-600">${data.error || 'Failed to load vouchers.'}</p>
+                                </div>
+                            `;
+                            if (typeof lucide !== 'undefined') {
+                                lucide.createIcons();
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        voucherListContainer.innerHTML = `
+                            <div class="text-center py-8">
+                                <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-3"></i>
+                                <p class="text-gray-600">An error occurred. Please try again.</p>
+                            </div>
+                        `;
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    });
+            }
+
+            function displayVouchers(vouchers, cartSubtotal) {
+                if (vouchers.length === 0) {
+                    voucherListContainer.innerHTML = `
+                        <div class="text-center py-12">
+                            <i data-lucide="gift" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                            <p class="text-gray-600 font-medium mb-1">No vouchers available</p>
+                            <p class="text-sm text-gray-500">Check back later for new vouchers!</p>
+                        </div>
+                    `;
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                    return;
+                }
+
+                const vouchersHtml = vouchers.map(voucher => {
+                    const discountText = getDiscountText(voucher);
+                    const minPurchaseText = voucher.min_purchase && parseFloat(voucher.min_purchase) > 0 
+                        ? `Min. purchase: $${parseFloat(voucher.min_purchase).toFixed(2)}` 
+                        : '';
+                    const canUse = !minPurchaseText || parseFloat(cartSubtotal) >= parseFloat(voucher.min_purchase);
+                    
+                    return `
+                        <div class="border border-gray-200 rounded-lg p-4 mb-3 hover:border-blue-400 hover:shadow-md transition-all ${!canUse ? 'opacity-60' : ''}">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase">
+                                            ${voucher.promo_code}
+                                        </span>
+                                        ${voucher.remaining_uses > 0 ? `
+                                            <span class="text-xs text-gray-500">
+                                                ${voucher.remaining_uses} use${voucher.remaining_uses > 1 ? 's' : ''} left
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                    <h4 class="font-semibold text-gray-900 mb-1">${voucher.name}</h4>
+                                    ${voucher.description ? `<p class="text-sm text-gray-600 mb-2">${voucher.description}</p>` : ''}
+                                    <div class="flex items-center gap-4 text-sm">
+                                        <span class="text-blue-600 font-semibold">${discountText}</span>
+                                        ${minPurchaseText ? `<span class="text-gray-500">${minPurchaseText}</span>` : ''}
+                                    </div>
+                                </div>
+                                <button type="button" 
+                                        class="apply-voucher-btn ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium whitespace-nowrap ${!canUse ? 'opacity-50 cursor-not-allowed' : ''}"
+                                        data-code="${voucher.promo_code}"
+                                        ${!canUse ? 'disabled' : ''}>
+                                    ${canUse ? 'Apply' : 'Not Eligible'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                voucherListContainer.innerHTML = vouchersHtml;
+                
+                // Add event listeners to apply buttons
+                voucherListContainer.querySelectorAll('.apply-voucher-btn').forEach(btn => {
+                    if (!btn.disabled) {
+                        btn.addEventListener('click', function() {
+                            const code = this.getAttribute('data-code');
+                            applyVoucherFromModal(code);
+                        });
+                    }
+                });
+
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+
+            function getDiscountText(voucher) {
+                if (voucher.discount_type === 'percent') {
+                    return `${voucher.discount_value}% OFF`;
+                } else if (voucher.discount_type === 'fixed') {
+                    return `$${parseFloat(voucher.discount_value).toFixed(2)} OFF`;
+                } else if (voucher.discount_type === 'free_shipping') {
+                    return 'FREE SHIPPING';
+                }
+                return 'Discount';
+            }
+
+            function applyVoucherFromModal(code) {
+                // Close modal first
+                hideVoucherModal();
+                
+                // Set the input value and trigger apply
+                if (voucherCodeInput) {
+                    voucherCodeInput.value = code;
+                }
+                
+                // Trigger apply button click
+                if (applyVoucherBtn) {
+                    applyVoucherBtn.click();
+                }
+            }
+
+            // Event listeners for voucher modal
+            if (browseVouchersBtn) {
+                browseVouchersBtn.addEventListener('click', showVoucherModal);
+            }
+
+            if (closeVoucherModal) {
+                closeVoucherModal.addEventListener('click', hideVoucherModal);
+            }
+
+            if (voucherModal) {
+                voucherModal.addEventListener('click', function(e) {
+                    if (e.target === voucherModal) {
+                        hideVoucherModal();
+                    }
+                });
+            }
 
             // Apply voucher
             if (applyVoucherBtn && voucherCodeInput) {

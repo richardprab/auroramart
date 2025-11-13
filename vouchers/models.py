@@ -1,7 +1,4 @@
 from django.db import models
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
 
 
 class Voucher(models.Model):
@@ -96,12 +93,12 @@ class Voucher(models.Model):
     
     # User Restrictions
     user = models.ForeignKey(
-        User,
+        'accounts.Customer',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name='vouchers',
-        help_text="If set, only this specific user can use this voucher. Leave blank for public use."
+        help_text="If set, only this specific customer can use this voucher. Leave blank for public use."
     )
     
     # Validity Period
@@ -120,7 +117,7 @@ class Voucher(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
-        User,
+        'accounts.Superuser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -198,7 +195,7 @@ class VoucherUsage(models.Model):
         related_name='usages'
     )
     user = models.ForeignKey(
-        User,
+        'accounts.Customer',
         on_delete=models.CASCADE,
         related_name='voucher_usages'
     )

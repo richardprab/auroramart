@@ -16,25 +16,11 @@ from notifications.models import Notification
 from vouchers.models import Voucher
 
 
-class UserVoucherInline(admin.TabularInline):
-    """Inline admin for viewing/assigning vouchers to users"""
-    model = Voucher
-    fk_name = 'user'
-    extra = 1
-    fields = ('promo_code', 'name', 'discount_type', 'discount_value', 'is_active', 'start_date', 'end_date')
-    verbose_name = "Assigned Voucher"
-    verbose_name_plural = "User-Specific Vouchers"
-    
-    def get_queryset(self, request):
-        """Only show vouchers assigned to this user"""
-        qs = super().get_queryset(request)
-        if hasattr(qs, 'filter'):
-            return qs.filter(user__isnull=False)
-        return qs
-
-
 # User is now abstract, so we can't register it in admin
 # Use CustomerAdmin, StaffAdmin, and SuperuserAdmin instead
+# Note: UserVoucherInline was removed because Django admin inlines don't work well
+# with ForeignKeys pointing to abstract base classes. Vouchers are displayed via
+# the voucher_count method and can be managed through the vouchers admin.
 
 
 @admin.register(Customer)
@@ -46,7 +32,6 @@ class CustomerAdmin(admin.ModelAdmin):
     list_display = ("username", "email", "first_name", "last_name", "age", "gender", "employment_status", "voucher_count")
     list_filter = ("gender", "employment_status", "occupation", "education", "has_children")
     search_fields = ("username", "email", "first_name", "last_name")
-    inlines = [UserVoucherInline]
     
     fieldsets = (
         (

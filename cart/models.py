@@ -1,19 +1,16 @@
 from django.db import models
 from django.conf import settings
 from products.models import ProductVariant # MODIFIED
-from django.contrib.auth import get_user_model # IMPORTED AS REQUESTED
-
-User = get_user_model() # USED AS REQUESTED
 
 class Cart(models.Model):
     """
     Represents a shopping cart.
 
-    A cart can be associated with a logged-in User or be
+    A cart can be associated with a logged-in Customer or be
     an anonymous cart identified by a `session_key`.
     """
     user = models.OneToOneField(
-        User, 
+        'accounts.Customer', 
         on_delete=models.CASCADE,
         null=True, # Allows for anonymous carts
         blank=True,

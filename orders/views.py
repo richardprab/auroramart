@@ -431,6 +431,105 @@ def apply_voucher(request):
 
 
 @login_required
+def get_available_vouchers(request):
+    """AJAX endpoint to get available vouchers for the current user"""
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    try:
+        from vouchers.models import Voucher, VoucherUsage
+        from django.utils import timezone
+        from decimal import Decimal
+        
+        now = timezone.now()
+        cart = get_or_create_cart(request)
+        cart_items = cart.items.select_related("product", "product_variant").all()
+        
+        # Calculate current cart subtotal
+        subtotal = sum(
+            ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
+            for item in cart_items
+        )
+        
+        # Get user-specific vouchers
+        user_vouchers = Voucher.objects.filter(
+            user=request.user,
+            is_active=True,
+            start_date__lte=now,
+            end_date__gte=now
+        ).order_by('-created_at')
+        
+        # Get public vouchers
+        public_vouchers = Voucher.objects.filter(
+            user__isnull=True,
+            is_active=True,
+            start_date__lte=now,
+            end_date__gte=now
+        ).order_by('-created_at')
+        
+        # Combine and deduplicate
+        all_vouchers = list(user_vouchers) + list(public_vouchers)
+        seen_ids = set()
+        unique_vouchers = []
+        for voucher in all_vouchers:
+            if voucher.id not in seen_ids:
+                seen_ids.add(voucher.id)
+                unique_vouchers.append(voucher)
+        
+        # Filter vouchers that can be used
+        available_vouchers = []
+        for voucher in unique_vouchers:
+            # Check if voucher meets minimum purchase requirement
+            if voucher.min_purchase and subtotal < voucher.min_purchase:
+                continue
+            
+            # Check usage count
+            usage_count = VoucherUsage.objects.filter(
+                voucher=voucher,
+                user=request.user
+            ).count()
+            
+            if usage_count >= voucher.max_uses_per_user:
+                continue
+            
+            # Check if voucher can be used by this user
+            if not voucher.can_be_used_by_user(request.user, usage_count=usage_count):
+                continue
+            
+            # Calculate potential discount for display
+            discount_info = {
+                'type': voucher.discount_type,
+                'value': str(voucher.discount_value),
+                'max_discount': str(voucher.max_discount) if voucher.max_discount else None,
+            }
+            
+            available_vouchers.append({
+                'id': voucher.id,
+                'promo_code': voucher.promo_code,
+                'name': voucher.name,
+                'description': voucher.description or '',
+                'discount_type': voucher.discount_type,
+                'discount_value': str(voucher.discount_value),
+                'max_discount': str(voucher.max_discount) if voucher.max_discount else None,
+                'min_purchase': str(voucher.min_purchase) if voucher.min_purchase else None,
+                'remaining_uses': max(0, voucher.max_uses_per_user - usage_count),
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'vouchers': available_vouchers,
+            'cart_subtotal': str(subtotal),
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching vouchers: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to fetch vouchers.'
+        })
+
+
+@login_required
 def remove_voucher(request):
     """AJAX endpoint to remove applied voucher"""
     if request.method != 'POST':

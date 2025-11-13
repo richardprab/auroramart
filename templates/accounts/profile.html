@@ -472,10 +472,10 @@
                         <i data-lucide="ticket" class="w-8 h-8 text-orange-600"></i>
                     </div>
                 </div>
-                <a href="{% url 'vouchers:my_vouchers' %}"
-                    class="text-orange-600 text-sm mt-2 inline-block hover:underline">
+                <button type="button" onclick="openVouchersModal()"
+                    class="text-orange-600 text-sm mt-2 inline-block hover:underline cursor-pointer">
                     View my vouchers →
-                </a>
+                </button>
             </div>
         </div>
 
@@ -934,6 +934,29 @@
                 <button type="button" id="confirmDeleteAddressBtn" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
                     Delete
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vouchers Modal -->
+<div id="vouchersModal" class="modal">
+    <div class="modal-content" style="max-width: 900px; max-height: 90vh;">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="ticket" class="w-6 h-6"></i>
+                My Vouchers
+            </h2>
+            <button class="modal-close" onclick="closeVouchersModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 120px);" id="vouchersListContainer">
+            <div class="flex items-center justify-center py-8">
+                <div class="text-center">
+                    <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                    <p class="text-gray-600">Loading vouchers...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -2350,6 +2373,211 @@
     window.nextQuestion = window.questionnaireState.nextQuestion;
     window.previousQuestion = window.questionnaireState.previousQuestion;
     window.finishQuestionnaire = window.questionnaireState.finishQuestionnaire;
+
+    // Vouchers Modal Functions
+    function openVouchersModal() {
+        const modal = document.getElementById('vouchersModal');
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        loadVouchers();
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeVouchersModal() {
+        const modal = document.getElementById('vouchersModal');
+        modal.style.transition = 'opacity 0.2s ease';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }, 200);
+    }
+
+    function loadVouchers() {
+        const container = document.getElementById('vouchersListContainer');
+        container.innerHTML = `
+            <div class="flex items-center justify-center py-8">
+                <div class="text-center">
+                    <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                    <p class="text-gray-600">Loading vouchers...</p>
+                </div>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+
+        fetch('{% url "vouchers:my_vouchers_json" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayVouchers(data);
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <i data-lucide="alert-circle" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+                            <p class="text-gray-600">Failed to load vouchers.</p>
+                        </div>
+                    `;
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-3"></i>
+                        <p class="text-gray-600">An error occurred. Please try again.</p>
+                    </div>
+                `;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            });
+    }
+
+    function displayVouchers(data) {
+        const container = document.getElementById('vouchersListContainer');
+        let html = '';
+
+        // Available Vouchers
+        if (data.available && data.available.length > 0) {
+            html += `
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                        Available Vouchers
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${data.available.map(v => createVoucherCard(v)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Used Vouchers
+        if (data.used && data.used.length > 0) {
+            html += `
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="history" class="w-6 h-6 text-gray-600"></i>
+                        Used Vouchers
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${data.used.map(v => createVoucherCard(v)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Expired Vouchers
+        if (data.expired && data.expired.length > 0) {
+            html += `
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="clock" class="w-6 h-6 text-gray-600"></i>
+                        Expired Vouchers
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${data.expired.map(v => createVoucherCard(v)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Empty State
+        if (!data.available?.length && !data.used?.length && !data.expired?.length) {
+            html = `
+                <div class="text-center py-12">
+                    <i data-lucide="ticket" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                    <p class="text-gray-600 font-medium mb-1">No vouchers available</p>
+                    <p class="text-sm text-gray-500">Check back later for special offers!</p>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    function createVoucherCard(voucher) {
+        const statusColors = {
+            'available': 'from-blue-500 to-purple-600',
+            'used': 'from-gray-400 to-gray-600',
+            'expired': 'from-gray-500 to-gray-700',
+            'unavailable': 'from-orange-400 to-orange-600'
+        };
+        
+        const statusLabels = {
+            'available': 'Active',
+            'used': 'Used',
+            'expired': 'Expired',
+            'unavailable': 'Unavailable'
+        };
+
+        const discountText = getDiscountText(voucher);
+        const statusClass = statusColors[voucher.status] || statusColors.available;
+        const statusLabel = statusLabels[voucher.status] || 'Active';
+
+        return `
+            <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all ${voucher.status !== 'available' ? 'opacity-70' : ''}">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-3 py-1 bg-gradient-to-r ${statusClass} text-white rounded-full text-xs font-bold uppercase">
+                                ${voucher.promo_code}
+                            </span>
+                            <span class="text-xs px-2 py-1 rounded-full ${
+                                voucher.status === 'available' ? 'bg-green-100 text-green-700' :
+                                voucher.status === 'used' ? 'bg-gray-100 text-gray-700' :
+                                'bg-gray-100 text-gray-700'
+                            }">
+                                ${statusLabel}
+                            </span>
+                        </div>
+                        <h4 class="font-semibold text-gray-900 mb-1">${voucher.name}</h4>
+                        ${voucher.description ? `<p class="text-sm text-gray-600 mb-2">${voucher.description}</p>` : ''}
+                        <div class="flex items-center gap-2">
+                            <span class="text-blue-600 font-bold text-lg">${discountText}</span>
+                            ${voucher.remaining_uses > 0 && voucher.status === 'available' ? 
+                                `<span class="text-xs text-gray-500">${voucher.remaining_uses} use${voucher.remaining_uses > 1 ? 's' : ''} left</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500">
+                    ${voucher.status === 'expired' ? `Expired: ${voucher.end_date}` : `Expires: ${voucher.end_date}`}
+                </div>
+            </div>
+        `;
+    }
+
+    function getDiscountText(voucher) {
+        if (voucher.discount_type === 'percent') {
+            return `${voucher.discount_value}% OFF${voucher.max_discount ? ` (up to $${parseFloat(voucher.max_discount).toFixed(2)})` : ''}`;
+        } else if (voucher.discount_type === 'fixed') {
+            return `$${parseFloat(voucher.discount_value).toFixed(2)} OFF`;
+        } else if (voucher.discount_type === 'free_shipping') {
+            return 'FREE SHIPPING';
+        }
+        return 'Discount';
+    }
+
+    // Close vouchers modal when clicking outside
+    document.getElementById('vouchersModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeVouchersModal();
+        }
+    });
 }); // End of DOMContentLoaded
 </script>
 {% endblock %}

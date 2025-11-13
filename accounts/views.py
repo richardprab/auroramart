@@ -643,4 +643,3 @@ def set_default_address(request, address_id):
     
     return redirect('accounts:addresses')
 
-
