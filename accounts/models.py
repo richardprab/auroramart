@@ -21,14 +21,11 @@ class User(AbstractUser):
     """
 
     # --- Core Account Fields ---
-    # Override email to enforce uniqueness (AbstractUser has email but not unique by default)
-    # For fresh deployments: No existing data, so no migration prompts needed
-    # For existing data: Migration will handle population via data migration
     email = models.EmailField(
         unique=True, 
         help_text="Required. Used for login and communication.",
-        blank=True,  # Allow blank for existing data migrations
-        null=True    # Allow null for existing data migrations
+        blank=True, 
+        null=True
     )
     # Override to make required (AbstractUser has these but allows blank)
     first_name = models.CharField(max_length=150, blank=True, default="")

@@ -125,6 +125,3 @@ reset-migrations:
 	@echo "Faking initial migrations (since tables already exist)..."
 	python manage.py migrate --fake-initial
 	@echo "Migrations reset complete!"
-
-# Quick reset and run (for development)
-dev-reset: resetdb superuser run
