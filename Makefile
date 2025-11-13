@@ -21,21 +21,20 @@ install:
 	@echo "Installing dependencies..."
 	pip install --upgrade pip
 	pip install -r requirements.txt
-	@echo "✅ Dependencies installed successfully!"
+	@echo "Dependencies installed successfully!"
 
 # Create migrations for all apps (in dependency order)
 # Note: accounts migrations include BrowsingHistory, Wishlist, Address, User, etc.
 migrations:
 	@echo "Creating migrations..."
 	python manage.py makemigrations products
-	python manage.py makemigrations accounts 
-	python manage.py makemigrations reviews
+	python manage.py makemigrations accounts
 	python manage.py makemigrations chat
 	python manage.py makemigrations cart
 	python manage.py makemigrations orders
 	python manage.py makemigrations notifications
 	python manage.py makemigrations adminpanel
-	@echo "✅ Migrations created successfully!"
+	@echo "Migrations created successfully!"
 
 # Apply migrations
 migrate:
@@ -85,24 +84,41 @@ clean:
 	find . -type f -name ".DS_Store" -delete
 	@echo "Cache cleaned!"
 
-# Reset database
+# Reset database (DANGER!)
+# Detects OS and uses appropriate commands (Unix or Windows)
 resetdb:
 	@echo "WARNING: This will delete your database!"
 	@echo "Press Ctrl+C to cancel, or Enter to continue..."
-	@read -r dummy
-	@echo "Deleting database..."
-	rm -f db.sqlite3
-	@echo "Deleting migration files..."
-	find . -path "*/migrations/*.py" -not -name "__init__.py" -not -path "./venv/*" -delete
-	find . -path "*/migrations/*.pyc" -not -path "./venv/*" -delete
-	@echo "Cleaning cache..."
-	$(MAKE) clean
-	@echo "Creating fresh migrations..."
-	$(MAKE) migrations
-	@echo "Applying migrations..."
-	$(MAKE) migrate
-	@echo "Database reset complete!"
-	@echo "Don't forget to run: make superuser"
+	@python -c "import sys; import os; os._exit(0 if sys.platform == 'win32' else 1)" 2>nul && \
+		(powershell -Command "Read-Host | Out-Null" && \
+		echo "Deleting database..." && \
+		powershell -Command "if (Test-Path db.sqlite3) { Remove-Item -Force db.sqlite3 }" && \
+		echo "Deleting migration files..." && \
+		powershell -Command "Get-ChildItem -Path . -Recurse -Filter '*.py' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.Name -ne '__init__.py' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | Remove-Item -Force" && \
+		powershell -Command "Get-ChildItem -Path . -Recurse -Filter '*.pyc' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | Remove-Item -Force" && \
+		powershell -Command "Get-ChildItem -Path . -Recurse -Directory -Filter '__pycache__' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | Remove-Item -Recurse -Force" && \
+		echo "Cleaning cache..." && \
+		powershell -Command "Get-ChildItem -Path . -Recurse -Directory -Filter '__pycache__' | Where-Object { $$_.FullName -notmatch '\\\\.venv\\\\' } | Remove-Item -Recurse -Force" && \
+		echo "Creating fresh migrations..." && \
+		$(MAKE) migrations && \
+		echo "Applying migrations..." && \
+		$(MAKE) migrate && \
+		echo "Database reset complete!" && \
+		echo "Don't forget to run: make superuser") || \
+		(read -r dummy && \
+		echo "Deleting database..." && \
+		rm -f db.sqlite3 && \
+		echo "Deleting migration files..." && \
+		find . -path "*/migrations/*.py" -not -name "__init__.py" -not -path "./venv/*" -not -path "./.venv/*" -delete 2>/dev/null || true && \
+		find . -path "*/migrations/*.pyc" -not -path "./venv/*" -not -path "./.venv/*" -delete 2>/dev/null || true && \
+		echo "Cleaning cache..." && \
+		$(MAKE) clean && \
+		echo "Creating fresh migrations..." && \
+		$(MAKE) migrations && \
+		echo "Applying migrations..." && \
+		$(MAKE) migrate && \
+		echo "Database reset complete!" && \
+		echo "Don't forget to run: make superuser")
 
 # Full setup for new developers
 setup: install migrations migrate
@@ -110,18 +126,5 @@ setup: install migrations migrate
 	@echo "Run 'make superuser' to create an admin user"
 	@echo "Run 'make run' to start the development server"
 
-# Reset migrations only (keeps database, but migration history will be lost)
-reset-migrations:
-	@echo "WARNING: This will delete all migration files and clear migration history!"
-	@echo "Your database structure will remain, but migration history will be lost."
-	@echo "Press Ctrl+C to cancel, or Enter to continue..."
-	@read -r dummy
-	@echo "Clearing migration history from database..."
-	python manage.py shell -c "from django.db import connection; cursor = connection.cursor(); cursor.execute('DELETE FROM django_migrations'); connection.commit(); print('✅ Cleared migration history')"
-	@echo "Deleting all migration files from all apps..."
-	find . -path "*/migrations/*.py" ! -name "__init__.py" ! -path "./venv/*" -type f -delete
-	@echo "Creating fresh migrations for all apps..."
-	python manage.py makemigrations
-	@echo "Faking initial migrations (since tables already exist)..."
-	python manage.py migrate --fake-initial
-	@echo "Migrations reset complete!"
+# Quick reset and run (for development)
+dev-reset: resetdb superuser run
