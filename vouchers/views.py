@@ -206,11 +206,108 @@ def my_vouchers_json(request):
             'remaining_uses': max(0, voucher.max_uses_per_user - usage_count),
         }
     
+    # Filter used vouchers to only include those that are completely used up
+    def is_fully_used(voucher):
+        usage_count = VoucherUsage.objects.filter(
+            voucher=voucher,
+            user=request.user
+        ).count()
+        return usage_count >= voucher.max_uses_per_user
+    
+    # Combine all vouchers and categorize them properly
+    all_vouchers_list = list(user_vouchers) + list(public_vouchers) + list(used_vouchers) + list(expired_vouchers)
+    seen_ids = set()
+    unique_vouchers = []
+    for v in all_vouchers_list:
+        if v.id not in seen_ids:
+            seen_ids.add(v.id)
+            unique_vouchers.append(v)
+    
+    # Categorize vouchers
+    available_list = []
+    used_list = []
+    expired_list = []
+    
+    for voucher in unique_vouchers:
+        status = get_voucher_status(voucher)
+        if status == 'available':
+            available_list.append(voucher_to_dict(voucher))
+        elif status == 'used':
+            # Only include if fully used up
+            if is_fully_used(voucher):
+                used_list.append(voucher_to_dict(voucher))
+        elif status == 'expired':
+            expired_list.append(voucher_to_dict(voucher))
+    
     return JsonResponse({
         'success': True,
-        'available': [voucher_to_dict(v) for v in user_vouchers if get_voucher_status(v) == 'available'] + 
-                     [voucher_to_dict(v) for v in public_vouchers if get_voucher_status(v) == 'available'],
-        'used': [voucher_to_dict(v) for v in used_vouchers],
-        'expired': [voucher_to_dict(v) for v in expired_vouchers],
+        'available': available_list,
+        'used': used_list,
+        'expired': expired_list,
+    })
+
+
+@login_required
+def voucher_detail_json(request, voucher_id):
+    """
+    AJAX endpoint to get detailed voucher information for modal display.
+    """
+    voucher = get_object_or_404(Voucher, id=voucher_id)
+    
+    # Check if user can access this voucher
+    if voucher.user and voucher.user != request.user:
+        return JsonResponse({'success': False, 'error': 'You do not have access to this voucher.'}, status=403)
+    
+    # Get usage history for this user
+    usage_history = VoucherUsage.objects.filter(
+        voucher=voucher,
+        user=request.user
+    ).order_by('-used_at').select_related('order')[:10]  # Limit to last 10
+    
+    # Check if user can use this voucher
+    is_valid = voucher.is_valid()
+    usage_count = VoucherUsage.objects.filter(
+        voucher=voucher,
+        user=request.user
+    ).count()
+    
+    can_use = voucher.can_be_used_by_user(request.user, usage_count=usage_count)
+    
+    # Get applicable products/categories
+    applicable_products = list(voucher.applicable_products.values_list('name', flat=True)[:5])
+    applicable_categories = list(voucher.applicable_categories.values_list('name', flat=True)[:5])
+    
+    return JsonResponse({
+        'success': True,
+        'voucher': {
+            'id': voucher.id,
+            'name': voucher.name,
+            'promo_code': voucher.promo_code,
+            'description': voucher.description or '',
+            'discount_type': voucher.discount_type,
+            'discount_value': str(voucher.discount_value),
+            'max_discount': str(voucher.max_discount) if voucher.max_discount else None,
+            'min_purchase': str(voucher.min_purchase) if voucher.min_purchase else None,
+            'start_date': voucher.start_date.strftime('%b %d, %Y'),
+            'end_date': voucher.end_date.strftime('%b %d, %Y'),
+            'is_valid': is_valid,
+            'can_use': can_use,
+            'usage_count': usage_count,
+            'max_uses_per_user': voucher.max_uses_per_user,
+            'remaining_uses': max(0, voucher.max_uses_per_user - usage_count),
+            'first_time_only': voucher.first_time_only,
+            'exclude_sale_items': voucher.exclude_sale_items,
+            'applicable_products': applicable_products,
+            'applicable_categories': applicable_categories,
+        },
+        'usage_history': [
+            {
+                'order_number': usage.order.order_number if usage.order else 'N/A',
+                'order_id': usage.order.id if usage.order else None,
+                'discount_amount': str(usage.discount_amount),
+                'used_at': usage.used_at.strftime('%b %d, %Y %I:%M %p'),
+            }
+            for usage in usage_history
+        ],
     })
 

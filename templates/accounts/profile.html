@@ -98,6 +98,17 @@
         }
     }
 
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
     @keyframes slideDown {
         from {
             opacity: 0;
@@ -107,6 +118,10 @@
             opacity: 1;
             transform: translateY(0);
         }
+    }
+
+    .animate-fadeIn {
+        animation: fadeIn 0.3s ease-out;
     }
 
     /* Address card hover effects */
@@ -180,16 +195,6 @@
         }
     }
 
-    @keyframes slideUp {
-        from {
-            transform: translateY(30px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
 
     .modal-header {
         display: flex;
@@ -418,11 +423,6 @@
                         <p class="text-gray-500">{{ user.email }}</p>
                     </div>
                 </div>
-                <button onclick="openEditModal()" 
-                        class="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap">
-                    <i data-lucide="edit-2" class="w-5 h-5"></i>
-                    Edit Profile
-                </button>
             </div>
         </div>
 
@@ -542,6 +542,16 @@
                     Account Settings
                 </h2>
                 <div class="space-y-3">
+                    <button onclick="openEditModal()" class="settings-option">
+                        <div class="settings-option-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                            <i data-lucide="edit-2" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Edit Profile</span>
+                            <span class="settings-option-desc">Update your personal information</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                    </button>
                     <button onclick="openChangePasswordModal()" class="settings-option">
                         <div class="settings-option-icon">
                             <i data-lucide="lock" class="w-5 h-5"></i>
@@ -738,48 +748,6 @@
     </div>
 </div>
 
-<!-- Complete Profile Modal (Step-by-Step Questionnaire) -->
-<div id="completeProfileModal" class="modal">
-    <div class="modal-content" style="max-width: 650px;">
-        <!-- Progress Header -->
-        <div class="mb-4">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-xl md:text-2xl font-bold text-gray-900">Complete Your Profile</h2>
-                <button class="modal-close text-gray-400 hover:text-gray-600" onclick="closeCompleteProfileModal()">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-            </div>
-            <div class="flex items-center gap-3">
-                <div class="flex-1 bg-gray-200 rounded-full h-2">
-                    <div id="step-progress-bar" class="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Question Container -->
-        <div id="question-container" class="flex flex-col py-2 md:py-4">
-            <!-- Questions will be dynamically inserted here -->
-        </div>
-
-        <!-- Navigation Buttons -->
-        <div class="flex gap-2 md:gap-3 mt-4 pt-4 border-t border-gray-200">
-            <button type="button" id="prev-btn" onclick="previousQuestion()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg font-semibold text-sm md:text-base text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                <i data-lucide="arrow-left" class="w-4 h-4 inline mr-1 md:mr-2"></i>
-                <span class="hidden sm:inline">Previous</span>
-                <span class="inline sm:hidden">Prev</span>
-            </button>
-            <button type="button" id="next-btn" onclick="nextQuestion()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-semibold text-sm md:text-base hover:from-purple-600 hover:to-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                Next
-                <i data-lucide="arrow-right" class="w-4 h-4 inline ml-1 md:ml-2"></i>
-            </button>
-            <button type="button" id="finish-btn" onclick="finishQuestionnaire()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold text-sm md:text-base hover:from-green-600 hover:to-emerald-600 transition hidden">
-                Finish
-                <i data-lucide="check" class="w-4 h-4 inline ml-1 md:ml-2"></i>
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Edit Profile Modal -->
 <div id="editProfileModal" class="modal">
     <div class="modal-content">
@@ -833,7 +801,7 @@
             <!-- Email Field -->
             <div class="form-group">
                 <label for="{{ form.email.id_for_label }}" class="form-label">
-                    Email Address<span class="required-mark">*</span>
+                    Email<span class="required-mark">*</span>
                 </label>
                 <input type="email" 
                        name="{{ form.email.name }}" 
@@ -847,22 +815,22 @@
                 <small class="form-help">{{ form.email.help_text }}</small>
             </div>
 
-            <!-- Phone Field -->
+            <!-- Phone Field (if user is Customer) -->
+            {% if user.customer %}
             <div class="form-group">
-                <label for="{{ form.phone.id_for_label }}" class="form-label">
+                <label for="phone" class="form-label">
                     Phone Number
                 </label>
-                <input type="text" 
-                       name="{{ form.phone.name }}" 
-                       id="{{ form.phone.id_for_label }}"
-                       value="{{ form.phone.value|default:user.phone|default:'' }}"
+                <input type="tel" 
+                       name="phone" 
+                       id="phone"
+                       value="{{ user.customer.phone|default:'' }}"
                        class="form-control" 
                        placeholder="+65" 
                        autocomplete="tel">
                 <div class="form-error" id="error-phone" style="display: none;"></div>
-                <small class="form-help">{{ form.phone.help_text }}</small>
             </div>
-
+            {% endif %}
 
             <!-- Submit Button -->
             <div class="mt-6">
@@ -871,6 +839,48 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Complete Profile Modal (Step-by-Step Questionnaire) -->
+<div id="completeProfileModal" class="modal">
+    <div class="modal-content" style="max-width: 650px;">
+        <!-- Progress Header -->
+        <div class="mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-900">Complete Your Profile</h2>
+                <button class="modal-close text-gray-400 hover:text-gray-600" onclick="closeCompleteProfileModal()">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex-1 bg-gray-200 rounded-full h-2">
+                    <div id="step-progress-bar" class="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question Container -->
+        <div id="question-container" class="flex flex-col py-2 md:py-4">
+            <!-- Questions will be dynamically inserted here -->
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="flex gap-2 md:gap-3 mt-4 pt-4 border-t border-gray-200">
+            <button type="button" id="prev-btn" onclick="previousQuestion()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg font-semibold text-sm md:text-base text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <i data-lucide="arrow-left" class="w-4 h-4 inline mr-1 md:mr-2"></i>
+                <span class="hidden sm:inline">Previous</span>
+                <span class="inline sm:hidden">Prev</span>
+            </button>
+            <button type="button" id="next-btn" onclick="nextQuestion()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-semibold text-sm md:text-base hover:from-purple-600 hover:to-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Next
+                <i data-lucide="arrow-right" class="w-4 h-4 inline ml-1 md:ml-2"></i>
+            </button>
+            <button type="button" id="finish-btn" onclick="finishQuestionnaire()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold text-sm md:text-base hover:from-green-600 hover:to-emerald-600 transition hidden">
+                Finish
+                <i data-lucide="check" class="w-4 h-4 inline ml-1 md:ml-2"></i>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -941,17 +951,17 @@
 
 <!-- Vouchers Modal -->
 <div id="vouchersModal" class="modal">
-    <div class="modal-content" style="max-width: 900px; max-height: 90vh;">
-        <div class="modal-header">
-            <h2 class="flex items-center gap-2">
-                <i data-lucide="ticket" class="w-6 h-6"></i>
+    <div class="modal-content" style="max-width: 900px; max-height: 85vh; width: 95%; margin: auto;">
+        <div class="modal-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h2 class="flex items-center gap-2" style="margin: 0; font-size: 1.5rem; font-weight: 700;">
+                <i data-lucide="ticket" class="w-6 h-6 text-orange-600"></i>
                 My Vouchers
             </h2>
-            <button class="modal-close" onclick="closeVouchersModal()">
-                <i data-lucide="x" class="w-6 h-6"></i>
+            <button class="modal-close" onclick="closeVouchersModal()" style="background: transparent; border: none; cursor: pointer; padding: 0.5rem; border-radius: 0.5rem; transition: background 0.2s;">
+                <i data-lucide="x" class="w-6 h-6 text-gray-400 hover:text-gray-600"></i>
             </button>
         </div>
-        <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 120px);" id="vouchersListContainer">
+        <div class="overflow-y-auto" style="max-height: calc(85vh - 120px); padding-right: 0.5rem;" id="vouchersListContainer">
             <div class="flex items-center justify-center py-8">
                 <div class="text-center">
                     <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
@@ -2374,8 +2384,8 @@
     window.previousQuestion = window.questionnaireState.previousQuestion;
     window.finishQuestionnaire = window.questionnaireState.finishQuestionnaire;
 
-    // Vouchers Modal Functions
-    function openVouchersModal() {
+    // Vouchers Modal Functions - Define globally for onclick handlers
+    window.openVouchersModal = function() {
         const modal = document.getElementById('vouchersModal');
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -2386,9 +2396,9 @@
                 lucide.createIcons();
             }
         }, 100);
-    }
+    };
 
-    function closeVouchersModal() {
+    window.closeVouchersModal = function() {
         const modal = document.getElementById('vouchersModal');
         modal.style.transition = 'opacity 0.2s ease';
         modal.style.opacity = '0';
@@ -2397,7 +2407,7 @@
             modal.classList.remove('active');
             document.body.style.overflow = 'auto';
         }, 200);
-    }
+    };
 
     function loadVouchers() {
         const container = document.getElementById('vouchersListContainer');
@@ -2452,11 +2462,12 @@
         if (data.available && data.available.length > 0) {
             html += `
                 <div class="mb-8">
-                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
-                        Available Vouchers
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1 h-5 bg-green-500 rounded-full"></div>
+                        <h3 class="text-base font-bold text-gray-900">Available Vouchers</h3>
+                        <span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full">${data.available.length}</span>
+                    </div>
+                    <div class="space-y-3">
                         ${data.available.map(v => createVoucherCard(v)).join('')}
                     </div>
                 </div>
@@ -2467,11 +2478,12 @@
         if (data.used && data.used.length > 0) {
             html += `
                 <div class="mb-8">
-                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <i data-lucide="history" class="w-6 h-6 text-gray-600"></i>
-                        Used Vouchers
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1 h-5 bg-gray-400 rounded-full"></div>
+                        <h3 class="text-base font-bold text-gray-900">Used Vouchers</h3>
+                        <span class="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs font-medium rounded-full">${data.used.length}</span>
+                    </div>
+                    <div class="space-y-3">
                         ${data.used.map(v => createVoucherCard(v)).join('')}
                     </div>
                 </div>
@@ -2482,11 +2494,12 @@
         if (data.expired && data.expired.length > 0) {
             html += `
                 <div class="mb-8">
-                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <i data-lucide="clock" class="w-6 h-6 text-gray-600"></i>
-                        Expired Vouchers
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1 h-5 bg-gray-400 rounded-full"></div>
+                        <h3 class="text-base font-bold text-gray-900">Expired Vouchers</h3>
+                        <span class="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs font-medium rounded-full">${data.expired.length}</span>
+                    </div>
+                    <div class="space-y-3">
                         ${data.expired.map(v => createVoucherCard(v)).join('')}
                     </div>
                 </div>
@@ -2511,52 +2524,80 @@
     }
 
     function createVoucherCard(voucher) {
-        const statusColors = {
-            'available': 'from-blue-500 to-purple-600',
-            'used': 'from-gray-400 to-gray-600',
-            'expired': 'from-gray-500 to-gray-700',
-            'unavailable': 'from-orange-400 to-orange-600'
-        };
-        
         const statusLabels = {
-            'available': 'Active',
+            'available': 'Available',
             'used': 'Used',
             'expired': 'Expired',
             'unavailable': 'Unavailable'
         };
 
         const discountText = getDiscountText(voucher);
-        const statusClass = statusColors[voucher.status] || statusColors.available;
-        const statusLabel = statusLabels[voucher.status] || 'Active';
+        const discountDisplay = getDiscountDisplay(voucher);
+        const statusLabel = statusLabels[voucher.status] || 'Available';
+        
+        const statusBadgeClass = voucher.status === 'available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                 voucher.status === 'used' ? 'bg-gray-50 text-gray-600 border-gray-200' :
+                                 'bg-gray-50 text-gray-500 border-gray-200';
+        
+        const couponBgClass = voucher.status === 'available' ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600' : 'bg-gradient-to-br from-gray-400 to-gray-500';
+        const borderClass = voucher.status === 'available' ? 'border-blue-300' : 'border-gray-300';
+        const textColor = voucher.status === 'available' ? 'text-white' : 'text-gray-100';
+        const hoverClass = voucher.status === 'available' ? 'hover:scale-[1.02] hover:border-blue-400 hover:shadow-2xl' : 'hover:scale-[1.01]';
 
         return `
-            <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all ${voucher.status !== 'available' ? 'opacity-70' : ''}">
-                <div class="flex items-start justify-between mb-3">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="px-3 py-1 bg-gradient-to-r ${statusClass} text-white rounded-full text-xs font-bold uppercase">
-                                ${voucher.promo_code}
-                            </span>
-                            <span class="text-xs px-2 py-1 rounded-full ${
-                                voucher.status === 'available' ? 'bg-green-100 text-green-700' :
-                                voucher.status === 'used' ? 'bg-gray-100 text-gray-700' :
-                                'bg-gray-100 text-gray-700'
-                            }">
-                                ${statusLabel}
-                            </span>
+            <div class="relative bg-white border-2 ${borderClass} rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer group ${voucher.status !== 'available' ? 'opacity-75' : ''} ${hoverClass}" 
+                 onclick="showVoucherDetails(${voucher.id})" style="max-width: 100%;">
+                <!-- Decorative background pattern -->
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-200 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                    <div class="absolute bottom-0 left-0 w-24 h-24 bg-indigo-200 rounded-full blur-2xl -ml-12 -mb-12"></div>
+                </div>
+                
+                <div class="flex relative z-10">
+                    <!-- Left side - Discount section (coupon stub) -->
+                    <div class="${couponBgClass} w-[40%] flex-shrink-0 flex flex-col items-center justify-center px-6 py-7 relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                        <!-- Animated background pattern -->
+                        <div class="absolute inset-0 opacity-10">
+                            <div class="absolute top-0 right-0 w-20 h-20 bg-white rounded-full -mr-10 -mt-10"></div>
+                            <div class="absolute bottom-0 left-0 w-16 h-16 bg-white rounded-full -ml-8 -mb-8"></div>
                         </div>
-                        <h4 class="font-semibold text-gray-900 mb-1">${voucher.name}</h4>
-                        ${voucher.description ? `<p class="text-sm text-gray-600 mb-2">${voucher.description}</p>` : ''}
-                        <div class="flex items-center gap-2">
-                            <span class="text-blue-600 font-bold text-lg">${discountText}</span>
+                        <!-- Perforated edge on the right -->
+                        <div class="absolute right-0 top-0 bottom-0 w-4 flex flex-col justify-center" style="background: repeating-linear-gradient(to bottom, transparent, transparent 5px, rgba(255,255,255,0.4) 5px, rgba(255,255,255,0.4) 9px);"></div>
+                        <div class="text-center ${textColor} relative z-10 transform group-hover:scale-110 transition-transform duration-300">
+                            <p class="text-xs uppercase tracking-widest font-bold mb-3 opacity-90">Save</p>
+                            <p class="text-5xl font-black leading-none mb-2 drop-shadow-lg">${discountDisplay.main}</p>
+                            ${discountDisplay.label ? `<p class="text-sm font-bold uppercase tracking-wider mt-2 opacity-95">${discountDisplay.label}</p>` : ''}
+                            ${discountDisplay.subtext ? `<p class="text-xs mt-3 opacity-80 font-medium">${discountDisplay.subtext}</p>` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Right side - Details section -->
+                    <div class="flex-1 p-6 bg-white group-hover:bg-gray-50 transition-colors duration-300">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                    <span class="px-3.5 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 shadow-sm group-hover:shadow-md transition-shadow duration-300" style="font-family: 'Courier New', monospace; letter-spacing: 0.1em;">${voucher.promo_code}</span>
+                                    <span class="px-3 py-1 border rounded-full text-xs font-semibold ${statusBadgeClass} shadow-sm">
+                                        ${statusLabel}
+                                    </span>
+                                </div>
+                                <h4 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">${voucher.name}</h4>
+                                ${voucher.description ? `<p class="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed">${voucher.description}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-gray-200 group-hover:border-gray-300 transition-colors duration-300">
+                            <div class="flex items-center gap-2 text-xs text-gray-500 group-hover:text-gray-600 transition-colors duration-300">
+                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                                <span>${voucher.status === 'expired' ? `Expired ${voucher.end_date}` : `Expires ${voucher.end_date}`}</span>
+                            </div>
                             ${voucher.remaining_uses > 0 && voucher.status === 'available' ? 
-                                `<span class="text-xs text-gray-500">${voucher.remaining_uses} use${voucher.remaining_uses > 1 ? 's' : ''} left</span>` : ''}
+                                `<span class="text-xs text-gray-500 font-semibold group-hover:text-blue-600 transition-colors duration-300">${voucher.remaining_uses} use${voucher.remaining_uses > 1 ? 's' : ''} left</span>` : ''}
                         </div>
                     </div>
                 </div>
-                <div class="text-xs text-gray-500">
-                    ${voucher.status === 'expired' ? `Expired: ${voucher.end_date}` : `Expires: ${voucher.end_date}`}
-                </div>
+                
+                <!-- Shine effect on hover -->
+                <div class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></div>
             </div>
         `;
     }
@@ -2571,6 +2612,240 @@
         }
         return 'Discount';
     }
+    
+    function getDiscountDisplay(voucher) {
+        // Returns an object with main discount and label for coupon display
+        if (voucher.discount_type === 'percent') {
+            return {
+                main: `${voucher.discount_value}%`,
+                label: 'OFF',
+                subtext: voucher.max_discount ? `Up to $${parseFloat(voucher.max_discount).toFixed(2)}` : null
+            };
+        } else if (voucher.discount_type === 'fixed') {
+            return {
+                main: `$${parseFloat(voucher.discount_value).toFixed(2)}`,
+                label: 'OFF',
+                subtext: null
+            };
+        } else if (voucher.discount_type === 'free_shipping') {
+            return {
+                main: 'FREE',
+                label: 'SHIPPING',
+                subtext: null
+            };
+        }
+        return {
+            main: 'Discount',
+            label: '',
+            subtext: null
+        };
+    }
+
+    // Voucher Detail Functions - Replace vouchers list content
+    window.showVoucherDetails = function(voucherId) {
+        const container = document.getElementById('vouchersListContainer');
+        const modalHeader = document.querySelector('#vouchersModal .modal-header h2');
+        
+        // Show loading state
+        container.innerHTML = `
+            <div class="flex items-center justify-center py-8">
+                <div class="text-center">
+                    <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                    <p class="text-gray-600">Loading voucher details...</p>
+                </div>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // Update header to show back button
+        const originalHeader = modalHeader.innerHTML;
+        modalHeader.innerHTML = `
+            <button onclick="backToVouchersList()" class="mr-3 text-gray-600 hover:text-gray-900 transition">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <i data-lucide="ticket" class="w-6 h-6 text-orange-600"></i>
+            Voucher Details
+        `;
+        
+        // Fetch voucher details
+        fetch(`{% url "vouchers:voucher_detail_json" 0 %}`.replace('0', voucherId))
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayVoucherDetails(data, originalHeader);
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-3"></i>
+                            <p class="text-gray-600">${data.error || 'Failed to load voucher details.'}</p>
+                            <button onclick="backToVouchersList()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                Back
+                            </button>
+                        </div>
+                    `;
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-3"></i>
+                        <p class="text-gray-600">Failed to load voucher details.</p>
+                        <button onclick="backToVouchersList()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            Back
+                        </button>
+                    </div>
+                `;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            });
+    };
+
+    window.backToVouchersList = function() {
+        const container = document.getElementById('vouchersListContainer');
+        const modalHeader = document.querySelector('#vouchersModal .modal-header h2');
+        
+        // Restore original header
+        modalHeader.innerHTML = `
+            <i data-lucide="ticket" class="w-6 h-6 text-orange-600"></i>
+            My Vouchers
+        `;
+        
+        // Reload vouchers list
+        loadVouchers();
+        
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    };
+
+    function displayVoucherDetails(data, originalHeader) {
+        const voucher = data.voucher;
+        const container = document.getElementById('vouchersListContainer');
+        
+        const discountText = getDiscountText(voucher);
+        const statusBadgeClass = voucher.can_use && voucher.is_valid ? 'bg-green-50 text-green-700 border-green-200' : 
+                                !voucher.is_valid ? 'bg-gray-50 text-gray-600 border-gray-200' : 
+                                'bg-gray-50 text-gray-600 border-gray-200';
+        const statusText = voucher.can_use && voucher.is_valid ? 'Available' : 
+                          !voucher.is_valid ? 'Expired' : 
+                          'Unavailable';
+        
+        let html = `
+            <div class="space-y-4 animate-fadeIn">
+                <!-- Voucher Header -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-3">
+                                <span class="font-mono text-base font-semibold text-gray-900">${voucher.promo_code}</span>
+                                <span class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full ${voucher.can_use && voucher.is_valid ? 'bg-green-500' : 'bg-gray-400'}"></span>
+                                    <span class="text-xs text-gray-500">${statusText}</span>
+                                </span>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-900 mb-2">${voucher.name}</h3>
+                            ${voucher.description ? `<p class="text-gray-600 leading-relaxed">${voucher.description}</p>` : ''}
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-gray-100">
+                        <p class="text-3xl font-bold text-gray-900">${discountText}</p>
+                        ${voucher.max_discount && voucher.discount_type === 'percent' ? `
+                        <p class="text-sm text-gray-500 mt-1">Maximum discount: $${parseFloat(voucher.max_discount).toFixed(2)}</p>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Details -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">Details</h4>
+                    <div class="space-y-3">
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600">Valid From</span>
+                            <span class="text-sm font-medium text-gray-900">${voucher.start_date}</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600">Expires</span>
+                            <span class="text-sm font-medium text-gray-900">${voucher.end_date}</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600">Times Used</span>
+                            <span class="text-sm font-medium text-gray-900">${voucher.usage_count} of ${voucher.max_uses_per_user}</span>
+                        </div>
+                        ${voucher.remaining_uses > 0 ? `
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600">Remaining Uses</span>
+                            <span class="text-sm font-medium text-green-600">${voucher.remaining_uses}</span>
+                        </div>
+                        ` : ''}
+                        ${voucher.min_purchase ? `
+                        <div class="flex justify-between py-2">
+                            <span class="text-sm text-gray-600">Minimum Purchase</span>
+                            <span class="text-sm font-medium text-gray-900">$${parseFloat(voucher.min_purchase).toFixed(2)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Restrictions -->
+                ${(voucher.first_time_only || voucher.exclude_sale_items) ? `
+                <div class="space-y-3">
+                    ${voucher.first_time_only ? `
+                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <i data-lucide="info" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 mb-1">First-Time Customer Only</p>
+                                <p class="text-xs text-gray-600">This voucher is exclusively for first-time customers.</p>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${voucher.exclude_sale_items ? `
+                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <i data-lucide="alert-circle" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 mb-1">Excludes Sale Items</p>
+                                <p class="text-xs text-gray-600">This voucher cannot be applied to items already on sale.</p>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+                ` : ''}
+                
+                ${data.usage_history && data.usage_history.length > 0 ? `
+                <!-- Usage History -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">Usage History</h4>
+                    <div class="space-y-2">
+                        ${data.usage_history.map(usage => `
+                            <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">Order ${usage.order_number}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">${usage.used_at}</p>
+                                </div>
+                                <p class="text-sm font-semibold text-green-600">-$${parseFloat(usage.discount_amount).toFixed(2)}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
 
     // Close vouchers modal when clicking outside
     document.getElementById('vouchersModal').addEventListener('click', function(e) {
@@ -2581,3 +2856,4 @@
 }); // End of DOMContentLoaded
 </script>
 {% endblock %}
+

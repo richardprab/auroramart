@@ -44,7 +44,7 @@
             <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col transform transition-all scale-95 opacity-0" id="voucherModalContent">
                 <div class="p-6 border-b border-gray-200 flex items-center justify-between">
                     <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-                        <i data-lucide="gift" class="w-6 h-6 text-blue-600"></i>
+                        <i data-lucide="ticket" class="w-6 h-6 text-orange-600"></i>
                         Available Vouchers
                     </h3>
                     <button type="button" id="closeVoucherModal" class="text-gray-400 hover:text-gray-600 transition">
@@ -1031,11 +1031,39 @@
                     });
             }
 
+            function getDiscountDisplay(voucher) {
+                // Returns an object with main discount and label for coupon display
+                if (voucher.discount_type === 'percent') {
+                    return {
+                        main: `${voucher.discount_value}%`,
+                        label: 'OFF',
+                        subtext: voucher.max_discount ? `Up to $${parseFloat(voucher.max_discount).toFixed(2)}` : null
+                    };
+                } else if (voucher.discount_type === 'fixed') {
+                    return {
+                        main: `$${parseFloat(voucher.discount_value).toFixed(2)}`,
+                        label: 'OFF',
+                        subtext: null
+                    };
+                } else if (voucher.discount_type === 'free_shipping') {
+                    return {
+                        main: 'FREE',
+                        label: 'SHIPPING',
+                        subtext: null
+                    };
+                }
+                return {
+                    main: 'Discount',
+                    label: '',
+                    subtext: null
+                };
+            }
+
             function displayVouchers(vouchers, cartSubtotal) {
                 if (vouchers.length === 0) {
                     voucherListContainer.innerHTML = `
                         <div class="text-center py-12">
-                            <i data-lucide="gift" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                            <i data-lucide="ticket" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
                             <p class="text-gray-600 font-medium mb-1">No vouchers available</p>
                             <p class="text-sm text-gray-500">Check back later for new vouchers!</p>
                         </div>
@@ -1048,54 +1076,84 @@
 
                 const vouchersHtml = vouchers.map(voucher => {
                     const discountText = getDiscountText(voucher);
+                    const discountDisplay = getDiscountDisplay(voucher);
                     const minPurchaseText = voucher.min_purchase && parseFloat(voucher.min_purchase) > 0 
                         ? `Min. purchase: $${parseFloat(voucher.min_purchase).toFixed(2)}` 
                         : '';
                     const canUse = !minPurchaseText || parseFloat(cartSubtotal) >= parseFloat(voucher.min_purchase);
                     
+                    const couponBgClass = canUse ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600' : 'bg-gradient-to-br from-gray-400 to-gray-500';
+                    const borderClass = canUse ? 'border-blue-300' : 'border-gray-300';
+                    const textColor = canUse ? 'text-white' : 'text-gray-100';
+                    const hoverClass = canUse ? 'hover:scale-[1.02] hover:border-blue-400 hover:shadow-2xl' : '';
+                    
                     return `
-                        <div class="border border-gray-200 rounded-lg p-4 mb-3 hover:border-blue-400 hover:shadow-md transition-all ${!canUse ? 'opacity-60' : ''}">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase">
-                                            ${voucher.promo_code}
-                                        </span>
-                                        ${voucher.remaining_uses > 0 ? `
-                                            <span class="text-xs text-gray-500">
-                                                ${voucher.remaining_uses} use${voucher.remaining_uses > 1 ? 's' : ''} left
-                                            </span>
-                                        ` : ''}
+                        <div class="relative bg-white border-2 ${borderClass} rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer group ${!canUse ? 'opacity-75' : ''} ${hoverClass} mb-3" 
+                             onclick="${canUse ? `applyVoucherFromModal('${voucher.promo_code}')` : ''}" style="max-width: 100%;">
+                            <!-- Decorative background pattern -->
+                            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-blue-200 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                                <div class="absolute bottom-0 left-0 w-24 h-24 bg-indigo-200 rounded-full blur-2xl -ml-12 -mb-12"></div>
+                            </div>
+                            
+                            <div class="flex relative z-10">
+                                <!-- Left side - Discount section (coupon stub) -->
+                                <div class="${couponBgClass} w-[40%] flex-shrink-0 flex flex-col items-center justify-center px-6 py-7 relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                                    <!-- Animated background pattern -->
+                                    <div class="absolute inset-0 opacity-10">
+                                        <div class="absolute top-0 right-0 w-20 h-20 bg-white rounded-full -mr-10 -mt-10"></div>
+                                        <div class="absolute bottom-0 left-0 w-16 h-16 bg-white rounded-full -ml-8 -mb-8"></div>
                                     </div>
-                                    <h4 class="font-semibold text-gray-900 mb-1">${voucher.name}</h4>
-                                    ${voucher.description ? `<p class="text-sm text-gray-600 mb-2">${voucher.description}</p>` : ''}
-                                    <div class="flex items-center gap-4 text-sm">
-                                        <span class="text-blue-600 font-semibold">${discountText}</span>
-                                        ${minPurchaseText ? `<span class="text-gray-500">${minPurchaseText}</span>` : ''}
+                                    <!-- Perforated edge on the right -->
+                                    <div class="absolute right-0 top-0 bottom-0 w-4 flex flex-col justify-center" style="background: repeating-linear-gradient(to bottom, transparent, transparent 5px, rgba(255,255,255,0.4) 5px, rgba(255,255,255,0.4) 9px);"></div>
+                                    <div class="text-center ${textColor} relative z-10 transform group-hover:scale-110 transition-transform duration-300">
+                                        <p class="text-xs uppercase tracking-widest font-bold mb-3 opacity-90">Save</p>
+                                        <p class="text-5xl font-black leading-none mb-2 drop-shadow-lg">${discountDisplay.main}</p>
+                                        ${discountDisplay.label ? `<p class="text-sm font-bold uppercase tracking-wider mt-2 opacity-95">${discountDisplay.label}</p>` : ''}
+                                        ${discountDisplay.subtext ? `<p class="text-xs mt-3 opacity-80 font-medium">${discountDisplay.subtext}</p>` : ''}
                                     </div>
                                 </div>
-                                <button type="button" 
-                                        class="apply-voucher-btn ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium whitespace-nowrap ${!canUse ? 'opacity-50 cursor-not-allowed' : ''}"
-                                        data-code="${voucher.promo_code}"
-                                        ${!canUse ? 'disabled' : ''}>
-                                    ${canUse ? 'Apply' : 'Not Eligible'}
-                                </button>
+                                
+                                <!-- Right side - Details section -->
+                                <div class="flex-1 p-6 bg-white group-hover:bg-gray-50 transition-colors duration-300">
+                                    <div class="flex items-start justify-between mb-4">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                                <span class="px-3.5 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 shadow-sm group-hover:shadow-md transition-shadow duration-300" style="font-family: 'Courier New', monospace; letter-spacing: 0.1em;">${voucher.promo_code}</span>
+                                                ${canUse ? `
+                                                    <span class="px-3 py-1 border rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm">
+                                                        Available
+                                                    </span>
+                                                ` : `
+                                                    <span class="px-3 py-1 border rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border-gray-200 shadow-sm">
+                                                        Not Eligible
+                                                    </span>
+                                                `}
+                                            </div>
+                                            <h4 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">${voucher.name}</h4>
+                                            ${voucher.description ? `<p class="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed">${voucher.description}</p>` : ''}
+                                            ${minPurchaseText ? `<p class="text-xs text-gray-500 mb-2">${minPurchaseText}</p>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-4 border-t border-gray-200 group-hover:border-gray-300 transition-colors duration-300">
+                                        ${voucher.remaining_uses > 0 ? 
+                                            `<span class="text-xs text-gray-500 font-semibold group-hover:text-blue-600 transition-colors duration-300">${voucher.remaining_uses} use${voucher.remaining_uses > 1 ? 's' : ''} left</span>` : 
+                                            `<span class="text-xs text-gray-400">No uses remaining</span>`
+                                        }
+                                        ${canUse ? `
+                                            <span class="text-xs text-blue-600 font-semibold">Click to apply →</span>
+                                        ` : ''}
+                                    </div>
+                                </div>
                             </div>
+                            
+                            <!-- Shine effect on hover -->
+                            <div class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></div>
                         </div>
                     `;
                 }).join('');
 
                 voucherListContainer.innerHTML = vouchersHtml;
-                
-                // Add event listeners to apply buttons
-                voucherListContainer.querySelectorAll('.apply-voucher-btn').forEach(btn => {
-                    if (!btn.disabled) {
-                        btn.addEventListener('click', function() {
-                            const code = this.getAttribute('data-code');
-                            applyVoucherFromModal(code);
-                        });
-                    }
-                });
 
                 if (typeof lucide !== 'undefined') {
                     lucide.createIcons();

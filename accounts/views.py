@@ -106,16 +106,35 @@ def profile(request):
         pass
     
     try:
-        from vouchers.models import Voucher
+        from vouchers.models import Voucher, VoucherUsage
         from django.utils import timezone
         now = timezone.now()
-        # Count available vouchers (user-specific + public)
-        voucher_count = Voucher.objects.filter(
+        # Count only available vouchers (user-specific + public that can actually be used)
+        all_vouchers = Voucher.objects.filter(
             Q(user=request.user) | Q(user__isnull=True),
             is_active=True,
             start_date__lte=now,
             end_date__gte=now
-        ).distinct().count()
+        ).distinct()
+        
+        # Filter to only count vouchers that are actually available (not fully used, valid, and can be used)
+        available_count = 0
+        for voucher in all_vouchers:
+            if not voucher.is_valid():
+                continue
+            
+            usage_count = VoucherUsage.objects.filter(
+                voucher=voucher,
+                user=request.user
+            ).count()
+            
+            if usage_count >= voucher.max_uses_per_user:
+                continue
+            
+            if voucher.can_be_used_by_user(request.user, usage_count=usage_count):
+                available_count += 1
+        
+        voucher_count = available_count
     except Exception:
         pass
     

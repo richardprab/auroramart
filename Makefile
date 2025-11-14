@@ -22,7 +22,7 @@ install:
 	@echo "Installing dependencies..."
 	pip install --upgrade pip
 	pip install -r requirements.txt
-	@echo "✅ Dependencies installed successfully!"
+	@echo "Dependencies installed successfully!"
 
 # Create migrations for all apps (in dependency order)
 # Note: accounts migrations include BrowsingHistory, Wishlist, Address, User, etc.
@@ -36,6 +36,7 @@ migrations:
 	python manage.py makemigrations orders
 	python manage.py makemigrations notifications
 	python manage.py makemigrations adminpanel
+	python manage.py makemigrations vouchers
 	@echo "✅ Migrations created successfully!"
 
 # Apply migrations
@@ -69,7 +70,7 @@ shell:
 check:
 	@echo "Running system checks..."
 	python manage.py check
-	@echo "✅ No issues found!"
+	@echo "No issues found!"
 
 # Collect static files
 collectstatic:
@@ -131,7 +132,7 @@ reset-migrations:
 assign-vouchers:
 	@echo "Assigning WELCOME voucher to all users..."
 	python manage.py shell -c "from populate_db import assign_profile_completion_vouchers; assign_profile_completion_vouchers()"
-	@echo "✅ Voucher assignment complete!"
+	@echo "Voucher assignment complete!"
 
 # Quick reset and run (for development)
 dev-reset: resetdb superuser run

@@ -15,12 +15,12 @@ class Voucher(models.Model):
     # Basic Information
     name = models.CharField(
         max_length=255, 
-        help_text="Internal name for the voucher (e.g., 'Summer Sale 2024')."
+        help_text="Internal name for the voucher."
     )
     promo_code = models.CharField(
         max_length=100,
         unique=True,
-        help_text="The code customers enter (e.g., 'SUMMER2024'). Must be unique and uppercase."
+        help_text="The code customers enter. Must be unique and uppercase."
     )
     description = models.TextField(
         null=True, 
@@ -126,6 +126,7 @@ class Voucher(models.Model):
     )
 
     class Meta:
+        db_table = "vouchers"
         ordering = ['-created_at']
         verbose_name = "Voucher"
         verbose_name_plural = "Vouchers"
@@ -214,6 +215,7 @@ class VoucherUsage(models.Model):
     used_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = "voucher_usages"
         ordering = ['-used_at']
         unique_together = [['voucher', 'order']]  # Prevent duplicate usage per order
         verbose_name = "Voucher Usage"
