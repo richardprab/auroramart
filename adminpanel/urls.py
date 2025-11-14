@@ -5,7 +5,6 @@ from django.contrib.auth.views import LogoutView
 app_name = 'adminpanel'
 
 urlpatterns = [
-    # Staff Login
     path('login/', views.staff_login, name='staff_login'),
     
     # Dashboard
