@@ -72,7 +72,7 @@ def get_similar_products(request, product_id):
                 } if image else None,
                 'lowest_variant': {
                     'id': default_variant.id if default_variant else None,
-                    'price': float(default_variant.price) if default_variant else 0.0,
+                    'price': float(default_variant.effective_price) if default_variant else 0.0,
                     'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
                     'stock': default_variant.stock if default_variant else 0,
                 } if default_variant else None

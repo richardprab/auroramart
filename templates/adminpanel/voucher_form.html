@@ -1,0 +1,375 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block admin_title %}{{ action }} Voucher{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        background: #3b82f6;
+        color: white;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        margin-bottom: 1.25rem;
+        transition: all 0.2s;
+        font-weight: 500;
+    }
+
+    .back-button:hover {
+        background: #2563eb;
+        transform: translateX(-4px);
+    }
+
+    .voucher-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.625rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid #e5e7eb;
+    }
+
+    .voucher-section h3 {
+        font-size: 1.125rem;
+        margin-bottom: 1.25rem;
+        color: #1f2937;
+        border-bottom: 2px solid #8b5cf6;
+        padding-bottom: 0.625rem;
+        font-weight: 600;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #374151;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.625rem 0.938rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-family: inherit;
+        transition: all 0.2s;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    select.form-control {
+        cursor: pointer;
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 1.125rem;
+        height: 1.125rem;
+        cursor: pointer;
+    }
+
+    .checkbox-group label {
+        margin: 0;
+        cursor: pointer;
+        color: #374151;
+        font-weight: 400;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        padding: 0.938rem 2.5rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 1.25rem;
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    }
+
+    .btn-cancel {
+        background: white;
+        color: #374151;
+        padding: 0.938rem 2.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 1.25rem;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-cancel:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+
+    .required-field {
+        color: #ef4444;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="admin-content-header">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2>{{ action }} Voucher</h2>
+            <p>{% if action == 'Add' %}Create a new discount voucher{% else %}Edit voucher details{% endif %}</p>
+        </div>
+        <a href="{% url 'adminpanel:voucher_management' %}" class="back-button">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            Back to Vouchers
+        </a>
+    </div>
+</div>
+
+<div class="admin-content-body">
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Basic Information -->
+        <div class="voucher-section">
+            <h3>Basic Information</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.name.id_for_label }}">
+                        Name <span class="required-field">*</span>
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.promo_code.id_for_label }}">
+                        Promo Code <span class="required-field">*</span>
+                    </label>
+                    {{ form.promo_code }}
+                    {% if form.promo_code.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.promo_code.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.description.id_for_label }}">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.description.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="checkbox-group">
+                {{ form.is_active }}
+                <label for="{{ form.is_active.id_for_label }}">Active</label>
+            </div>
+        </div>
+        
+        <!-- Discount Configuration -->
+        <div class="voucher-section">
+            <h3>Discount Configuration</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.discount_type.id_for_label }}">
+                        Discount Type <span class="required-field">*</span>
+                    </label>
+                    {{ form.discount_type }}
+                    {% if form.discount_type.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.discount_type.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.discount_value.id_for_label }}">
+                        Discount Value <span class="required-field">*</span>
+                    </label>
+                    {{ form.discount_value }}
+                    {% if form.discount_value.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.discount_value.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.max_discount.id_for_label }}">Max Discount (for %)</label>
+                    {{ form.max_discount }}
+                    {% if form.max_discount.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.max_discount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Eligibility Requirements -->
+        <div class="voucher-section">
+            <h3>Eligibility Requirements</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.min_purchase.id_for_label }}">Minimum Purchase</label>
+                    {{ form.min_purchase }}
+                    {% if form.min_purchase.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.min_purchase.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.user.id_for_label }}">Specific User (leave blank for public)</label>
+                    {{ form.user }}
+                    {% if form.user.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.user.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="checkbox-group">
+                {{ form.first_time_only }}
+                <label for="{{ form.first_time_only.id_for_label }}">First-time customers only</label>
+            </div>
+            
+            <div class="checkbox-group">
+                {{ form.exclude_sale_items }}
+                <label for="{{ form.exclude_sale_items.id_for_label }}">Exclude sale items</label>
+            </div>
+        </div>
+        
+        <!-- Usage Limits -->
+        <div class="voucher-section">
+            <h3>Usage Limits</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.max_uses.id_for_label }}">Max Total Uses (leave blank for unlimited)</label>
+                    {{ form.max_uses }}
+                    {% if form.max_uses.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.max_uses.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.max_uses_per_user.id_for_label }}">
+                        Max Uses Per User <span class="required-field">*</span>
+                    </label>
+                    {{ form.max_uses_per_user }}
+                    {% if form.max_uses_per_user.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.max_uses_per_user.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Validity Period -->
+        <div class="voucher-section">
+            <h3>Validity Period</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.start_date.id_for_label }}">
+                        Start Date <span class="required-field">*</span>
+                    </label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.start_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.end_date.id_for_label }}">
+                        End Date <span class="required-field">*</span>
+                    </label>
+                    {{ form.end_date }}
+                    {% if form.end_date.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.end_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <a href="{% url 'adminpanel:voucher_management' %}" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-submit">{{ action }} Voucher</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // Format datetime-local inputs for existing vouchers
+        {% if voucher %}
+        const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
+        const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
+        
+        if (startDateInput && !startDateInput.value) {
+            const startDate = new Date('{{ voucher.start_date|date:"c" }}');
+            startDateInput.value = startDate.toISOString().slice(0, 16);
+        }
+        
+        if (endDateInput && !endDateInput.value) {
+            const endDate = new Date('{{ voucher.end_date|date:"c" }}');
+            endDateInput.value = endDate.toISOString().slice(0, 16);
+        }
+        {% endif %}
+        
+        // Add form-control class to all form inputs
+        const formInputs = document.querySelectorAll('input, select, textarea');
+        formInputs.forEach(input => {
+            if (!input.classList.contains('form-control')) {
+                input.classList.add('form-control');
+            }
+        });
+    });
+</script>
+{% endblock %}

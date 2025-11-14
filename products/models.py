@@ -99,16 +99,43 @@ class Product(models.Model):
         return self.images.filter(is_primary=True).first() or self.images.first()
     
     def get_lowest_priced_variant(self):
-        """Get the variant with the lowest price (already discounted)"""
-        return self.variants.filter(is_active=True).order_by("price").first()
+        """
+        Get the variant with the lowest effective price (after dynamic pricing).
+        Since we can't use Python properties in database queries, we calculate
+        effective prices in Python and return the lowest.
+        """
+        variants = list(self.variants.filter(is_active=True))
+        if not variants:
+            return None
+        
+        # Calculate effective prices and find the lowest
+        from products.pricing import get_effective_price
+        lowest_variant = None
+        lowest_price = None
+        
+        for variant in variants:
+            effective_price = get_effective_price(variant)
+            if lowest_price is None or effective_price < lowest_price:
+                lowest_price = effective_price
+                lowest_variant = variant
+        
+        return lowest_variant
 
     def get_price_range(self):
-        """Get min and max price from variants"""
-        variants = self.variants.filter(is_active=True)
-        if not variants.exists():
+        """
+        Get min and max effective price from variants (after dynamic pricing).
+        Since we can't use Python properties in database queries, we calculate
+        effective prices in Python.
+        """
+        variants = list(self.variants.filter(is_active=True))
+        if not variants:
             return None, None
-        prices = variants.values_list("price", flat=True)
-        return min(prices), max(prices)
+        
+        # Calculate effective prices
+        from products.pricing import get_effective_price
+        effective_prices = [get_effective_price(variant) for variant in variants]
+        
+        return min(effective_prices), max(effective_prices)
 
     def has_stock(self):
         """Check if any variant has stock"""
@@ -199,5 +226,26 @@ class ProductVariant(models.Model):
         if self.is_on_sale:
             return int(((self.compare_price - self.price) / self.compare_price) * 100)
         return 0
+
+    @property
+    def original_price(self):
+        """Returns the base price field (for display purposes when dynamic pricing is active)"""
+        return self.price
+
+    @property
+    def effective_price(self):
+        """
+        Returns the effective price after applying dynamic pricing.
+        Uses the pricing utility to calculate the price based on stock levels.
+        """
+        from products.pricing import get_effective_price
+        return get_effective_price(self)
+
+    @property
+    def is_dynamically_priced(self):
+        """
+        Returns True if dynamic pricing is currently active for this variant.
+        """
+        return self.effective_price != self.price
 
 

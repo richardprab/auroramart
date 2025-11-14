@@ -575,7 +575,7 @@ def product_detail_ajax(request, product_id):
                 'sku': variant.sku,
                 'color': variant.color,
                 'size': variant.size,
-                'price': float(variant.price),
+                'price': float(variant.effective_price),
                 'compare_price': float(variant.compare_price) if variant.compare_price else None,
                 'stock': variant.stock,
             })
@@ -588,7 +588,7 @@ def product_detail_ajax(request, product_id):
             'brand': product.brand,
             'description': product.description,
             'image': image.image.url if image else None,
-            'price': float(default_variant.price) if default_variant else 0.0,
+            'price': float(default_variant.effective_price) if default_variant else 0.0,
             'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
             'variants': variants_data,
             'category': {

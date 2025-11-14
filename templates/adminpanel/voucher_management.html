@@ -1,0 +1,273 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block admin_title %}Voucher Management{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .vouchers-table-wrapper {
+        background: rgba(237, 233, 254, 0.4);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(196, 181, 253, 0.3);
+    }
+
+    .vouchers-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 0;
+        background: transparent;
+    }
+
+    .vouchers-table thead {
+        background: rgba(237, 233, 254, 0.6);
+        border-radius: 0.75rem 0.75rem 0 0;
+    }
+
+    .vouchers-table thead th:first-child {
+        border-top-left-radius: 0.75rem;
+    }
+
+    .vouchers-table thead th:last-child {
+        border-top-right-radius: 0.75rem;
+    }
+
+    .vouchers-table th {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        font-weight: 600;
+        color: #5b21b6;
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid rgba(196, 181, 253, 0.4);
+    }
+
+    .vouchers-table tbody tr {
+        background: rgba(255, 255, 255, 0.7);
+        transition: all 0.2s ease;
+    }
+
+    .vouchers-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.95);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+    }
+
+    .vouchers-table tbody tr:last-child td:first-child {
+        border-bottom-left-radius: 0.75rem;
+    }
+
+    .vouchers-table tbody tr:last-child td:last-child {
+        border-bottom-right-radius: 0.75rem;
+    }
+
+    .vouchers-table td {
+        padding: 1.125rem 1.25rem;
+        border-bottom: 1px solid rgba(196, 181, 253, 0.2);
+        vertical-align: middle;
+    }
+
+    .vouchers-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .btn-add {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.625rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-add:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    }
+
+    .btn-edit {
+        color: #3b82f6;
+        font-weight: 500;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .btn-edit:hover {
+        color: #2563eb;
+        text-decoration: underline;
+    }
+
+    .btn-delete {
+        color: #ef4444;
+        font-weight: 500;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .btn-delete:hover {
+        color: #dc2626;
+        text-decoration: underline;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background: rgba(16, 185, 129, 0.1);
+        color: #059669;
+    }
+
+    .status-inactive {
+        background: rgba(107, 114, 128, 0.1);
+        color: #4b5563;
+    }
+
+    .promo-code {
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        color: #5b21b6;
+        font-size: 0.875rem;
+    }
+
+    .no-vouchers {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #6b7280;
+    }
+
+    .no-vouchers i {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        color: #9ca3af;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="admin-content-header">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2>Voucher Management</h2>
+            <p>Create and manage discount vouchers</p>
+        </div>
+        <a href="{% url 'adminpanel:add_voucher' %}" class="btn-add">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Add New Voucher
+        </a>
+    </div>
+</div>
+
+<div class="admin-content-body">
+    {% if vouchers %}
+    <div class="vouchers-table-wrapper">
+        <table class="vouchers-table">
+            <thead>
+                <tr>
+                    <th>Promo Code</th>
+                    <th>Name</th>
+                    <th>Discount</th>
+                    <th>Status</th>
+                    <th>Valid Until</th>
+                    <th>Usage</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for voucher in vouchers %}
+                <tr>
+                    <td>
+                        <span class="promo-code">{{ voucher.promo_code }}</span>
+                    </td>
+                    <td>
+                        <div class="text-sm font-medium text-gray-900">{{ voucher.name }}</div>
+                        {% if voucher.description %}
+                        <div class="text-xs text-gray-500 mt-1 line-clamp-1">{{ voucher.description }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="text-sm text-gray-700">
+                            {% if voucher.discount_type == 'percent' %}
+                                <span class="font-semibold text-blue-600">{{ voucher.discount_value }}%</span>
+                                {% if voucher.max_discount %}
+                                    <span class="text-xs text-gray-500">(max ${{ voucher.max_discount }})</span>
+                                {% endif %}
+                            {% elif voucher.discount_type == 'fixed' %}
+                                <span class="font-semibold text-blue-600">${{ voucher.discount_value }}</span>
+                            {% elif voucher.discount_type == 'free_shipping' %}
+                                <span class="font-semibold text-green-600">Free Shipping</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if voucher.is_active %}
+                            <span class="status-badge status-active">Active</span>
+                        {% else %}
+                            <span class="status-badge status-inactive">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="text-sm text-gray-700">{{ voucher.end_date|date:"M d, Y" }}</div>
+                        <div class="text-xs text-gray-500">{{ voucher.end_date|date:"g:i A" }}</div>
+                    </td>
+                    <td>
+                        <div class="text-sm text-gray-700">
+                            <span class="font-semibold">{{ voucher.current_uses }}</span>
+                            {% if voucher.max_uses %}
+                                <span class="text-gray-500">/ {{ voucher.max_uses }}</span>
+                            {% else %}
+                                <span class="text-gray-500">/ ∞</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="flex items-center gap-3">
+                            <a href="{% url 'adminpanel:edit_voucher' voucher.id %}" class="btn-edit">
+                                <i data-lucide="edit-2" class="w-4 h-4 inline"></i> Edit
+                            </a>
+                            <span class="text-gray-300">|</span>
+                            <a href="{% url 'adminpanel:delete_voucher' voucher.id %}" class="btn-delete">
+                                <i data-lucide="trash-2" class="w-4 h-4 inline"></i> Delete
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="no-vouchers">
+        <i data-lucide="ticket"></i>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">No Vouchers Yet</h3>
+        <p class="text-gray-600 mb-6">Create your first voucher to get started.</p>
+        <a href="{% url 'adminpanel:add_voucher' %}" class="btn-add">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Add New Voucher
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+</script>
+{% endblock %}

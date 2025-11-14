@@ -1,17 +1,114 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.db.models import Q
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
 from urllib.parse import quote
+from functools import wraps
+from django.urls import reverse
+from django.conf import settings
+from django.contrib import messages
+from pathlib import Path
+import os
+import sys
+import io
+from contextlib import redirect_stdout
 import requests
 
 from products.models import Product, ProductVariant, ProductImage, Category
 from accounts.models import User, Staff
 from chat.models import ChatConversation, ChatMessage
 from orders.models import Order
-from .forms import ProductSearchForm, OrderSearchForm
+from vouchers.models import Voucher
+from .forms import ProductSearchForm, OrderSearchForm, VoucherForm
+
+
+def staff_login_required(view_func):
+    """
+    Custom decorator that requires staff authentication.
+    Redirects to staff login page if not authenticated or not staff.
+    """
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            login_url = reverse('adminpanel:staff_login')
+            return redirect(f'{login_url}?next={request.path}')
+        if not request.user.is_staff:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden('You do not have permission to access this page.')
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+
+def staff_login(request):
+    """
+    Staff login - allows Staff users to login and access admin panel.
+    Only Staff users can login through this endpoint.
+    """
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect('/adminpanel/')
+    
+    from django.contrib.auth import login
+    from django.contrib import messages
+    from django.contrib.auth.backends import ModelBackend
+    
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        
+        if not username or not password:
+            messages.error(request, 'Please provide both username and password.')
+            return render(request, 'adminpanel/staff_login.html')
+        
+        # Try to find Staff user by username
+        try:
+            staff_user = Staff.objects.get(username=username)
+        except Staff.DoesNotExist:
+            # Also try to find by email in case user entered email
+            try:
+                staff_user = Staff.objects.get(email=username)
+            except Staff.DoesNotExist:
+                messages.error(request, 'Invalid credentials. Staff access only.')
+                return render(request, 'adminpanel/staff_login.html')
+        
+        # Verify password
+        password_valid = staff_user.check_password(password)
+        if not password_valid:
+            messages.error(request, 'Invalid credentials. Please check your username and password.')
+            return render(request, 'adminpanel/staff_login.html')
+        
+        if not staff_user.is_active:
+            messages.error(request, 'Your account is inactive. Please contact an administrator.')
+            return render(request, 'adminpanel/staff_login.html')
+        
+        # Ensure is_staff is True
+        if not staff_user.is_staff:
+            staff_user.is_staff = True
+            staff_user.save()
+        
+        # Use the custom StaffModelBackend for Staff users
+        # This ensures the user can be retrieved correctly from the session
+        backend = 'accounts.backends.StaffModelBackend'
+        
+        # Refresh the user from database to ensure we have the latest state
+        staff_user.refresh_from_db()
+        
+        # Log in the user using the Staff backend
+        # This will store the user ID and backend in the session
+        login(request, staff_user, backend=backend)
+        
+        # Verify login was successful
+        # request.user should now be the Staff user
+        if request.user.is_authenticated and request.user.is_staff:
+            # Always redirect to admin panel root (/adminpanel/)
+            return redirect('/adminpanel/')
+        else:
+            messages.error(request, 'Login failed. Please try again.')
+    
+    return render(request, 'adminpanel/staff_login.html', {
+        'next': request.GET.get('next', '')
+    })
 
 
 def get_next_assigned_staff():
@@ -50,7 +147,7 @@ def get_next_assigned_staff():
 
 # ==================== DASHBOARD ====================
 
-@staff_member_required
+@staff_login_required
 def dashboard(request):
     """Main admin dashboard with overview metrics"""
     
@@ -76,7 +173,7 @@ def dashboard(request):
 
 # ==================== CUSTOMER ASSISTANCE ====================
 
-@staff_member_required
+@staff_login_required
 def customer_support(request):
     """List all messages assigned to current staff member"""
     
@@ -108,7 +205,7 @@ def customer_support(request):
     
     return render(request, 'adminpanel/customer_support.html', context)
 
-@staff_member_required
+@staff_login_required
 def chat_conversation(request, conversation_id):
     """View and reply to a specific customer message"""
     
@@ -165,7 +262,7 @@ def chat_conversation(request, conversation_id):
 
 # ==================== PRODUCT MANAGEMENT ====================
 
-@staff_member_required
+@staff_login_required
 def product_management(request):
     """Product search and management page"""
     # Initialize form with query from GET parameters if present
@@ -255,7 +352,7 @@ def product_management(request):
     }
     return render(request, 'adminpanel/products.html', context)
 
-@staff_member_required
+@staff_login_required
 def search_product(request):
     """AJAX endpoint to search for products and return HTML table rendered server-side"""
     query = request.GET.get('query', '').strip()
@@ -406,7 +503,7 @@ def search_product(request):
             status=500
         )
 
-@staff_member_required
+@staff_login_required
 def edit_product(request, product_id):
     """Display product edit form"""
     product = get_object_or_404(
@@ -444,7 +541,7 @@ def edit_product(request, product_id):
     
     return render(request, 'adminpanel/edit_product.html', context)
 
-@staff_member_required
+@staff_login_required
 def update_product(request):
     """Update product details and redirect back to edit page"""
     if request.method != 'POST':
@@ -560,7 +657,7 @@ def update_product(request):
 
 # ==================== ORDER MANAGEMENT ====================
 
-@staff_member_required
+@staff_login_required
 def order_management(request):
     """Order search and management page"""
     # Initialize form with query from GET parameters if present
@@ -641,7 +738,7 @@ def order_management(request):
     }
     return render(request, 'adminpanel/order_management.html', context)
 
-@staff_member_required
+@staff_login_required
 def search_order(request):
     """AJAX endpoint to search for orders and return HTML table rendered server-side"""
     query = request.GET.get('query', '').strip()
@@ -755,7 +852,7 @@ def search_order(request):
             status=500
         )
 
-@staff_member_required
+@staff_login_required
 def edit_order(request, order_id):
     """Display order edit form"""
     order = get_object_or_404(
@@ -804,7 +901,7 @@ def edit_order(request, order_id):
     
     return render(request, 'adminpanel/edit_order.html', context)
 
-@staff_member_required
+@staff_login_required
 def update_order(request, order_id):
     """Update order details and redirect back to edit page"""
     if request.method != 'POST':
@@ -861,9 +958,189 @@ def update_order(request, order_id):
 
 # ==================== ANALYTICS ====================
 
-@staff_member_required
+@staff_login_required
 def analytics(request):
     """Analytics dashboard - Coming Soon"""
     return render(request, 'adminpanel/analytics.html')
+
+# ==================== VOUCHER MANAGEMENT ====================
+
+@staff_login_required
+def voucher_management(request):
+    """Voucher management page - list all vouchers"""
+    vouchers = Voucher.objects.all().order_by('-created_at')
+    
+    context = {
+        'vouchers': vouchers,
+    }
+    return render(request, 'adminpanel/voucher_management.html', context)
+
+@staff_login_required
+def add_voucher(request):
+    """Add a new voucher"""
+    if request.method == 'POST':
+        form = VoucherForm(request.POST)
+        if form.is_valid():
+            voucher = form.save(commit=False)
+            # Set created_by if user is a superuser
+            if hasattr(request.user, 'is_superuser') and request.user.is_superuser:
+                voucher.created_by = request.user
+            voucher.save()
+            form.save_m2m()  # Save many-to-many relationships
+            
+            from django.contrib import messages
+            messages.success(request, f'Voucher "{voucher.name}" created successfully!')
+            return redirect('adminpanel:voucher_management')
+    else:
+        form = VoucherForm()
+    
+    context = {
+        'form': form,
+        'action': 'Add',
+    }
+    return render(request, 'adminpanel/voucher_form.html', context)
+
+@staff_login_required
+def edit_voucher(request, voucher_id):
+    """Edit an existing voucher"""
+    voucher = get_object_or_404(Voucher, id=voucher_id)
+    
+    if request.method == 'POST':
+        form = VoucherForm(request.POST, instance=voucher)
+        if form.is_valid():
+            form.save()
+            
+            from django.contrib import messages
+            messages.success(request, f'Voucher "{voucher.name}" updated successfully!')
+            return redirect('adminpanel:voucher_management')
+    else:
+        form = VoucherForm(instance=voucher)
+    
+    context = {
+        'form': form,
+        'voucher': voucher,
+        'action': 'Edit',
+    }
+    return render(request, 'adminpanel/voucher_form.html', context)
+
+@staff_login_required
+def delete_voucher(request, voucher_id):
+    """Delete a voucher"""
+    voucher = get_object_or_404(Voucher, id=voucher_id)
+    
+    if request.method == 'POST':
+        voucher_name = voucher.name
+        voucher.delete()
+        
+        from django.contrib import messages
+        messages.success(request, f'Voucher "{voucher_name}" deleted successfully!')
+        return redirect('adminpanel:voucher_management')
+    
+    context = {
+        'voucher': voucher,
+    }
+    return render(request, 'adminpanel/delete_voucher.html', context)
+
+
+@staff_login_required
+def database_management(request):
+    """Database management page for populating and managing database"""
+    # Get project root directory
+    project_root = Path(settings.BASE_DIR)
+    csv_files = []
+    data_dir = project_root / 'data'
+    
+    if data_dir.exists():
+        csv_files = [f.name for f in data_dir.glob('*.csv')]
+    
+    context = {
+        'csv_files': csv_files,
+    }
+    return render(request, 'adminpanel/database_management.html', context)
+
+
+@staff_login_required
+def run_populate_db(request):
+    """Execute populate_db functions via AJAX"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    action = request.POST.get('action')
+    csv_file = request.POST.get('csv_file', 'b2c_products_500.csv')
+    reset = request.POST.get('reset', 'true').lower() == 'true'
+    
+    # Get project root directory
+    project_root = Path(settings.BASE_DIR)
+    csv_path = project_root / 'data' / csv_file
+    
+    # Capture stdout to get output from populate_db functions
+    output = io.StringIO()
+    
+    try:
+        # Import populate_db functions
+        # We need to import them in a way that doesn't trigger django.setup() again
+        import importlib.util
+        populate_db_path = project_root / 'populate_db.py'
+        
+        if not populate_db_path.exists():
+            return JsonResponse({'error': 'populate_db.py not found'}, status=404)
+        
+        # Load the module
+        spec = importlib.util.spec_from_file_location("populate_db", populate_db_path)
+        populate_db = importlib.util.module_from_spec(spec)
+        
+        # Temporarily redirect stdout to capture print statements
+        with redirect_stdout(output):
+            # Execute the module (this will run django.setup() but it's safe if already set up)
+            spec.loader.exec_module(populate_db)
+            
+            # Execute the requested action
+            if action == 'seed_from_csv':
+                if not csv_path.exists():
+                    return JsonResponse({'error': f'CSV file not found: {csv_path}'}, status=404)
+                
+                # Change to project root directory for relative paths
+                original_cwd = os.getcwd()
+                try:
+                    os.chdir(project_root)
+                    populate_db.seed_from_csv(str(csv_path), reset=reset)
+                finally:
+                    os.chdir(original_cwd)
+                
+            elif action == 'delete_all_data':
+                populate_db.delete_all_data()
+                
+            elif action == 'create_staff_user':
+                populate_db.create_staff_user()
+                
+            elif action == 'create_sample_users':
+                populate_db.create_sample_users()
+                
+            elif action == 'create_sample_vouchers':
+                populate_db.create_sample_vouchers()
+                
+            elif action == 'create_sample_orders_and_reviews':
+                populate_db.create_sample_orders_and_reviews()
+                
+            else:
+                return JsonResponse({'error': f'Unknown action: {action}'}, status=400)
+        
+        output_text = output.getvalue()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Action "{action}" completed successfully',
+            'output': output_text
+        })
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'traceback': error_trace,
+            'output': output.getvalue()
+        }, status=500)
 
 

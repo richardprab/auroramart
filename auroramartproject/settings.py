@@ -35,7 +35,8 @@ AUTH_USER_MODEL = "accounts.Superuser"  # User is abstract; Superuser is concret
 
 # Custom authentication backend to support Customer, Staff, and Superuser
 AUTHENTICATION_BACKENDS = [
-    'accounts.backends.MultiUserModelBackend',  # Custom backend for multi-user types
+    'accounts.backends.MultiUserModelBackend',  # Custom backend for Customer login
+    'accounts.backends.StaffModelBackend',  # Custom backend for Staff login
     'django.contrib.auth.backends.ModelBackend',  # Fallback to default
 ]
 
@@ -163,6 +164,11 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 TAX_RATE = 0.10
 SHIPPING_COST = 10.00
 FREE_SHIPPING_THRESHOLD = 100.00
+
+# Dynamic Pricing settings
+DYNAMIC_PRICING_ENABLED = True
+DYNAMIC_PRICING_LOW_STOCK_THRESHOLD = 10  # Units
+DYNAMIC_PRICING_DISCOUNT_PERCENTAGE = 15  # Percentage discount
 
 # Django Channels configuration
 ASGI_APPLICATION = "auroramartproject.asgi.application"
