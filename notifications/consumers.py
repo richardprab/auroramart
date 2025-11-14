@@ -101,3 +101,5 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             is_read=False
         ).count()
 
+
+

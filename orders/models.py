@@ -66,9 +66,20 @@ class Order(models.Model):
         default=0,
         help_text="Shipping cost charged."
     )
+    voucher_code = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Voucher code applied to this order."
+    )
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Total discount amount from voucher applied to this order."
+    )
     total = models.DecimalField(
         max_digits=10, decimal_places=2,
-        help_text="The final amount charged to the customer (subtotal + tax + shipping)."
+        help_text="The final amount charged to the customer (subtotal + tax + shipping - discount)."
     )
 
     # Order Status

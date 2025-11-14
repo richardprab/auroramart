@@ -7,30 +7,56 @@ from .models import Cart, CartItem
 from products.models import Product, ProductVariant
 
 
-def calculate_cart_totals(cart_items):
+def calculate_cart_totals(cart_items, voucher_code=None, user=None):
     """
     Calculate cart totals including subtotal, tax, shipping, and total.
+    Optionally applies voucher discount.
     
     Args:
         cart_items: QuerySet of CartItem objects
+        voucher_code: Optional voucher code to apply
+        user: Optional user for voucher validation
         
     Returns:
-        dict: Dictionary containing subtotal, tax, shipping, total, and item_count
+        dict: Dictionary containing subtotal, tax, shipping, discount, total, and item_count
     """
     subtotal = sum(
         ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
         for item in cart_items
     )
     
-    tax_rate = Decimal(str(settings.TAX_RATE))
-    tax = (subtotal * tax_rate).quantize(Decimal("0.01"))
-    
-    # Apply shipping cost (free shipping over threshold)
+    # Calculate shipping before voucher (needed for free shipping vouchers)
     if cart_items and subtotal < Decimal(str(settings.FREE_SHIPPING_THRESHOLD)):
         shipping = Decimal(str(settings.SHIPPING_COST))
     else:
         shipping = Decimal("0.00")
     
+    # Apply voucher if provided
+    discount_amount = Decimal("0.00")
+    voucher = None
+    if voucher_code and user:
+        try:
+            from vouchers.utils import apply_voucher_to_cart
+            voucher_result = apply_voucher_to_cart(
+                voucher_code, user, cart_items, subtotal, shipping
+            )
+            voucher = voucher_result['voucher']
+            discount_amount = voucher_result['discount_amount']
+            
+            # Adjust subtotal or shipping based on voucher type
+            if voucher.discount_type == 'free_shipping':
+                shipping = voucher_result['new_shipping']
+            else:
+                subtotal = voucher_result['new_subtotal']
+        except Exception as e:
+            # Voucher validation failed, continue without discount
+            pass
+    
+    # Calculate tax on subtotal (after discount if applicable)
+    tax_rate = Decimal(str(settings.TAX_RATE))
+    tax = (subtotal * tax_rate).quantize(Decimal("0.01"))
+    
+    # Calculate total
     total = (subtotal + tax + shipping).quantize(Decimal("0.01"))
     item_count = sum(item.quantity for item in cart_items)
     
@@ -38,8 +64,11 @@ def calculate_cart_totals(cart_items):
         'subtotal': subtotal,
         'tax': tax,
         'shipping': shipping,
+        'discount': discount_amount,
         'total': total,
-        'item_count': item_count
+        'item_count': item_count,
+        'voucher': voucher,
+        'voucher_code': voucher_code if voucher else None
     }
 
 

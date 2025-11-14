@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Voucher Details - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen py-8">
+    <div class="container mx-auto px-4 max-w-4xl">
+        <!-- Back Button -->
+        <div class="mb-4">
+            <a href="{% url 'vouchers:my_vouchers' %}" 
+               class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Back to My Vouchers
+            </a>
+        </div>
+
+        <!-- Voucher Card -->
+        <div class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-xl p-8 mb-6 text-white">
+            <div class="flex items-start justify-between mb-6">
+                <div>
+                    <span class="text-sm opacity-80 mb-2 block">
+                        {% if voucher.user %}
+                            Your Exclusive Voucher
+                        {% else %}
+                            Public Voucher
+                        {% endif %}
+                    </span>
+                    <h1 class="text-3xl font-bold mb-2">{{ voucher.name }}</h1>
+                    {% if voucher.description %}
+                    <p class="text-lg opacity-90">{{ voucher.description }}</p>
+                    {% endif %}
+                </div>
+                <div class="text-right">
+                    <div class="bg-white bg-opacity-20 backdrop-blur-lg rounded-lg px-4 py-2 mb-2">
+                        <p class="text-sm opacity-80">Code</p>
+                        <p class="text-2xl font-bold">{{ voucher.promo_code }}</p>
+                    </div>
+                    {% if can_use and is_valid %}
+                    <span class="bg-green-500 text-white text-sm px-3 py-1 rounded-full">Available</span>
+                    {% elif not is_valid %}
+                    <span class="bg-red-500 text-white text-sm px-3 py-1 rounded-full">Expired</span>
+                    {% elif usage_count >= voucher.max_uses_per_user %}
+                    <span class="bg-gray-500 text-white text-sm px-3 py-1 rounded-full">Used</span>
+                    {% else %}
+                    <span class="bg-yellow-500 text-white text-sm px-3 py-1 rounded-full">Unavailable</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Discount Badge -->
+            <div class="bg-white bg-opacity-20 backdrop-blur-lg rounded-lg p-6 mb-6">
+                <div class="text-center">
+                    <p class="text-sm opacity-80 mb-2">Discount</p>
+                    <div class="text-5xl font-bold mb-2">
+                        {% if voucher.discount_type == 'percent' %}
+                            {{ voucher.discount_value }}%
+                        {% elif voucher.discount_type == 'fixed' %}
+                            ${{ voucher.discount_value }}
+                        {% elif voucher.discount_type == 'free_shipping' %}
+                            FREE SHIPPING
+                        {% endif %}
+                    </div>
+                    {% if voucher.discount_type == 'percent' and voucher.max_discount %}
+                    <p class="text-sm opacity-80">Maximum discount: ${{ voucher.max_discount }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Voucher Details -->
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="opacity-80">Valid From</p>
+                    <p class="font-semibold">{{ voucher.start_date|date:"M d, Y" }}</p>
+                </div>
+                <div>
+                    <p class="opacity-80">Expires</p>
+                    <p class="font-semibold">{{ voucher.end_date|date:"M d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Usage Information -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="info" class="w-6 h-6 text-blue-600"></i>
+                Usage Information
+            </h2>
+            
+            <div class="space-y-4">
+                <div class="flex items-center justify-between py-3 border-b border-gray-200">
+                    <span class="text-gray-600">Times Used</span>
+                    <span class="font-semibold text-gray-900">{{ usage_count }} / {{ voucher.max_uses_per_user }}</span>
+                </div>
+                
+                {% if remaining_uses > 0 %}
+                <div class="flex items-center justify-between py-3 border-b border-gray-200">
+                    <span class="text-gray-600">Remaining Uses</span>
+                    <span class="font-semibold text-green-600">{{ remaining_uses }}</span>
+                </div>
+                {% endif %}
+                
+                {% if voucher.min_purchase > 0 %}
+                <div class="flex items-center justify-between py-3 border-b border-gray-200">
+                    <span class="text-gray-600">Minimum Purchase</span>
+                    <span class="font-semibold text-gray-900">${{ voucher.min_purchase }}</span>
+                </div>
+                {% endif %}
+                
+                {% if voucher.first_time_only %}
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="info" class="w-5 h-5 text-blue-600 mt-0.5"></i>
+                        <div>
+                            <p class="font-semibold text-blue-900">First-Time Customer Only</p>
+                            <p class="text-sm text-blue-700">This voucher is only available for first-time customers.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Usage History -->
+        {% if usage_history %}
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="history" class="w-6 h-6 text-blue-600"></i>
+                Usage History
+            </h2>
+            
+            <div class="space-y-3">
+                {% for usage in usage_history %}
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="font-semibold text-gray-900">Order {{ usage.order.order_number }}</p>
+                        <p class="text-sm text-gray-600">{{ usage.used_at|date:"M d, Y g:i A" }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold text-green-600">-${{ usage.discount_amount }}</p>
+                        <a href="{% url 'orders:order_detail' usage.order.id %}" 
+                           class="text-sm text-blue-600 hover:underline">View Order</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="mt-6 flex gap-4">
+            {% if can_use and is_valid %}
+            <a href="{% url 'orders:checkout' %}" 
+               class="flex-1 bg-blue-600 text-white text-center py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                Use This Voucher
+            </a>
+            {% endif %}
+            <a href="{% url 'vouchers:my_vouchers' %}" 
+               class="flex-1 bg-gray-200 text-gray-700 text-center py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition">
+                Back to Vouchers
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+</script>
+{% endblock %}
+

@@ -342,6 +342,12 @@
                             <span class="text-gray-600">Subtotal</span>
                             <span class="font-semibold text-gray-900">${{ order.subtotal|floatformat:2 }}</span>
                         </div>
+                        {% if order.discount_amount and order.discount_amount > 0 %}
+                        <div class="flex justify-between text-sm text-green-600">
+                            <span>Discount{% if order.voucher_code %} ({{ order.voucher_code }}){% endif %}</span>
+                            <span class="font-semibold">-${{ order.discount_amount|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-600">Tax (10%)</span>
                             <span class="font-semibold text-gray-900">${{ order.tax|floatformat:2 }}</span>

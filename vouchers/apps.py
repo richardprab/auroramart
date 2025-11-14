@@ -1,6 +1,8 @@
 from django.apps import AppConfig
 
 
-class AdminpanelConfig(AppConfig):
+class VouchersConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'adminpanel'
+    name = 'vouchers'
+    verbose_name = 'Vouchers'
+

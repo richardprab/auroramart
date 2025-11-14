@@ -13,3 +13,5 @@ urlpatterns = [
     path("ajax/conversations/<int:conversation_id>/delete/", views.delete_conversation, name="ajax_delete_conversation"),
 ]
 
+
+

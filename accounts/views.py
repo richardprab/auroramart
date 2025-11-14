@@ -6,47 +6,43 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.core.paginator import Paginator
+from django.db.models import Q
 from products.models import Product
-from .models import Wishlist, Address
+from .models import Wishlist, Address, Customer
 from .forms import CustomUserCreationForm, UserProfileForm, AddressForm
-from .models import Wishlist, Customer
-from .forms import CustomUserCreationForm, UserProfileForm
-from django.contrib.auth import logout
 from decimal import Decimal
-import json
 
 User = get_user_model()
 
 
 def user_login(request):
-    """User login - redirects staff to admin dashboard"""
+    """
+    User login - only allows Customer login via username or email.
+    Uses Django's standard authenticate() function which delegates to backends.
+    """
     if request.user.is_authenticated:
-        # If already logged in, redirect based on user type
-        if request.user.is_staff:
-            return redirect('adminpanel:dashboard')
         return redirect('home:index')
     
+    # Initialize form for both GET and POST requests
+    from django.contrib.auth.forms import AuthenticationForm
+    form = AuthenticationForm()
+    
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
+        username_or_email = request.POST.get('username')
+        password = request.POST.get('password')
         
-        if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
-            
-            if user is not None:
-                login(request, user)
-                
-                # Check if user is staff and redirect accordingly
-                if user.is_staff:
-                    return redirect('adminpanel:dashboard')
-                else:
-                    next_url = request.POST.get('next') or request.GET.get('next', 'home:index')
-                    return redirect(next_url)
+        # Use Django's authenticate() - this will use our custom backend
+        # which only checks the Customer table (staff/superuser will return None)
+        user = authenticate(request, username=username_or_email, password=password)
+        
+        if user is not None:
+            login(request, user)
+            next_url = request.POST.get('next') or request.GET.get('next', 'home:index')
+            return redirect(next_url)
         else:
+            # Authentication failed - show error message
+            # This handles both invalid credentials and staff/superuser login attempts
             messages.error(request, 'Invalid credentials. Please try again.')
-    else:
-        form = AuthenticationForm()
     
     return render(request, 'accounts/login.html', {
         'form': form,
@@ -99,13 +95,46 @@ def profile(request):
     total_orders = 0
     wishlist_count = Wishlist.objects.filter(user=request.user).count()
     recent_orders = []
-    viewing_history = []
+    voucher_count = 0
     
     try:
         from orders.models import Order
         total_orders = Order.objects.filter(user=request.user).count()
         recent_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
-    except:
+    except Exception:
+        pass
+    
+    try:
+        from vouchers.models import Voucher, VoucherUsage
+        from django.utils import timezone
+        now = timezone.now()
+        # Count only available vouchers (user-specific + public that can actually be used)
+        all_vouchers = Voucher.objects.filter(
+            Q(user=request.user) | Q(user__isnull=True),
+            is_active=True,
+            start_date__lte=now,
+            end_date__gte=now
+        ).distinct()
+        
+        # Filter to only count vouchers that are actually available (not fully used, valid, and can be used)
+        available_count = 0
+        for voucher in all_vouchers:
+            if not voucher.is_valid():
+                continue
+            
+            usage_count = VoucherUsage.objects.filter(
+                voucher=voucher,
+                user=request.user
+            ).count()
+            
+            if usage_count >= voucher.max_uses_per_user:
+                continue
+            
+            if voucher.can_be_used_by_user(request.user, usage_count=usage_count):
+                available_count += 1
+        
+        voucher_count = available_count
+    except Exception:
         pass
     
     # Get viewing history with pagination (10 per page)
@@ -121,7 +150,7 @@ def profile(request):
         paginator = Paginator(viewing_history_list, 8)
         page_number = request.GET.get('page', 1)
         viewing_history_page = paginator.get_page(page_number)
-    except:
+    except Exception:
         pass
 
     # Handle AJAX form submission
@@ -178,6 +207,7 @@ def profile(request):
         "form": form,
         "total_orders": total_orders,
         "wishlist_count": wishlist_count,
+        "voucher_count": voucher_count,
         "recent_orders": recent_orders,
         "viewing_history_page": viewing_history_page,
     }
@@ -630,5 +660,4 @@ def set_default_address(request, address_id):
         return redirect('accounts:addresses')
     
     return redirect('accounts:addresses')
-
 

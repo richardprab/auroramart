@@ -1,4 +1,4 @@
-.PHONY: help install migrate migrations superuser run test clean resetdb shell collectstatic
+.PHONY: help install migrate migrations superuser run test clean resetdb shell collectstatic assign-vouchers
 
 # Default target
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "make resetdb       - Delete database and recreate (WARNING: destroys data!)"
 	@echo "make collectstatic - Collect static files"
 	@echo "make check         - Run system checks"
+	@echo "make assign-vouchers - Assign WELCOME voucher to all users"
 
 # Install dependencies
 install:

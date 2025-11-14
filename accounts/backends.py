@@ -1,79 +1,51 @@
 """
-Custom authentication backend to support Customer, Staff, and Superuser models.
-Since AUTH_USER_MODEL is set to User but we have multiple user types (Customer, Staff, Superuser),
-we need to check all three models during authentication.
+Custom authentication backend to support Customer model only.
+Only customers can login through the regular login page.
 """
 from django.contrib.auth.backends import ModelBackend
-from django.contrib.auth import get_user_model
-from .models import Customer, Staff, Superuser
+from .models import Customer
 
 
 class MultiUserModelBackend(ModelBackend):
     """
-    Custom authentication backend that supports Customer, Staff, and Superuser.
-    All three extend User via multi-table inheritance, so we check each model type.
+    Custom authentication backend that only supports Customer login.
+    Staff and Superuser cannot login through the regular login page.
+    
+    Supports authentication via username or email (case-insensitive).
     """
     
     def authenticate(self, request, username=None, password=None, **kwargs):
-        # Try Customer first (most common user type)
+        """
+        Authenticate a Customer by username or email.
+        This is the Django-standard way to handle authentication.
+        """
+        if username is None:
+            username = kwargs.get('username')
+        
+        if username is None or password is None:
+            return None
+        
+        # Try to find Customer by username first
         try:
             user = Customer.objects.get(username=username)
-            if user.check_password(password) and self.user_can_authenticate(user):
-                return user
         except Customer.DoesNotExist:
-            pass
+            # If not found by username, try email (case-insensitive)
+            try:
+                user = Customer.objects.get(email__iexact=username)
+            except Customer.DoesNotExist:
+                return None
         
-        # Try Staff
-        try:
-            user = Staff.objects.get(username=username)
-            if user.check_password(password) and self.user_can_authenticate(user):
-                return user
-        except Staff.DoesNotExist:
-            pass
-        
-        # Try Superuser
-        try:
-            user = Superuser.objects.get(username=username)
-            if user.check_password(password) and self.user_can_authenticate(user):
-                return user
-        except Superuser.DoesNotExist:
-            pass
-        
-        # Fallback: Try User model directly (in case there are User instances without child models)
-        UserModel = get_user_model()  # This will be User
-        try:
-            user = UserModel.objects.get(username=username)
-            if user.check_password(password) and self.user_can_authenticate(user):
-                return user
-        except UserModel.DoesNotExist:
-            pass
+        # Verify password and check if user can authenticate
+        if user.check_password(password) and self.user_can_authenticate(user):
+            return user
         
         return None
     
     def get_user(self, user_id):
-        # Try Customer first (most common user type)
+        # Only return Customer users
         try:
             return Customer.objects.get(pk=user_id)
         except Customer.DoesNotExist:
-            pass
-        
-        # Try Staff
-        try:
-            return Staff.objects.get(pk=user_id)
-        except Staff.DoesNotExist:
-            pass
-        
-        # Try Superuser
-        try:
-            return Superuser.objects.get(pk=user_id)
-        except Superuser.DoesNotExist:
-            pass
-        
-        # Fallback: Try User model directly
-        UserModel = get_user_model()  # This will be User
-        try:
-            return UserModel.objects.get(pk=user_id)
-        except UserModel.DoesNotExist:
             pass
         
         return None
