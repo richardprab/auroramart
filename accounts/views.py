@@ -16,34 +16,33 @@ User = get_user_model()
 
 
 def user_login(request):
-    """User login - redirects staff to admin dashboard"""
+    """
+    User login - only allows Customer login via username or email.
+    Uses Django's standard authenticate() function which delegates to backends.
+    """
     if request.user.is_authenticated:
-        # If already logged in, redirect based on user type
-        if request.user.is_staff:
-            return redirect('adminpanel:dashboard')
         return redirect('home:index')
     
+    # Initialize form for both GET and POST requests
+    from django.contrib.auth.forms import AuthenticationForm
+    form = AuthenticationForm()
+    
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
+        username_or_email = request.POST.get('username')
+        password = request.POST.get('password')
         
-        if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
-            
-            if user is not None:
-                login(request, user)
-                
-                # Check if user is staff and redirect accordingly
-                if user.is_staff:
-                    return redirect('adminpanel:dashboard')
-                else:
-                    next_url = request.POST.get('next') or request.GET.get('next', 'home:index')
-                    return redirect(next_url)
+        # Use Django's authenticate() - this will use our custom backend
+        # which only checks the Customer table (staff/superuser will return None)
+        user = authenticate(request, username=username_or_email, password=password)
+        
+        if user is not None:
+            login(request, user)
+            next_url = request.POST.get('next') or request.GET.get('next', 'home:index')
+            return redirect(next_url)
         else:
+            # Authentication failed - show error message
+            # This handles both invalid credentials and staff/superuser login attempts
             messages.error(request, 'Invalid credentials. Please try again.')
-    else:
-        form = AuthenticationForm()
     
     return render(request, 'accounts/login.html', {
         'form': form,
