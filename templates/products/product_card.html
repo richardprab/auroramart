@@ -1,0 +1,142 @@
+{% load static %}
+
+{% with lowest_variant=product.get_lowest_priced_variant primary_image=product.images.first %}
+<div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 relative flex flex-col h-full"
+    data-product data-product-id="{{ product.id }}" data-price="{{ lowest_variant.price|default:'0' }}"
+    data-category="{{ product.category.slug }}" data-name="{{ product.name }}">
+
+    <!-- Product Image -->
+    <div class="relative shrink-0">
+        <a href="{% url 'products:product_detail' sku=product.sku %}" class="block relative z-0">
+            {% if primary_image %}
+            <img src="{{ primary_image.image.url }}" alt="{{ primary_image.alt_text|default:product.name }}"
+                class="w-full h-64 object-cover">
+            {% else %}
+            <div class="w-full h-64 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                <i data-lucide="package" class="w-16 h-16 text-gray-400"></i>
+            </div>
+            {% endif %}
+        </a>
+
+        <!-- Banner Ribbons -->
+        {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+        <div class="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none z-10">
+            <div
+                class="absolute top-6 -left-8 w-40 bg-green-500 text-white text-center text-xs font-bold py-1 transform -rotate-45 shadow-lg">
+                SALE
+            </div>
+        </div>
+        {% endif %}
+
+        {% if user.is_authenticated %}
+        <form method="POST" action="{% url 'accounts:add_to_wishlist' product_id=product.id %}"
+            class="absolute top-2 right-2 z-20" data-wishlist-toggle>
+            {% csrf_token %}
+            <button type="submit" class="bg-white p-2 rounded-full shadow-md hover:bg-red-50 transition {% if product.id in user_wishlist_ids %}in-wishlist{% endif %}" data-product-id="{{ product.id }}">
+                {% if product.id in user_wishlist_ids %}
+                <i data-lucide="heart" class="w-5 h-5 text-red-500 fill-current"></i>
+                {% else %}
+                <i data-lucide="heart" class="w-5 h-5 text-gray-600 hover:text-red-500"></i>
+                {% endif %}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Product Info -->
+    <div class="p-4 flex flex-col grow">
+        <!-- Brand (if exists) -->
+        {% if product.brand %}
+        <p class="text-xs text-gray-500 mb-1 uppercase tracking-wide">{{ product.brand }}</p>
+        {% endif %}
+        
+        <a href="{% url 'products:product_detail' sku=product.sku %}" class="block">
+            <h3 class="text-lg font-semibold text-gray-800 hover:text-blue-600 transition line-clamp-2 min-h-[3.5rem]">
+                {{ product.name }}
+            </h3>
+        </a>
+
+        <!-- Rating with Stars (fixed height to prevent layout shift) -->
+        <div class="mt-1 mb-2 h-6">
+            {% if product.rating > 0 %}
+            <div class="flex items-center gap-1">
+                <div class="flex text-yellow-400 product-rating-stars" data-rating="{{ product.rating }}">
+
+                </div>
+                <span class="text-sm font-medium text-gray-700">{{ product.rating|floatformat:1 }}</span>
+                {% if product.review_count > 0 %}
+                <span class="text-xs text-gray-500">({{ product.review_count }})</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Bottom section anchored to card bottom -->
+        <div class="mt-auto pt-3 border-t border-gray-100">
+            {% if lowest_variant %}
+            <!-- Price, Save Badge, and Stock Status - All in one row -->
+            <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <!-- Left: Price and Save Badge -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price }}</span>
+                        <span class="text-sm text-gray-400 line-through">${{ lowest_variant.compare_price }}</span>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold whitespace-nowrap">
+                        -{{ lowest_variant.discount_percentage }}%
+                    </span>
+                    {% else %}
+                    <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Right: Stock Status -->
+                <div class="ml-auto">
+                    {% if lowest_variant.stock and lowest_variant.stock > 0 %}
+                    <span class="text-xs text-green-600 flex items-center gap-1 whitespace-nowrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        In Stock
+                    </span>
+                    {% else %}
+                    <span class="text-xs text-red-600 flex items-center gap-1 whitespace-nowrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        Out of Stock
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <form method="POST" action="{% url 'cart:add_to_cart' product_id=product.id %}" class="ajax-add-to-cart">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <input type="hidden" name="variant_id" value="{{ lowest_variant.id }}">
+                <button type="submit"
+                    class="btn btn-primary w-full flex items-center justify-center gap-2 {% if not lowest_variant.stock %}opacity-50 cursor-not-allowed{% endif %}"
+                    {% if not lowest_variant.stock %}disabled{% endif %}
+                    data-add-to-cart data-product-id="{{ product.id }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="21" r="1"></circle>
+                        <circle cx="20" cy="21" r="1"></circle>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                    </svg>
+                    Add to Cart
+                </button>
+            </form>
+            {% else %}
+            <p class="text-sm text-gray-500 text-center py-2">No variants available</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endwith %}

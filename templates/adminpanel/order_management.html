@@ -1,0 +1,420 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block admin_title %}Order Management{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .search-input {
+        width: 100%;
+        padding: 0.875rem 1.25rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        background: white;
+        color: #2d3748;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #a78bfa;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.1);
+        background: #fafafa;
+    }
+
+    .search-input::placeholder {
+        color: #a0aec0;
+    }
+
+    .orders-table-container {
+        display: block;
+    }
+
+    .orders-table-wrapper {
+        background: rgba(237, 233, 254, 0.4);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(196, 181, 253, 0.3);
+    }
+
+    .orders-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 0;
+        background: transparent;
+    }
+
+    .orders-table thead {
+        background: rgba(237, 233, 254, 0.6);
+        border-radius: 0.75rem 0.75rem 0 0;
+    }
+
+    .orders-table thead th:first-child {
+        border-top-left-radius: 0.75rem;
+    }
+
+    .orders-table thead th:last-child {
+        border-top-right-radius: 0.75rem;
+    }
+
+    .orders-table th {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        font-weight: 600;
+        color: #5b21b6;
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid rgba(196, 181, 253, 0.4);
+    }
+
+    .orders-table tbody tr {
+        background: rgba(255, 255, 255, 0.7);
+        transition: all 0.2s ease;
+    }
+
+    .orders-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.95);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+    }
+
+    .orders-table tbody tr:last-child td:first-child {
+        border-bottom-left-radius: 0.75rem;
+    }
+
+    .orders-table tbody tr:last-child td:last-child {
+        border-bottom-right-radius: 0.75rem;
+    }
+
+    .orders-table td {
+        padding: 1.125rem 1.25rem;
+        border-bottom: 1px solid rgba(196, 181, 253, 0.2);
+        vertical-align: middle;
+    }
+
+    .orders-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .order-number {
+        font-weight: 600;
+        color: #7c3aed;
+        font-size: 0.875rem;
+    }
+
+    .customer-name {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.125rem;
+    }
+
+    .customer-username {
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+
+    .order-status-badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-confirmed {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-processing {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-shipped {
+        background: #ddd6fe;
+        color: #5b21b6;
+    }
+
+    .status-delivered {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-cancelled {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-refunded {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .location-badge {
+        display: inline-block;
+        padding: 0.25rem 0.625rem;
+        border-radius: 0.75rem;
+        font-size: 0.688rem;
+        font-weight: 600;
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .btn-edit {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        padding: 0.625rem 1.125rem;
+        border: none;
+        border-radius: 0.625rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+    }
+
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    }
+
+    .order-total {
+        font-weight: 600;
+        color: #7c3aed;
+        font-size: 0.938rem;
+    }
+
+    .order-date {
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+
+    .search-type-badge {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.5rem;
+        font-size: 0.625rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .search-type-order {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .search-type-customer {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .loading-state, .no-results {
+        text-align: center;
+        padding: 2.5rem;
+        color: #6b7280;
+    }
+
+    .search-instructions {
+        background: rgba(237, 233, 254, 0.3);
+        padding: 4rem 2rem;
+        border-radius: 1.25rem;
+        margin-top: 1.5rem;
+        text-align: center;
+        border: 1px solid rgba(196, 181, 253, 0.3);
+    }
+
+    .search-instructions h3 {
+        color: #5b21b6;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+
+    .search-instructions p {
+        color: #64748b;
+        font-size: 0.9375rem;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="admin-content-header">
+    <h2>Order Management</h2>
+    <p>Search and manage customer orders</p>
+</div>
+
+<div class="admin-content-body">
+    <div class="mb-6">
+        <form method="get" id="orderSearchForm">
+            {{ form.query }}
+        </form>
+    </div>
+
+    <!-- Search Instructions -->
+    <div class="search-instructions" id="searchInstructions" style="display: none;">
+        <div class="text-6xl mb-5">🔍</div>
+        <h3 class="text-xl font-semibold">Search for Orders</h3>
+        <p>Start typing an order number or customer username to search. Results will appear in real-time as you type.</p>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="orders-table-container" id="ordersTableContainer">
+        <h3 id="tableHeader" class="text-lg font-semibold text-gray-900 mb-6 pb-3 border-b-2 border-purple-300" style="color: #5b21b6;">
+            {% if search_query %}
+                Search Results for "{{ search_query }}"
+            {% else %}
+                Recent Orders
+            {% endif %}
+        </h3>
+        <div id="ordersTableLoading" class="loading-state" style="display: none;">
+            <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2"></i>
+            Loading orders...
+        </div>
+        <div id="ordersTableContent">
+            {% if orders_data %}
+                <div class="orders-table-wrapper">
+                    {% include 'adminpanel/includes/order_table.html' with orders=orders_data search_query=search_query %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+// Real-time search with debouncing
+let searchTimeout = null;
+const DEBOUNCE_DELAY = 300;
+
+const searchInput = document.getElementById('searchInput');
+const searchForm = document.getElementById('orderSearchForm');
+const ordersTableContainer = document.getElementById('ordersTableContainer');
+const ordersTableContent = document.getElementById('ordersTableContent');
+const ordersTableLoading = document.getElementById('ordersTableLoading');
+const searchInstructions = document.getElementById('searchInstructions');
+const tableHeader = document.getElementById('tableHeader');
+
+if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, DEBOUNCE_DELAY);
+    });
+
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = e.target.value.trim();
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            performSearch(query);
+        }
+    });
+}
+
+if (searchForm) {
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const query = searchInput ? searchInput.value.trim() : '';
+        performSearch(query);
+    });
+}
+
+function performSearch(query) {
+    if (tableHeader) {
+        if (query && query.trim()) {
+            tableHeader.textContent = `Search Results for "${query}"`;
+        } else {
+            tableHeader.textContent = 'Recent Orders';
+        }
+    }
+    
+    if (ordersTableLoading) {
+        ordersTableLoading.style.display = 'block';
+    }
+    if (ordersTableContent) {
+        ordersTableContent.innerHTML = '';
+    }
+    if (searchInstructions) {
+        searchInstructions.style.display = 'none';
+    }
+    
+    const searchUrl = `{% url 'adminpanel:search_order' %}?query=${encodeURIComponent(query || '')}`;
+    
+    fetch(searchUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            if (ordersTableLoading) {
+                ordersTableLoading.style.display = 'none';
+            }
+            
+            if (ordersTableContent) {
+                // Wrap the table in the purple wrapper if it contains a table
+                if (html.includes('<table')) {
+                    ordersTableContent.innerHTML = '<div class="orders-table-wrapper">' + html + '</div>';
+                } else {
+                    ordersTableContent.innerHTML = html;
+                }
+            }
+            
+            if (searchInstructions && html.trim().length > 0) {
+                searchInstructions.style.display = 'none';
+            }
+            
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        })
+        .catch(error => {
+            if (ordersTableLoading) {
+                ordersTableLoading.style.display = 'none';
+            }
+            if (ordersTableContent) {
+                ordersTableContent.innerHTML = '<div class="no-results text-red-600">❌ Error searching orders. Please try again.</div>';
+            }
+            console.error('Error:', error);
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const hasInitialContent = ordersTableContent && ordersTableContent.innerHTML.trim().length > 0;
+    
+    if (!hasInitialContent) {
+        performSearch('');
+    }
+    
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+});
+</script>
+{% endblock %}

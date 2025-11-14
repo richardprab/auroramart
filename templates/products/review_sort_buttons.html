@@ -1,0 +1,23 @@
+{% load static %}
+<!-- Most Recent -->
+<button type="button" 
+    data-sort="created" 
+    data-direction="{% if sort_field == 'created' and sort_direction == 'desc' %}asc{% else %}desc{% endif %}"
+    class="review-sort-btn px-4 py-2 text-sm border rounded-lg transition flex items-center gap-1.5 {% if sort_field == 'created' %}bg-blue-50 border-blue-500 text-blue-700 font-medium{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">
+    Most Recent
+    {% if sort_field == 'created' %}
+    <i data-lucide="{% if sort_direction == 'asc' %}arrow-up{% else %}arrow-down{% endif %}" class="w-4 h-4"></i>
+    {% endif %}
+</button>
+
+<!-- Rating (toggles between highest/lowest) -->
+<button type="button" 
+    data-sort="rating" 
+    data-direction="{% if sort_field == 'rating' and sort_direction == 'desc' %}asc{% else %}desc{% endif %}"
+    class="review-sort-btn px-4 py-2 text-sm border rounded-lg transition flex items-center gap-1.5 {% if sort_field == 'rating' %}bg-blue-50 border-blue-500 text-blue-700 font-medium{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">
+    Rating
+    {% if sort_field == 'rating' %}
+    <i data-lucide="{% if sort_direction == 'asc' %}arrow-up{% else %}arrow-down{% endif %}" class="w-4 h-4"></i>
+    {% endif %}
+</button>
+

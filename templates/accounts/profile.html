@@ -1,0 +1,2859 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile - AuroraMart{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+<style>
+    /* Subtle modern scrollbar */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+    
+    /* Firefox */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: #d1d5db #f1f1f1;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0);
+        transition: background-color 0.3s ease;
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-content {
+        background-color: #fff;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        scrollbar-width: none; /* Firefox - hide scrollbar */
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease-out;
+    }
+    
+    /* Reduce spacing in address form */
+    #addressFormModal .modal-content {
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+    }
+    
+    #addressFormModal .form-group {
+        margin-bottom: 1rem;
+    }
+
+    /* Smooth transitions for address management */
+    #addressesList > div {
+        animation: fadeInUp 0.3s ease-out;
+        transition: all 0.3s ease;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-fadeIn {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Address card hover effects */
+    .address-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .address-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Button transitions */
+    .address-action-btn {
+        transition: all 0.2s ease;
+    }
+
+    .address-action-btn:hover {
+        transform: scale(1.1);
+    }
+
+    /* Modal content animation */
+    .modal-content {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .modal.active .modal-content {
+        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Form field transitions */
+    #addressForm .form-control {
+        transition: all 0.2s ease;
+    }
+
+    #addressForm .form-control:focus {
+        transform: scale(1.01);
+    }
+
+    /* Loading state */
+    .address-loading {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    @media (min-width: 768px) {
+        .modal-content {
+            padding: 2.5rem;
+        }
+    }
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .modal-content::-webkit-scrollbar {
+        display: none;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .modal-header h2 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        color: #6b7280;
+        cursor: pointer;
+        transition: color 0.2s;
+        line-height: 1;
+        padding: 0;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close:hover {
+        color: #1f2937;
+    }
+
+    /* Profile Card Styles */
+    .profile-avatar {
+        width: 6rem;
+        height: 6rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+        font-weight: bold;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        color: #1f2937;
+        font-weight: 500;
+        font-size: 1rem;
+    }
+
+    .settings-option {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        width: 100%;
+        padding: 1rem;
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+    }
+
+    .settings-option:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+
+    .settings-option-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.5rem;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .settings-option:nth-child(2) .settings-option-icon {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+
+    .settings-option-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .settings-option-title {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 0.95rem;
+    }
+
+    .settings-option-desc {
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    /* Tile Button Styles for Complete Profile Modal */
+    .tile-btn {
+        padding: 0.75rem 0.5rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        background: white;
+        color: #374151;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .tile-btn:hover {
+        border-color: #8b5cf6;
+        background: #faf5ff;
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+    }
+
+    .tile-btn.active {
+        border-color: #8b5cf6;
+        background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+
+    .shopping-tile {
+        padding: 1.5rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: white;
+        color: #374151;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100px;
+    }
+
+    .shopping-tile:hover {
+        border-color: #8b5cf6;
+        background: #faf5ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    }
+
+    .shopping-tile.active {
+        border-color: #8b5cf6;
+        background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Profile Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center space-x-6 flex-1 min-w-0">
+                    <div class="profile-avatar">
+                        {{ user.first_name.0|upper }}{{ user.last_name.0|upper }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h1 class="text-3xl font-bold text-gray-800 truncate">{{ user.get_full_name }}</h1>
+                        <p class="text-gray-600">@{{ user.username }}</p>
+                        <p class="text-gray-500">{{ user.email }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- Orders Card -->
+            <div class="stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Orders</p>
+                        <p class="text-3xl font-bold text-blue-600">{{ total_orders|default:0 }}</p>
+                    </div>
+                    <div class="bg-blue-100 rounded-full p-3">
+                        <i data-lucide="shopping-bag" class="w-8 h-8 text-blue-600"></i>
+                    </div>
+                </div>
+                <a href="{% url 'orders:order_list' %}" class="text-blue-600 text-sm mt-2 inline-block hover:underline">
+                    View all orders →
+                </a>
+            </div>
+
+            <!-- Wishlist Card -->
+            <div class="stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Wishlist Items</p>
+                        <p class="text-3xl font-bold text-purple-600">{{ wishlist_count|default:0 }}</p>
+                    </div>
+                    <div class="bg-purple-100 rounded-full p-3">
+                        <i data-lucide="heart" class="w-8 h-8 text-purple-600"></i>
+                    </div>
+                </div>
+                <a href="{% url 'accounts:wishlist' %}"
+                    class="text-purple-600 text-sm mt-2 inline-block hover:underline">
+                    View wishlist →
+                </a>
+            </div>
+
+            <!-- Vouchers Card -->
+            <div class="stat-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">My Vouchers</p>
+                        <p class="text-3xl font-bold text-orange-600">{{ voucher_count|default:0 }}</p>
+                    </div>
+                    <div class="bg-orange-100 rounded-full p-3">
+                        <i data-lucide="ticket" class="w-8 h-8 text-orange-600"></i>
+                    </div>
+                </div>
+                <button type="button" onclick="openVouchersModal()"
+                    class="text-orange-600 text-sm mt-2 inline-block hover:underline cursor-pointer">
+                    View my vouchers →
+                </button>
+            </div>
+        </div>
+
+        <!-- ML Profile Completion Banner - Modern Design -->
+        <div class="bg-white border-2 border-purple-200 rounded-xl shadow-sm p-6 mb-6" id="profile-completion-banner">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div class="flex items-start gap-3">
+                    <div class="bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg p-2.5 flex-shrink-0">
+                        <i data-lucide="user-check" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">Complete Your Shopping Profile</h3>
+                        <p class="text-sm text-gray-600">Get personalized product recommendations tailored just for you</p>
+                    </div>
+                </div>
+                <button onclick="openCompleteProfileModal()" class="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:from-purple-600 hover:to-blue-600 transition-all duration-200 whitespace-nowrap shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                    Complete Now
+                </button>
+            </div>
+            
+            <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-gray-700 font-medium" id="completion-message">Start now to unlock personalized recommendations!</span>
+                    <span class="text-purple-600 font-bold" id="completion-percentage">0%</span>
+                </div>
+                <div class="relative w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500 shadow-sm" id="completion-progress" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Information -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Personal Information -->
+            <div class="info-card">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i data-lucide="user" class="w-6 h-6 mr-2 text-blue-600"></i>
+                    Personal Information
+                </h2>
+                <div class="space-y-3">
+                    <div>
+                        <label class="info-label">Full Name</label>
+                        <p class="info-value" id="display-full-name">{{ user.get_full_name }}</p>
+                    </div>
+                    <div>
+                        <label class="info-label">Username</label>
+                        <p class="info-value">@{{ user.username }}</p>
+                    </div>
+                    <div>
+                        <label class="info-label">Email</label>
+                        <p class="info-value" id="display-email">{{ user.email }}</p>
+                    </div>
+                    <div>
+                        <label class="info-label">Phone</label>
+                        <p class="info-value" id="display-phone">{{ user.phone|default:"Not provided" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Settings -->
+            <div class="info-card">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i data-lucide="settings" class="w-6 h-6 mr-2 text-blue-600"></i>
+                    Account Settings
+                </h2>
+                <div class="space-y-3">
+                    <button onclick="openEditModal()" class="settings-option">
+                        <div class="settings-option-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                            <i data-lucide="edit-2" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Edit Profile</span>
+                            <span class="settings-option-desc">Update your personal information</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                    </button>
+                    <button onclick="openChangePasswordModal()" class="settings-option">
+                        <div class="settings-option-icon">
+                            <i data-lucide="lock" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Change Password</span>
+                            <span class="settings-option-desc">Update your account password</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                    </button>
+                    <button onclick="openAddressesModal()" class="settings-option">
+                        <div class="settings-option-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <i data-lucide="map-pin" class="w-5 h-5"></i>
+                        </div>
+                        <div class="settings-option-content">
+                            <span class="settings-option-title">Manage Addresses</span>
+                            <span class="settings-option-desc">Save and manage your shipping addresses</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shopping Preferences section hidden as requested -->
+
+        <!-- Recent Activity -->
+        {% if recent_orders %}
+        <div class="info-card mt-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <i data-lucide="activity" class="w-6 h-6 mr-2 text-blue-600"></i>
+                Recent Activity
+            </h2>
+            <div class="space-y-3">
+                {% for order in recent_orders %}
+                <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-800">Order #{{ order.id }}</p>
+                        <p class="text-sm text-gray-500">{{ order.created_at|date:"F d, Y" }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold text-gray-800">${{ order.total|floatformat:2 }}</p>
+                        <span class="text-xs px-2 py-1 rounded-full 
+                            {% if order.status == 'delivered' %}bg-green-100 text-green-800
+                            {% elif order.status == 'cancelled' %}bg-red-100 text-red-800
+                            {% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {{ order.status|title }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recently Viewed -->
+        {% if viewing_history_page %}
+        <div class="info-card mt-6">
+            <div class="mb-4">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i data-lucide="eye" class="w-6 h-6 mr-2 text-blue-600"></i>
+                    Recently Viewed
+                </h2>
+                <p class="text-sm text-gray-500 mt-1 ml-8">
+                    Showing {{ viewing_history_page.start_index }} - {{ viewing_history_page.end_index }} of {{ viewing_history_page.paginator.count }} product{{ viewing_history_page.paginator.count|pluralize }}
+                </p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {% for history_item in viewing_history_page %}
+                <a href="{% url 'products:product_detail' sku=history_item.product.sku %}" class="group">
+                    <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200">
+                        <div class="relative h-48 bg-gray-100 overflow-hidden">
+                            {% if history_item.product.images.first %}
+                            <img src="{{ history_item.product.images.first.image.url }}" 
+                                 alt="{{ history_item.product.name }}" 
+                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                            {% else %}
+                            <div class="w-full h-full flex items-center justify-center">
+                                <i data-lucide="package" class="w-16 h-16 text-gray-400"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-semibold text-sm text-gray-800 line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">
+                                {{ history_item.product.name }}
+                            </h3>
+                            <p class="text-xs text-gray-500">{{ history_item.viewed_at|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if viewing_history_page.has_other_pages %}
+            <div class="flex justify-center items-center gap-2 mt-6">
+                {% if viewing_history_page.has_previous %}
+                <a href="?page={{ viewing_history_page.previous_page_number }}"
+                    class="w-10 h-10 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-500 flex items-center justify-center transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </a>
+                {% endif %}
+
+                <span class="px-4 py-2 text-gray-700 font-medium">
+                    Page {{ viewing_history_page.number }} of {{ viewing_history_page.paginator.num_pages }}
+                </span>
+
+                {% if viewing_history_page.has_next %}
+                <a href="?page={{ viewing_history_page.next_page_number }}"
+                    class="w-10 h-10 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-500 flex items-center justify-center transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="changePasswordModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="lock" class="w-6 h-6"></i>
+                Change Password
+            </h2>
+            <button class="modal-close" onclick="closeChangePasswordModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="changePasswordForm" method="POST" class="auth-form" novalidate>
+            {% csrf_token %}
+
+            <!-- Old Password Field -->
+            <div class="form-group">
+                <label for="old_password" class="form-label">
+                    Current Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="old_password" 
+                       id="old_password"
+                       class="form-control" 
+                       placeholder="Enter your current password" 
+                       autocomplete="current-password" 
+                       required>
+                <div class="form-error" id="error-old_password" style="display: none;"></div>
+            </div>
+
+            <!-- New Password Field -->
+            <div class="form-group">
+                <label for="new_password1" class="form-label">
+                    New Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="new_password1" 
+                       id="new_password1"
+                       class="form-control" 
+                       placeholder="Enter your new password" 
+                       autocomplete="new-password" 
+                       required>
+                <div class="form-error" id="error-new_password1" style="display: none;"></div>
+                <small class="form-help">Password must be at least 8 characters long and contain at least one letter.</small>
+            </div>
+
+            <!-- Confirm New Password Field -->
+            <div class="form-group">
+                <label for="new_password2" class="form-label">
+                    Confirm New Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" 
+                       name="new_password2" 
+                       id="new_password2"
+                       class="form-control" 
+                       placeholder="Confirm your new password" 
+                       autocomplete="new-password" 
+                       required>
+                <div class="form-error" id="error-new_password2" style="display: none;"></div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="mt-6">
+                <button type="submit" class="w-full btn-submit">
+                    Change Password
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div id="editProfileModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="edit" class="w-6 h-6"></i>
+                Edit Profile
+            </h2>
+            <button class="modal-close" onclick="closeEditModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="editProfileForm" method="POST" class="auth-form" novalidate>
+            {% csrf_token %}
+
+            <!-- First Name Field -->
+            <div class="form-group">
+                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                    First Name<span class="required-mark">*</span>
+                </label>
+                <input type="text" 
+                       name="{{ form.first_name.name }}" 
+                       id="{{ form.first_name.id_for_label }}"
+                       value="{{ form.first_name.value|default:user.first_name }}"
+                       class="form-control" 
+                       placeholder="Enter your first name" 
+                       autocomplete="given-name" 
+                       required>
+                <div class="form-error" id="error-first_name" style="display: none;"></div>
+                <small class="form-help">{{ form.first_name.help_text }}</small>
+            </div>
+
+            <!-- Last Name Field -->
+            <div class="form-group">
+                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                    Last Name<span class="required-mark">*</span>
+                </label>
+                <input type="text" 
+                       name="{{ form.last_name.name }}" 
+                       id="{{ form.last_name.id_for_label }}"
+                       value="{{ form.last_name.value|default:user.last_name }}"
+                       class="form-control" 
+                       placeholder="Enter your last name" 
+                       autocomplete="family-name" 
+                       required>
+                <div class="form-error" id="error-last_name" style="display: none;"></div>
+                <small class="form-help">{{ form.last_name.help_text }}</small>
+            </div>
+
+            <!-- Email Field -->
+            <div class="form-group">
+                <label for="{{ form.email.id_for_label }}" class="form-label">
+                    Email<span class="required-mark">*</span>
+                </label>
+                <input type="email" 
+                       name="{{ form.email.name }}" 
+                       id="{{ form.email.id_for_label }}"
+                       value="{{ form.email.value|default:user.email }}"
+                       class="form-control" 
+                       placeholder="your@email.com" 
+                       autocomplete="email" 
+                       required>
+                <div class="form-error" id="error-email" style="display: none;"></div>
+                <small class="form-help">{{ form.email.help_text }}</small>
+            </div>
+
+            <!-- Phone Field (if user is Customer) -->
+            {% if user.customer %}
+            <div class="form-group">
+                <label for="phone" class="form-label">
+                    Phone Number
+                </label>
+                <input type="tel" 
+                       name="phone" 
+                       id="phone"
+                       value="{{ user.customer.phone|default:'' }}"
+                       class="form-control" 
+                       placeholder="+65" 
+                       autocomplete="tel">
+                <div class="form-error" id="error-phone" style="display: none;"></div>
+            </div>
+            {% endif %}
+
+            <!-- Submit Button -->
+            <div class="mt-6">
+                <button type="submit" class="w-full btn-submit">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Complete Profile Modal (Step-by-Step Questionnaire) -->
+<div id="completeProfileModal" class="modal">
+    <div class="modal-content" style="max-width: 650px;">
+        <!-- Progress Header -->
+        <div class="mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-900">Complete Your Profile</h2>
+                <button class="modal-close text-gray-400 hover:text-gray-600" onclick="closeCompleteProfileModal()">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex-1 bg-gray-200 rounded-full h-2">
+                    <div id="step-progress-bar" class="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question Container -->
+        <div id="question-container" class="flex flex-col py-2 md:py-4">
+            <!-- Questions will be dynamically inserted here -->
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="flex gap-2 md:gap-3 mt-4 pt-4 border-t border-gray-200">
+            <button type="button" id="prev-btn" onclick="previousQuestion()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg font-semibold text-sm md:text-base text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <i data-lucide="arrow-left" class="w-4 h-4 inline mr-1 md:mr-2"></i>
+                <span class="hidden sm:inline">Previous</span>
+                <span class="inline sm:hidden">Prev</span>
+            </button>
+            <button type="button" id="next-btn" onclick="nextQuestion()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-semibold text-sm md:text-base hover:from-purple-600 hover:to-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Next
+                <i data-lucide="arrow-right" class="w-4 h-4 inline ml-1 md:ml-2"></i>
+            </button>
+            <button type="button" id="finish-btn" onclick="finishQuestionnaire()" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold text-sm md:text-base hover:from-green-600 hover:to-emerald-600 transition hidden">
+                Finish
+                <i data-lucide="check" class="w-4 h-4 inline ml-1 md:ml-2"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Addresses Modal -->
+<div id="addressesModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-6 h-6"></i>
+                Manage Addresses
+            </h2>
+            <button class="modal-close" onclick="closeAddressesModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <!-- Add New Address Button -->
+            <div id="addAddressBtnContainer" style="transition: all 0.3s ease;">
+                <button onclick="openAddAddressModal()" class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-all duration-300 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                    <i data-lucide="plus" class="w-5 h-5 transition-transform duration-300"></i>
+                    <span>Add a new address</span>
+                </button>
+            </div>
+
+            <!-- Addresses List -->
+            <div id="addressesList" class="space-y-3">
+                <!-- Addresses will be loaded here via AJAX -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyAddressesState" class="text-center py-8 hidden">
+                <i data-lucide="map-pin" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                <p class="text-gray-500 mb-4">No saved addresses yet</p>
+                <button onclick="openAddAddressModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Add Your First Address
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Address Confirmation Modal -->
+<div id="deleteAddressModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2" style="margin: 0; font-size: 1.25rem;">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600 flex-shrink-0"></i>
+                <span style="line-height: 1.5;">Delete Address</span>
+            </h2>
+            <button class="modal-close" onclick="closeDeleteAddressModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-700 mb-6">Are you sure you want to delete this address? This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeDeleteAddressModal()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="button" id="confirmDeleteAddressBtn" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vouchers Modal -->
+<div id="vouchersModal" class="modal">
+    <div class="modal-content" style="max-width: 900px; max-height: 85vh; width: 95%; margin: auto;">
+        <div class="modal-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h2 class="flex items-center gap-2" style="margin: 0; font-size: 1.5rem; font-weight: 700;">
+                <i data-lucide="ticket" class="w-6 h-6 text-orange-600"></i>
+                My Vouchers
+            </h2>
+            <button class="modal-close" onclick="closeVouchersModal()" style="background: transparent; border: none; cursor: pointer; padding: 0.5rem; border-radius: 0.5rem; transition: background 0.2s;">
+                <i data-lucide="x" class="w-6 h-6 text-gray-400 hover:text-gray-600"></i>
+            </button>
+        </div>
+        <div class="overflow-y-auto" style="max-height: calc(85vh - 120px); padding-right: 0.5rem;" id="vouchersListContainer">
+            <div class="flex items-center justify-center py-8">
+                <div class="text-center">
+                    <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                    <p class="text-gray-600">Loading vouchers...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Address Modal -->
+<div id="addressFormModal" class="modal">
+    <div class="modal-content" style="max-width: 700px; max-height: 95vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2 class="flex items-center gap-2" id="addressFormTitle">
+                <i data-lucide="map-pin" class="w-6 h-6"></i>
+                Add Address
+            </h2>
+            <button class="modal-close" onclick="closeAddressFormModal()">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="addressForm" method="POST" class="auth-form" novalidate style="padding: 0;">
+            {% csrf_token %}
+
+            <!-- Address Line 1 -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="id_address_line1" class="form-label">
+                    Street Address<span class="required-mark">*</span>
+                </label>
+                <input type="text" name="address_line1" id="id_address_line1" class="form-control" 
+                       placeholder="Street address, P.O. box, etc." required>
+                <div class="form-error" id="error-address_line1" style="display: none;"></div>
+            </div>
+
+            <!-- Address Line 2 -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="id_address_line2" class="form-label">
+                    Address Line 2 (Optional)
+                </label>
+                <input type="text" name="address_line2" id="id_address_line2" class="form-control" 
+                       placeholder="Apartment, suite, unit, etc.">
+                <div class="form-error" id="error-address_line2" style="display: none;"></div>
+            </div>
+
+            <!-- City and State -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="id_city" class="form-label">
+                        City<span class="required-mark">*</span>
+                    </label>
+                    <input type="text" name="city" id="id_city" class="form-control" 
+                           placeholder="City" required>
+                    <div class="form-error" id="error-city" style="display: none;"></div>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="id_state" class="form-label">
+                        State<span class="required-mark">*</span>
+                    </label>
+                    <input type="text" name="state" id="id_state" class="form-control" 
+                           placeholder="State, province, or region" required>
+                    <div class="form-error" id="error-state" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- Postal Code and Country -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="id_postal_code" class="form-label">
+                        Postal Code<span class="required-mark">*</span>
+                    </label>
+                    <input type="text" name="postal_code" id="id_postal_code" class="form-control" 
+                           placeholder="Postal code" required>
+                    <div class="form-error" id="error-postal_code" style="display: none;"></div>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="id_country" class="form-label">
+                        Country<span class="required-mark">*</span>
+                    </label>
+                    <select name="country" id="id_country" class="form-control" required>
+                        <option value="">Select Country</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Thailand">Thailand</option>
+                        <option value="Indonesia">Indonesia</option>
+                        <option value="Philippines">Philippines</option>
+                        <option value="Vietnam">Vietnam</option>
+                        <option value="United States">United States</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Australia">Australia</option>
+                    </select>
+                    <div class="form-error" id="error-country" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- Default Address Checkbox -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="is_default" id="id_is_default" class="form-check-input mr-2">
+                    <span class="text-sm text-gray-700">Set as default shipping address</span>
+                </label>
+            </div>
+
+            <!-- Submit Button -->
+            <div style="margin-top: 1rem;">
+                <button type="submit" class="w-full btn-submit" id="addressSubmitBtn">
+                    Save Address
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global state for questionnaire
+    window.questionnaireState = window.questionnaireState || {};
+
+    // Modal functions - Define globally for onclick handlers
+    function openEditModal() {
+        document.getElementById('editProfileModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Initialize Lucide icons in modal
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeEditModal() {
+        document.getElementById('editProfileModal').classList.remove('active');
+        document.body.style.overflow = 'auto';
+        
+        // Clear errors
+        document.querySelectorAll('#editProfileForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#editProfileForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+    }
+
+    function openChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Initialize Lucide icons in modal
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.remove('active');
+        document.body.style.overflow = 'auto';
+        
+        // Clear form and errors
+        document.getElementById('changePasswordForm').reset();
+        document.querySelectorAll('#changePasswordForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#changePasswordForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+    }
+
+    // Address Management Functions
+    let currentEditingAddressId = null;
+
+    function openAddressesModal() {
+        const modal = document.getElementById('addressesModal');
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Smooth fade in
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            // Load addresses when modal opens
+            loadAddresses();
+        }, 50);
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeAddressesModal() {
+        const modal = document.getElementById('addressesModal');
+        modal.style.transition = 'opacity 0.2s ease';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }, 200);
+    }
+
+    function openAddAddressModal() {
+        currentEditingAddressId = null;
+        const modal = document.getElementById('addressFormModal');
+        document.getElementById('addressFormTitle').innerHTML = '<i data-lucide="map-pin" class="w-6 h-6"></i> Add Address';
+        document.getElementById('addressForm').reset();
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Smooth fade in
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 50);
+        
+        document.querySelectorAll('#addressForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function openEditAddressModal(addressId) {
+        currentEditingAddressId = addressId;
+        const modal = document.getElementById('addressFormModal');
+        document.getElementById('addressFormTitle').innerHTML = '<i data-lucide="map-pin" class="w-6 h-6"></i> Edit Address';
+        
+        // Try to get address data from the DOM first (faster)
+        const addressCard = document.querySelector(`[data-address-id="${addressId}"]`);
+        let address = null;
+        
+        if (addressCard) {
+            const addressDataStr = addressCard.getAttribute('data-address-data');
+            if (addressDataStr) {
+                try {
+                    address = JSON.parse(addressDataStr);
+                } catch (e) {
+                    console.error('Error parsing address data:', e);
+                }
+            }
+        }
+        
+        // Open modal first with smooth animation
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 50);
+        
+        // If not found in DOM, fetch from server
+        if (!address) {
+            fetch('{% url "accounts:addresses" %}', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    address = data.addresses.find(a => a.id == addressId);
+                    if (address) {
+                        fillAddressForm(address);
+                    } else {
+                        console.error('Address not found');
+                        if (window.toast) {
+                            window.toast.error('Address not found. Please refresh and try again.');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading address:', error);
+                    if (window.toast) {
+                        window.toast.error('Failed to load address data. Please try again.');
+                    }
+                });
+        } else {
+            // Fill form immediately if we have the data with smooth transition
+            setTimeout(() => {
+                fillAddressForm(address);
+            }, 100);
+        }
+        
+        document.querySelectorAll('#addressForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function fillAddressForm(address) {
+        // Fill in the form fields with existing address data with smooth transitions
+        const fields = [
+            { id: 'id_address_line1', value: address.address_line1 || '' },
+            { id: 'id_address_line2', value: address.address_line2 || '' },
+            { id: 'id_city', value: address.city || '' },
+            { id: 'id_state', value: address.state || '' },
+            { id: 'id_postal_code', value: address.postal_code || '' },
+            { id: 'id_country', value: address.country || '' }
+        ];
+        
+        fields.forEach((field, index) => {
+            setTimeout(() => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    element.style.transition = 'all 0.2s ease';
+                    element.value = field.value;
+                }
+            }, index * 30);
+        });
+        
+        // Set checkbox
+        const checkbox = document.getElementById('id_is_default');
+        if (checkbox) {
+            checkbox.checked = address.is_default || false;
+        }
+    }
+
+    function closeAddressFormModal() {
+        const modal = document.getElementById('addressFormModal');
+        modal.style.transition = 'opacity 0.2s ease';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            currentEditingAddressId = null;
+        }, 200);
+    }
+
+    function loadAddresses() {
+        const addressesList = document.getElementById('addressesList');
+        const emptyState = document.getElementById('emptyAddressesState');
+        const addBtnContainer = document.getElementById('addAddressBtnContainer');
+        
+        // Show loading state with smooth fade
+        addressesList.style.opacity = '0.5';
+        addressesList.innerHTML = '<div class="text-center py-4 text-gray-500 address-loading">Loading addresses...</div>';
+        
+        fetch('{% url "accounts:addresses" %}', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Fade out current content
+                addressesList.style.transition = 'opacity 0.2s ease';
+                addressesList.style.opacity = '0';
+                
+                setTimeout(() => {
+                    addressesList.innerHTML = '';
+                    addressesList.style.opacity = '1';
+                    
+                    if (data.addresses && data.addresses.length > 0) {
+                        emptyState.classList.add('hidden');
+                        addBtnContainer.style.display = data.address_count >= 3 ? 'none' : 'block';
+                        
+                        // Add addresses with staggered animation
+                        data.addresses.forEach((address, index) => {
+                            setTimeout(() => {
+                                const addressCard = createAddressCard(address);
+                                addressCard.style.animationDelay = `${index * 0.05}s`;
+                                addressesList.appendChild(addressCard);
+                                
+                                // Reinitialize Lucide icons for this card
+                                if (typeof lucide !== 'undefined') {
+                                    lucide.createIcons();
+                                }
+                            }, index * 50);
+                        });
+                    } else {
+                        emptyState.classList.remove('hidden');
+                        emptyState.style.animation = 'fadeIn 0.3s ease-out';
+                        addBtnContainer.style.display = 'block';
+                    }
+                }, 200);
+            })
+            .catch(error => {
+                console.error('Error loading addresses:', error);
+                addressesList.style.opacity = '1';
+                addressesList.innerHTML = '<div class="text-center py-4 text-red-500" style="animation: fadeIn 0.3s ease-out;">Error loading addresses. Please try again.</div>';
+                if (window.toast) {
+                    window.toast.error('Failed to load addresses. Please refresh the page.');
+                }
+            });
+    }
+
+    function createAddressCard(address) {
+        const card = document.createElement('div');
+        card.className = 'address-card border border-gray-200 rounded-lg p-4 hover:border-blue-500';
+        if (address.is_default) {
+            card.classList.add('bg-blue-50', 'border-blue-300');
+        }
+        
+        // Store address data in a data attribute for easy access
+        card.setAttribute('data-address-id', address.id);
+        card.setAttribute('data-address-data', JSON.stringify(address));
+        
+        const addressLines = [
+            address.address_line1,
+            address.address_line2,
+            `${address.city}, ${address.state} ${address.postal_code}`,
+            address.country
+        ].filter(line => line && line.trim());
+        
+        card.innerHTML = `
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    ${address.is_default ? '<span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded mb-2 transition-all duration-300">Default</span>' : ''}
+                    <div class="text-sm text-gray-700 space-y-1">
+                        ${addressLines.map(line => `<div class="transition-opacity duration-200">${line}</div>`).join('')}
+                    </div>
+                </div>
+                <div class="flex gap-2 ml-4">
+                    <button onclick="openEditAddressModal(${address.id})" class="address-action-btn p-2 text-blue-600 hover:bg-blue-50 rounded transition-all duration-200" title="Edit address">
+                        <i data-lucide="edit" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="deleteAddress(${address.id})" class="address-action-btn p-2 text-red-600 hover:bg-red-50 rounded transition-all duration-200" title="Delete address">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                    ${!address.is_default ? `<button onclick="setDefaultAddress(${address.id})" class="address-action-btn p-2 text-gray-600 hover:bg-gray-50 rounded transition-all duration-200" title="Set as default">
+                        <i data-lucide="star" class="w-4 h-4"></i>
+                    </button>` : ''}
+                </div>
+            </div>
+        `;
+        
+        return card;
+    }
+
+    let pendingDeleteAddressId = null;
+
+    function deleteAddress(addressId) {
+        pendingDeleteAddressId = addressId;
+        openDeleteAddressModal();
+    }
+
+    function openDeleteAddressModal() {
+        const modal = document.getElementById('deleteAddressModal');
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Smooth fade in
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 50);
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    }
+
+    function closeDeleteAddressModal() {
+        const modal = document.getElementById('deleteAddressModal');
+        modal.style.transition = 'opacity 0.2s ease';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            pendingDeleteAddressId = null;
+        }, 200);
+    }
+
+    function confirmDeleteAddress() {
+        if (!pendingDeleteAddressId) {
+            return;
+        }
+        
+        const addressId = pendingDeleteAddressId;
+        const confirmBtn = document.getElementById('confirmDeleteAddressBtn');
+        const originalText = confirmBtn.textContent;
+        
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Delete';
+        
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch(`{% url "accounts:delete_address" 0 %}`.replace('0', addressId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (window.toast) {
+                    window.toast.success(data.message);
+                }
+                // Close modal with smooth transition
+                closeDeleteAddressModal();
+                // Reload addresses list after modal closes
+                setTimeout(() => {
+                    loadAddresses();
+                }, 250);
+            } else {
+                if (window.toast) {
+                    window.toast.error(data.message || 'Failed to delete address');
+                }
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            }
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = originalText;
+        });
+    }
+
+    function setDefaultAddress(addressId) {
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch(`{% url "accounts:set_default_address" 0 %}`.replace('0', addressId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (window.toast) {
+                    window.toast.success(data.message);
+                }
+                // Reload addresses list to show updated default status with smooth transition
+                setTimeout(() => {
+                    loadAddresses();
+                }, 200);
+            } else {
+                if (window.toast) {
+                    window.toast.error(data.message || 'Failed to set default address');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            }
+        });
+    }
+
+    function openCompleteProfileModal() {
+        const currentStep = window.questionnaireState.questions.findIndex(q => !window.questionnaireState.userAnswers[q.id]);
+        window.questionnaireState.currentStep = currentStep === -1 ? 0 : currentStep;
+        window.questionnaireState.renderQuestion();
+        window.questionnaireState.updateProgress();
+        window.questionnaireState.updateButtons();
+        document.getElementById('completeProfileModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }, 100);
+    }
+
+    function closeCompleteProfileModal() {
+        document.getElementById('completeProfileModal').classList.remove('active');
+        document.body.style.overflow = '';
+        if (typeof calculateProfileCompletion === 'function') {
+            calculateProfileCompletion();
+        }
+    }
+
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Close modal when clicking outside
+        document.getElementById('editProfileModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+
+    // Close complete profile modal when clicking outside
+    document.getElementById('completeProfileModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeCompleteProfileModal();
+        }
+    });
+
+    // Close change password modal when clicking outside
+    document.getElementById('changePasswordModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeChangePasswordModal();
+        }
+    });
+
+    // Close addresses modal when clicking outside
+    document.getElementById('addressesModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAddressesModal();
+        }
+    });
+
+    // Close address form modal when clicking outside
+    document.getElementById('addressFormModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAddressFormModal();
+        }
+    });
+
+    // Close delete address modal when clicking outside
+    document.getElementById('deleteAddressModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDeleteAddressModal();
+        }
+    });
+
+    // Handle confirm delete button click
+    document.getElementById('confirmDeleteAddressBtn').addEventListener('click', confirmDeleteAddress);
+
+    // Handle address form submission
+    document.getElementById('addressForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+        
+        // Clear previous errors
+        document.querySelectorAll('#addressForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#addressForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        const formData = new FormData(form);
+        const url = currentEditingAddressId 
+            ? `{% url "accounts:edit_address" 0 %}`.replace('0', currentEditingAddressId)
+            : '{% url "accounts:add_address" %}';
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                if (window.toast) {
+                    window.toast.success(data.message);
+                }
+                
+                // Close modal with smooth transition
+                closeAddressFormModal();
+                // Reload addresses list after modal closes
+                setTimeout(() => {
+                    loadAddresses();
+                }, 250);
+            } else {
+                if (window.toast) {
+                    window.toast.error(data.message || 'Please correct the errors below.');
+                }
+                
+                // Display field errors
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorEl = document.getElementById(`error-${field}`);
+                        const inputEl = document.getElementById(`id_${field}`);
+                        
+                        if (errorEl && errors.length > 0) {
+                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.style.display = 'flex';
+                        }
+                        
+                        if (inputEl) {
+                            inputEl.classList.add('error');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            }
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+        }
+    });
+
+
+    // // Shopping interest form submission
+    // document.getElementById('shoppingInterestForm').addEventListener('submit', async function(e) {
+    //     e.preventDefault();
+    //     
+    //     const category = document.getElementById('selected_category').value;
+    //     if (!category) {
+    //         if (window.toast) {
+    //             window.toast.error('Please select a shopping interest');
+    //         }
+    //         return;
+    //     }
+
+    //     const submitBtn = document.getElementById('saveShoppingInterestBtn');
+    //     submitBtn.disabled = true;
+    //     submitBtn.textContent = 'Saving...';
+
+    //     try {
+    //         const response = await fetch('/accounts/ajax/shopping-interest/', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/x-www-form-urlencoded',
+    //                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    //             },
+    //             body: `shopping_interest=${encodeURIComponent(category)}`
+    //         });
+
+    //         const data = await response.json();
+
+    //         if (data.success) {
+    //             if (window.toast) {
+    //                 window.toast.success(data.message);
+    //             }
+    //             // Update button text and reload to show new category
+    //             closeShoppingInterestModal();
+    //             setTimeout(() => {
+    //                 window.location.reload();
+    //             }, 500);
+    //         } else {
+    //             if (window.toast) {
+    //                 window.toast.error(data.message || 'Failed to update shopping interest');
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error:', error);
+    //         if (window.toast) {
+    //             window.toast.error('An error occurred. Please try again.');
+    //         }
+    //     } finally {
+    //         submitBtn.disabled = false;
+    //         submitBtn.textContent = 'Save Changes';
+    //     }
+    // });
+
+    // Handle form submission
+    document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+        form.classList.add('loading');
+        
+        // Clear previous errors
+        document.querySelectorAll('.form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('.form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('{% url "accounts:profile" %}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show success toast
+                if (window.toast) {
+                    window.toast.success(data.message);
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message, 'success');
+                }
+                
+                // Update displayed information
+                if (data.user) {
+                    document.getElementById('display-full-name').textContent = data.user.full_name;
+                    document.getElementById('display-email').textContent = data.user.email;
+                    document.getElementById('display-phone').textContent = data.user.phone || 'Not provided';
+                    
+                    
+                    // Update header
+                    document.querySelectorAll('h1').forEach(el => {
+                        if (el.textContent.includes('@')) return;
+                        el.textContent = data.user.full_name;
+                    });
+                }
+                
+                // Close modal
+                setTimeout(() => {
+                    closeEditModal();
+                }, 500);
+                
+            } else {
+                // Show error toast
+                if (window.toast) {
+                    window.toast.error(data.message || 'Please correct the errors below.');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Please correct the errors below.', 'error');
+                }
+                
+                // Display field errors
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorEl = document.getElementById(`error-${field}`);
+                        const inputEl = document.getElementById(`id_${field}`);
+                        
+                        if (errorEl && errors.length > 0) {
+                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.style.display = 'flex';
+                        }
+                        
+                        if (inputEl) {
+                            inputEl.classList.add('error');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            } else if (window.AuroraMart && window.AuroraMart.toast) {
+                window.AuroraMart.toast('An error occurred. Please try again.', 'error');
+            }
+        } finally {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+            form.classList.remove('loading');
+        }
+    });
+
+    // Handle change password form submission
+    document.getElementById('changePasswordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Changing...';
+        form.classList.add('loading');
+        
+        // Clear previous errors
+        document.querySelectorAll('#changePasswordForm .form-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#changePasswordForm .form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('{% url "accounts:change_password" %}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show success toast
+                if (window.toast) {
+                    window.toast.success(data.message || 'Password changed successfully!');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Password changed successfully!', 'success');
+                }
+                
+                // Close modal
+                setTimeout(() => {
+                    closeChangePasswordModal();
+                }, 500);
+                
+            } else {
+                // Show error toast
+                if (window.toast) {
+                    window.toast.error(data.message || 'Please correct the errors below.');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Please correct the errors below.', 'error');
+                }
+                
+                // Display field errors
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorEl = document.getElementById(`error-${field}`);
+                        const inputEl = document.getElementById(field);
+                        
+                        if (errorEl && errors.length > 0) {
+                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.style.display = 'flex';
+                        }
+                        
+                        if (inputEl) {
+                            inputEl.classList.add('error');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            if (window.toast) {
+                window.toast.error('An error occurred. Please try again.');
+            } else if (window.AuroraMart && window.AuroraMart.toast) {
+                window.AuroraMart.toast('An error occurred. Please try again.', 'error');
+            }
+        } finally {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+            form.classList.remove('loading');
+        }
+    });
+
+    // Real-time validation
+    document.querySelectorAll('.form-control').forEach(input => {
+        input.addEventListener('blur', function() {
+            const errorEl = document.getElementById(`error-${this.name}`);
+            if (errorEl) {
+                errorEl.style.display = 'none';
+            }
+            this.classList.remove('error');
+        });
+
+        input.addEventListener('input', function() {
+            if (this.classList.contains('error')) {
+                this.classList.remove('error');
+                const errorEl = document.getElementById(`error-${this.name}`);
+                if (errorEl) {
+                    errorEl.style.display = 'none';
+                }
+            }
+        });
+    });
+
+    // Initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+
+    // Calculate profile completion for ML recommendations
+    // Store previous percentage to detect when reaching 100%
+    let previousCompletionPercentage = null;
+    
+    function calculateProfileCompletion() {
+        // Check each field - for boolean fields, check if not null (answered, whether true or false)
+        const mlFields = {
+            age: {{ user.age|yesno:"true,false" }},
+            gender: {{ user.gender|yesno:"true,false" }},
+            employment_status: {{ user.employment_status|yesno:"true,false" }},
+            occupation: {{ user.occupation|yesno:"true,false" }},
+            education: {{ user.education|yesno:"true,false" }},
+            household_size: {{ user.household_size|yesno:"true,false" }},
+            has_children: {{ user.has_children|yesno:"true,true,false" }},  // Count as complete if True OR False (not None)
+            monthly_income_sgd: {{ user.monthly_income_sgd|yesno:"true,false" }}
+        };
+        
+        const totalFields = Object.keys(mlFields).length;
+        const completedFields = Object.values(mlFields).filter(v => v === true).length;
+        const percentage = Math.round((completedFields / totalFields) * 100);
+        
+        // Update UI
+        const progressBar = document.getElementById('completion-progress');
+        const percentageText = document.getElementById('completion-percentage');
+        const messageEl = document.getElementById('completion-message');
+        const banner = document.getElementById('profile-completion-banner');
+        
+        if (progressBar && percentageText) {
+            progressBar.style.width = percentage + '%';
+            percentageText.textContent = percentage + '%';
+            
+            // Check if we just reached 100% (not on initial load)
+            const justReached100 = percentage === 100 && previousCompletionPercentage !== null && previousCompletionPercentage < 100;
+            
+            // Update message based on completion
+            if (percentage === 100) {
+                messageEl.textContent = '✓ Profile complete! Enjoying personalized recommendations';
+                
+                // Show success feedback when reaching 100%
+                if (justReached100) {
+                    // Show success message briefly before hiding
+                    if (window.toast) {
+                        window.toast.success('🎉 Congratulations! Your profile is now 100% complete! You\'ll receive personalized recommendations.');
+                    } else if (window.AuroraMart && window.AuroraMart.toast) {
+                        window.AuroraMart.toast('🎉 Congratulations! Your profile is now 100% complete! You\'ll receive personalized recommendations.', 'success');
+                    }
+                    
+                    // Show success message in banner for 2 seconds before hiding
+                    setTimeout(() => {
+                        if (banner) {
+                banner.style.display = 'none';
+                        }
+                    }, 2000);
+                } else {
+                    // Hide banner immediately if already at 100%
+                    banner.style.display = 'none';
+                }
+            } else {
+                banner.style.display = 'block';
+                messageEl.textContent = 'Get personalized product recommendations tailored just for you';
+            }
+        }
+        
+        // Update previous percentage
+        previousCompletionPercentage = percentage;
+        
+        return percentage;
+    }
+    
+    // Calculate on page load
+    calculateProfileCompletion();
+
+    // Step-by-Step Questionnaire System - Initialize state
+    window.questionnaireState.questions = [
+        {
+            id: 'age',
+            title: "What's your age?",
+            icon: 'calendar',
+            type: 'number',
+            placeholder: 'Enter your age',
+            min: 13,
+            max: 120
+        },
+        {
+            id: 'gender',
+            title: "What's your gender?",
+            icon: 'users',
+            type: 'tiles',
+            options: [
+                { value: 'Male', label: 'Male' },
+                { value: 'Female', label: 'Female' }
+            ],
+            cols: 2
+        },
+        {
+            id: 'employment_status',
+            title: "What's your employment status?",
+            icon: 'building',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select employment status' },
+                { value: 'Full-time', label: 'Full-time' },
+                { value: 'Part-time', label: 'Part-time' },
+                { value: 'Student', label: 'Student' },
+                { value: 'Self-employed', label: 'Self-employed' },
+                { value: 'Retired', label: 'Retired' }
+            ]
+        },
+        {
+            id: 'occupation',
+            title: "What's your occupation?",
+            icon: 'briefcase',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select occupation' },
+                { value: 'Tech', label: 'Technology/IT' },
+                { value: 'Sales', label: 'Sales & Marketing' },
+                { value: 'Service', label: 'Service Industry' },
+                { value: 'Admin', label: 'Administrative' },
+                { value: 'Education', label: 'Education' },
+                { value: 'Skilled Trades', label: 'Skilled Trades' },
+                { value: 'Healthcare', label: 'Healthcare' },
+                { value: 'Finance', label: 'Finance & Banking' },
+                { value: 'Other', label: 'Other' }
+            ]
+        },
+        {
+            id: 'education',
+            title: "What's your education level?",
+            icon: 'graduation-cap',
+            type: 'select',
+            options: [
+                { value: '', label: 'Select education level' },
+                { value: 'Secondary', label: 'Secondary/High School' },
+                { value: 'Diploma', label: 'Diploma/Certificate' },
+                { value: 'Bachelor', label: 'Bachelor\'s Degree' },
+                { value: 'Master', label: 'Master\'s Degree' },
+                { value: 'Doctorate', label: 'Doctorate/PhD' }
+            ]
+        },
+        {
+            id: 'household_size',
+            title: "What's your household size?",
+            icon: 'home',
+            type: 'number',
+            placeholder: 'Number of people in household',
+            min: 1,
+            max: 20
+        },
+        {
+            id: 'has_children',
+            title: "Do you have children?",
+            icon: 'baby',
+            type: 'tiles',
+            options: [
+                { value: 'true', label: 'Yes' },
+                { value: 'false', label: 'No' }
+            ],
+            cols: 2
+        },
+        {
+            id: 'monthly_income_sgd',
+            title: "What's your monthly income (SGD)?",
+            icon: 'dollar-sign',
+            type: 'number',
+            placeholder: 'Enter monthly income in SGD',
+            min: 0,
+            step: 0.01
+        }
+    ];
+
+    window.questionnaireState.currentStep = 0;
+    window.questionnaireState.userAnswers = {
+        age: "{{ user.age|default:'' }}",
+        gender: "{{ user.gender|default:'' }}",
+        employment_status: "{{ user.employment_status|default:'' }}",
+        occupation: "{{ user.occupation|default:'' }}",
+        education: "{{ user.education|default:'' }}",
+        household_size: "{{ user.household_size|default:'' }}",
+        has_children: "{{ user.has_children|yesno:'true,false,' }}",
+        monthly_income_sgd: "{{ user.monthly_income_sgd|default:'' }}"
+    };
+
+    window.openCompleteProfileModal = function() {
+        const currentStep = window.questionnaireState.questions.findIndex(q => !window.questionnaireState.userAnswers[q.id]);
+        window.questionnaireState.currentStep = currentStep === -1 ? 0 : currentStep;
+        window.questionnaireState.renderQuestion();
+        window.questionnaireState.updateProgress();
+        window.questionnaireState.updateButtons();
+        document.getElementById('completeProfileModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }, 100);
+    };
+
+    window.closeCompleteProfileModal = function() {
+        document.getElementById('completeProfileModal').classList.remove('active');
+        document.body.style.overflow = '';
+        if (typeof calculateProfileCompletion === 'function') {
+            calculateProfileCompletion();
+        }
+    };
+
+    window.questionnaireState.renderQuestion = function() {
+        const question = window.questionnaireState.questions[window.questionnaireState.currentStep];
+        const container = document.getElementById('question-container');
+        
+        let html = `
+            <div class="question-step animate-fade-in">
+                <div class="flex items-center gap-3 mb-4 md:mb-5">
+                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center text-white flex-shrink-0">
+                        <i data-lucide="${question.icon}" class="w-5 h-5 md:w-6 md:h-6"></i>
+                    </div>
+                    <h3 class="text-lg md:text-xl font-bold text-gray-900">${question.title}</h3>
+                </div>
+        `;
+
+        if (question.type === 'tiles') {
+            // Special handling for household_size (5 options) - use responsive grid
+            let gridCols = question.id === 'household_size' 
+                ? 'grid-cols-3 md:grid-cols-5' 
+                : `grid-cols-${question.cols}`;
+            html += `<div class="grid ${gridCols} gap-2 md:gap-3">`;
+            question.options.forEach(opt => {
+                const isSelected = window.questionnaireState.userAnswers[question.id] === opt.value;
+                html += `
+                    <button type="button" 
+                            onclick="window.questionnaireState.selectTileAnswer('${question.id}', '${opt.value}')"
+                            class="tile-btn ${isSelected ? 'active' : ''} py-3 px-2 md:px-4 text-base md:text-lg font-semibold transition-all hover:scale-105">
+                        ${opt.label}
+                    </button>
+                `;
+            });
+            html += `</div>`;
+        } else if (question.type === 'select') {
+            html += `
+                <select onchange="window.questionnaireState.selectDropdownAnswer('${question.id}', this.value)"
+                        class="form-control text-base md:text-lg p-3 md:p-4 w-full">
+            `;
+            question.options.forEach(opt => {
+                const isSelected = window.questionnaireState.userAnswers[question.id] === opt.value;
+                html += `<option value="${opt.value}" ${isSelected ? 'selected' : ''}>${opt.label}</option>`;
+            });
+            html += `</select>`;
+        } else if (question.type === 'number') {
+            const currentValue = window.questionnaireState.userAnswers[question.id] || '';
+            html += `
+                <input type="number" 
+                       id="${question.id}-input"
+                       value="${currentValue}"
+                       placeholder="${question.placeholder || ''}"
+                       min="${question.min || ''}"
+                       max="${question.max || ''}"
+                       step="${question.step || '1'}"
+                       onchange="window.questionnaireState.selectNumberAnswer('${question.id}', this.value)"
+                       onblur="window.questionnaireState.selectNumberAnswer('${question.id}', this.value)"
+                       class="form-control text-base md:text-lg p-3 md:p-4 w-full">
+            `;
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+
+        // Reinitialize Lucide icons
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    };
+
+    window.questionnaireState.selectTileAnswer = function(field, value) {
+        window.questionnaireState.userAnswers[field] = value;
+        window.questionnaireState.saveAnswer(field, value);
+        
+        // Auto-advance after short delay
+        setTimeout(() => {
+            if (window.questionnaireState.currentStep < window.questionnaireState.questions.length - 1) {
+                window.questionnaireState.nextQuestion();
+            } else {
+                window.questionnaireState.updateButtons();
+                window.questionnaireState.updateProgress();
+            }
+        }, 300);
+    };
+
+    window.questionnaireState.selectDropdownAnswer = function(field, value) {
+        if (value) { // Only save if not empty
+            window.questionnaireState.userAnswers[field] = value;
+            window.questionnaireState.saveAnswer(field, value);
+        }
+    };
+
+    window.questionnaireState.selectNumberAnswer = function(field, value) {
+        if (value && value.trim() !== '') { // Only save if not empty
+            window.questionnaireState.userAnswers[field] = value;
+            window.questionnaireState.saveAnswer(field, value);
+        }
+    };
+
+    window.questionnaireState.saveAnswer = function(field, value) {
+        // Auto-save via AJAX
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append(field, value);
+
+        fetch('{% url "accounts:update_demographics" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update progress
+                window.questionnaireState.updateProgress();
+                
+                // Show subtle save indicator
+                const badge = document.querySelector('.completion-badge');
+                if (badge) {
+                    badge.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    setTimeout(() => {
+                        badge.innerHTML = '<i data-lucide="user-check" class="w-4 h-4"></i>';
+                        if (typeof lucide !== 'undefined') lucide.createIcons();
+                    }, 1000);
+                }
+            }
+        })
+        .catch(error => console.error('Save error:', error));
+    }
+
+    window.questionnaireState.nextQuestion = function() {
+        if (window.questionnaireState.currentStep < window.questionnaireState.questions.length - 1) {
+            window.questionnaireState.currentStep++;
+            window.questionnaireState.renderQuestion();
+            window.questionnaireState.updateButtons();
+            window.questionnaireState.updateProgress();
+        }
+    }
+
+    window.questionnaireState.previousQuestion = function() {
+        if (window.questionnaireState.currentStep > 0) {
+            window.questionnaireState.currentStep--;
+            window.questionnaireState.renderQuestion();
+            window.questionnaireState.updateButtons();
+            window.questionnaireState.updateProgress();
+        }
+    }
+
+    window.questionnaireState.updateProgress = function() {
+        const answeredCount = Object.values(window.questionnaireState.userAnswers).filter(v => v && v !== '').length;
+        const percentage = Math.round((answeredCount / window.questionnaireState.questions.length) * 100);
+        
+        document.getElementById('step-progress-bar').style.width = percentage + '%';
+        
+        // Also update main profile completion
+        calculateProfileCompletion();
+    }
+
+    window.questionnaireState.updateButtons = function() {
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const finishBtn = document.getElementById('finish-btn');
+        
+        // Previous button
+        prevBtn.disabled = window.questionnaireState.currentStep === 0;
+        
+        // Next/Finish buttons
+        if (window.questionnaireState.currentStep === window.questionnaireState.questions.length - 1) {
+            nextBtn.classList.add('hidden');
+            finishBtn.classList.remove('hidden');
+        } else {
+            nextBtn.classList.remove('hidden');
+            finishBtn.classList.add('hidden');
+        }
+    }
+
+    window.questionnaireState.finishQuestionnaire = function() {
+        window.closeCompleteProfileModal();
+        
+        // Show success toast
+        if (window.toast) {
+            window.toast.success('Profile updated successfully! Enjoy personalized recommendations.');
+        } else if (window.AuroraMart && window.AuroraMart.toast) {
+            window.AuroraMart.toast('Profile updated successfully!', 'success');
+        }
+        
+        // Refresh the page after a short delay to show updated data
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    }
+
+    // Add CSS animation only once
+    if (!window.__auroramart_questionnaire_style__) {
+        var style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fade-in {
+                animation: fadeIn 0.3s ease-out;
+            }
+            .tile-btn.active {
+                background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%) !important;
+                color: white !important;
+                border-color: transparent !important;
+                box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3) !important;
+            }
+        `;
+        document.head.appendChild(style);
+        window.__auroramart_questionnaire_style__ = true;
+    }
+
+    // Expose functions globally for onclick handlers
+    window.nextQuestion = window.questionnaireState.nextQuestion;
+    window.previousQuestion = window.questionnaireState.previousQuestion;
+    window.finishQuestionnaire = window.questionnaireState.finishQuestionnaire;
+
+    // Vouchers Modal Functions - Define globally for onclick handlers
+    window.openVouchersModal = function() {
+        const modal = document.getElementById('vouchersModal');
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        loadVouchers();
+        
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 100);
+    };
+
+    window.closeVouchersModal = function() {
+        const modal = document.getElementById('vouchersModal');
+        modal.style.transition = 'opacity 0.2s ease';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }, 200);
+    };
+
+    function loadVouchers() {
+        const container = document.getElementById('vouchersListContainer');
+        container.innerHTML = `
+            <div class="flex items-center justify-center py-8">
+                <div class="text-center">
+                    <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                    <p class="text-gray-600">Loading vouchers...</p>
+                </div>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+
+        fetch('{% url "vouchers:my_vouchers_json" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayVouchers(data);
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <i data-lucide="alert-circle" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+                            <p class="text-gray-600">Failed to load vouchers.</p>
+                        </div>
+                    `;
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-3"></i>
+                        <p class="text-gray-600">An error occurred. Please try again.</p>
+                    </div>
+                `;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            });
+    }
+
+    function displayVouchers(data) {
+        const container = document.getElementById('vouchersListContainer');
+        let html = '';
+
+        // Available Vouchers
+        if (data.available && data.available.length > 0) {
+            html += `
+                <div class="mb-8">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1 h-5 bg-green-500 rounded-full"></div>
+                        <h3 class="text-base font-bold text-gray-900">Available Vouchers</h3>
+                        <span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full">${data.available.length}</span>
+                    </div>
+                    <div class="space-y-3">
+                        ${data.available.map(v => createVoucherCard(v)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Used Vouchers
+        if (data.used && data.used.length > 0) {
+            html += `
+                <div class="mb-8">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1 h-5 bg-gray-400 rounded-full"></div>
+                        <h3 class="text-base font-bold text-gray-900">Used Vouchers</h3>
+                        <span class="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs font-medium rounded-full">${data.used.length}</span>
+                    </div>
+                    <div class="space-y-3">
+                        ${data.used.map(v => createVoucherCard(v)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Expired Vouchers
+        if (data.expired && data.expired.length > 0) {
+            html += `
+                <div class="mb-8">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1 h-5 bg-gray-400 rounded-full"></div>
+                        <h3 class="text-base font-bold text-gray-900">Expired Vouchers</h3>
+                        <span class="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs font-medium rounded-full">${data.expired.length}</span>
+                    </div>
+                    <div class="space-y-3">
+                        ${data.expired.map(v => createVoucherCard(v)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Empty State
+        if (!data.available?.length && !data.used?.length && !data.expired?.length) {
+            html = `
+                <div class="text-center py-12">
+                    <i data-lucide="ticket" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                    <p class="text-gray-600 font-medium mb-1">No vouchers available</p>
+                    <p class="text-sm text-gray-500">Check back later for special offers!</p>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    function createVoucherCard(voucher) {
+        const statusLabels = {
+            'available': 'Available',
+            'used': 'Used',
+            'expired': 'Expired',
+            'unavailable': 'Unavailable'
+        };
+
+        const discountText = getDiscountText(voucher);
+        const discountDisplay = getDiscountDisplay(voucher);
+        const statusLabel = statusLabels[voucher.status] || 'Available';
+        
+        const statusBadgeClass = voucher.status === 'available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                 voucher.status === 'used' ? 'bg-gray-50 text-gray-600 border-gray-200' :
+                                 'bg-gray-50 text-gray-500 border-gray-200';
+        
+        const couponBgClass = voucher.status === 'available' ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600' : 'bg-gradient-to-br from-gray-400 to-gray-500';
+        const borderClass = voucher.status === 'available' ? 'border-blue-300' : 'border-gray-300';
+        const textColor = voucher.status === 'available' ? 'text-white' : 'text-gray-100';
+        const hoverClass = voucher.status === 'available' ? 'hover:scale-[1.02] hover:border-blue-400 hover:shadow-2xl' : 'hover:scale-[1.01]';
+
+        return `
+            <div class="relative bg-white border-2 ${borderClass} rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer group ${voucher.status !== 'available' ? 'opacity-75' : ''} ${hoverClass}" 
+                 onclick="showVoucherDetails(${voucher.id})" style="max-width: 100%;">
+                <!-- Decorative background pattern -->
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-200 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                    <div class="absolute bottom-0 left-0 w-24 h-24 bg-indigo-200 rounded-full blur-2xl -ml-12 -mb-12"></div>
+                </div>
+                
+                <div class="flex relative z-10">
+                    <!-- Left side - Discount section (coupon stub) -->
+                    <div class="${couponBgClass} w-[40%] flex-shrink-0 flex flex-col items-center justify-center px-6 py-7 relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                        <!-- Animated background pattern -->
+                        <div class="absolute inset-0 opacity-10">
+                            <div class="absolute top-0 right-0 w-20 h-20 bg-white rounded-full -mr-10 -mt-10"></div>
+                            <div class="absolute bottom-0 left-0 w-16 h-16 bg-white rounded-full -ml-8 -mb-8"></div>
+                        </div>
+                        <!-- Perforated edge on the right -->
+                        <div class="absolute right-0 top-0 bottom-0 w-4 flex flex-col justify-center" style="background: repeating-linear-gradient(to bottom, transparent, transparent 5px, rgba(255,255,255,0.4) 5px, rgba(255,255,255,0.4) 9px);"></div>
+                        <div class="text-center ${textColor} relative z-10 transform group-hover:scale-110 transition-transform duration-300">
+                            <p class="text-xs uppercase tracking-widest font-bold mb-3 opacity-90">Save</p>
+                            <p class="text-5xl font-black leading-none mb-2 drop-shadow-lg">${discountDisplay.main}</p>
+                            ${discountDisplay.label ? `<p class="text-sm font-bold uppercase tracking-wider mt-2 opacity-95">${discountDisplay.label}</p>` : ''}
+                            ${discountDisplay.subtext ? `<p class="text-xs mt-3 opacity-80 font-medium">${discountDisplay.subtext}</p>` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Right side - Details section -->
+                    <div class="flex-1 p-6 bg-white group-hover:bg-gray-50 transition-colors duration-300">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                    <span class="px-3.5 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 shadow-sm group-hover:shadow-md transition-shadow duration-300" style="font-family: 'Courier New', monospace; letter-spacing: 0.1em;">${voucher.promo_code}</span>
+                                    <span class="px-3 py-1 border rounded-full text-xs font-semibold ${statusBadgeClass} shadow-sm">
+                                        ${statusLabel}
+                                    </span>
+                                </div>
+                                <h4 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">${voucher.name}</h4>
+                                ${voucher.description ? `<p class="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed">${voucher.description}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-gray-200 group-hover:border-gray-300 transition-colors duration-300">
+                            <div class="flex items-center gap-2 text-xs text-gray-500 group-hover:text-gray-600 transition-colors duration-300">
+                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                                <span>${voucher.status === 'expired' ? `Expired ${voucher.end_date}` : `Expires ${voucher.end_date}`}</span>
+                            </div>
+                            ${voucher.remaining_uses > 0 && voucher.status === 'available' ? 
+                                `<span class="text-xs text-gray-500 font-semibold group-hover:text-blue-600 transition-colors duration-300">${voucher.remaining_uses} use${voucher.remaining_uses > 1 ? 's' : ''} left</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Shine effect on hover -->
+                <div class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></div>
+            </div>
+        `;
+    }
+
+    function getDiscountText(voucher) {
+        if (voucher.discount_type === 'percent') {
+            return `${voucher.discount_value}% OFF${voucher.max_discount ? ` (up to $${parseFloat(voucher.max_discount).toFixed(2)})` : ''}`;
+        } else if (voucher.discount_type === 'fixed') {
+            return `$${parseFloat(voucher.discount_value).toFixed(2)} OFF`;
+        } else if (voucher.discount_type === 'free_shipping') {
+            return 'FREE SHIPPING';
+        }
+        return 'Discount';
+    }
+    
+    function getDiscountDisplay(voucher) {
+        // Returns an object with main discount and label for coupon display
+        if (voucher.discount_type === 'percent') {
+            return {
+                main: `${voucher.discount_value}%`,
+                label: 'OFF',
+                subtext: voucher.max_discount ? `Up to $${parseFloat(voucher.max_discount).toFixed(2)}` : null
+            };
+        } else if (voucher.discount_type === 'fixed') {
+            return {
+                main: `$${parseFloat(voucher.discount_value).toFixed(2)}`,
+                label: 'OFF',
+                subtext: null
+            };
+        } else if (voucher.discount_type === 'free_shipping') {
+            return {
+                main: 'FREE',
+                label: 'SHIPPING',
+                subtext: null
+            };
+        }
+        return {
+            main: 'Discount',
+            label: '',
+            subtext: null
+        };
+    }
+
+    // Voucher Detail Functions - Replace vouchers list content
+    window.showVoucherDetails = function(voucherId) {
+        const container = document.getElementById('vouchersListContainer');
+        const modalHeader = document.querySelector('#vouchersModal .modal-header h2');
+        
+        // Show loading state
+        container.innerHTML = `
+            <div class="flex items-center justify-center py-8">
+                <div class="text-center">
+                    <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                    <p class="text-gray-600">Loading voucher details...</p>
+                </div>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // Update header to show back button
+        const originalHeader = modalHeader.innerHTML;
+        modalHeader.innerHTML = `
+            <button onclick="backToVouchersList()" class="mr-3 text-gray-600 hover:text-gray-900 transition">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <i data-lucide="ticket" class="w-6 h-6 text-orange-600"></i>
+            Voucher Details
+        `;
+        
+        // Fetch voucher details
+        fetch(`{% url "vouchers:voucher_detail_json" 0 %}`.replace('0', voucherId))
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayVoucherDetails(data, originalHeader);
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-3"></i>
+                            <p class="text-gray-600">${data.error || 'Failed to load voucher details.'}</p>
+                            <button onclick="backToVouchersList()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                Back
+                            </button>
+                        </div>
+                    `;
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-3"></i>
+                        <p class="text-gray-600">Failed to load voucher details.</p>
+                        <button onclick="backToVouchersList()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            Back
+                        </button>
+                    </div>
+                `;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            });
+    };
+
+    window.backToVouchersList = function() {
+        const container = document.getElementById('vouchersListContainer');
+        const modalHeader = document.querySelector('#vouchersModal .modal-header h2');
+        
+        // Restore original header
+        modalHeader.innerHTML = `
+            <i data-lucide="ticket" class="w-6 h-6 text-orange-600"></i>
+            My Vouchers
+        `;
+        
+        // Reload vouchers list
+        loadVouchers();
+        
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    };
+
+    function displayVoucherDetails(data, originalHeader) {
+        const voucher = data.voucher;
+        const container = document.getElementById('vouchersListContainer');
+        
+        const discountText = getDiscountText(voucher);
+        const statusBadgeClass = voucher.can_use && voucher.is_valid ? 'bg-green-50 text-green-700 border-green-200' : 
+                                !voucher.is_valid ? 'bg-gray-50 text-gray-600 border-gray-200' : 
+                                'bg-gray-50 text-gray-600 border-gray-200';
+        const statusText = voucher.can_use && voucher.is_valid ? 'Available' : 
+                          !voucher.is_valid ? 'Expired' : 
+                          'Unavailable';
+        
+        let html = `
+            <div class="space-y-4 animate-fadeIn">
+                <!-- Voucher Header -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-3">
+                                <span class="font-mono text-base font-semibold text-gray-900">${voucher.promo_code}</span>
+                                <span class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full ${voucher.can_use && voucher.is_valid ? 'bg-green-500' : 'bg-gray-400'}"></span>
+                                    <span class="text-xs text-gray-500">${statusText}</span>
+                                </span>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-900 mb-2">${voucher.name}</h3>
+                            ${voucher.description ? `<p class="text-gray-600 leading-relaxed">${voucher.description}</p>` : ''}
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-gray-100">
+                        <p class="text-3xl font-bold text-gray-900">${discountText}</p>
+                        ${voucher.max_discount && voucher.discount_type === 'percent' ? `
+                        <p class="text-sm text-gray-500 mt-1">Maximum discount: $${parseFloat(voucher.max_discount).toFixed(2)}</p>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Details -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">Details</h4>
+                    <div class="space-y-3">
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600">Valid From</span>
+                            <span class="text-sm font-medium text-gray-900">${voucher.start_date}</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600">Expires</span>
+                            <span class="text-sm font-medium text-gray-900">${voucher.end_date}</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600">Times Used</span>
+                            <span class="text-sm font-medium text-gray-900">${voucher.usage_count} of ${voucher.max_uses_per_user}</span>
+                        </div>
+                        ${voucher.remaining_uses > 0 ? `
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600">Remaining Uses</span>
+                            <span class="text-sm font-medium text-green-600">${voucher.remaining_uses}</span>
+                        </div>
+                        ` : ''}
+                        ${voucher.min_purchase ? `
+                        <div class="flex justify-between py-2">
+                            <span class="text-sm text-gray-600">Minimum Purchase</span>
+                            <span class="text-sm font-medium text-gray-900">$${parseFloat(voucher.min_purchase).toFixed(2)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Restrictions -->
+                ${(voucher.first_time_only || voucher.exclude_sale_items) ? `
+                <div class="space-y-3">
+                    ${voucher.first_time_only ? `
+                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <i data-lucide="info" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 mb-1">First-Time Customer Only</p>
+                                <p class="text-xs text-gray-600">This voucher is exclusively for first-time customers.</p>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${voucher.exclude_sale_items ? `
+                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <i data-lucide="alert-circle" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 mb-1">Excludes Sale Items</p>
+                                <p class="text-xs text-gray-600">This voucher cannot be applied to items already on sale.</p>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+                ` : ''}
+                
+                ${data.usage_history && data.usage_history.length > 0 ? `
+                <!-- Usage History -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">Usage History</h4>
+                    <div class="space-y-2">
+                        ${data.usage_history.map(usage => `
+                            <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">Order ${usage.order_number}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">${usage.used_at}</p>
+                                </div>
+                                <p class="text-sm font-semibold text-green-600">-$${parseFloat(usage.discount_amount).toFixed(2)}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    // Close vouchers modal when clicking outside
+    document.getElementById('vouchersModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeVouchersModal();
+        }
+    });
+}); // End of DOMContentLoaded
+</script>
+{% endblock %}
+

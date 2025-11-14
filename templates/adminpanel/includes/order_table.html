@@ -1,0 +1,62 @@
+{% load static %}
+
+{% if orders %}
+    <div class="overflow-x-auto">
+        <table class="orders-table" style="background: transparent;">
+            <thead>
+                <tr>
+                    <th>Order Number</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Location</th>
+                    <th>Total</th>
+                    <th>Date</th>
+                    <th>Items</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in orders %}
+                    {% with order=item.order search_type=item.search_type %}
+                        <tr>
+                            <td>
+                                <div class="order-number">{{ order.order_number }}</div>
+                                {% if search_type == 'order' %}
+                                    <span class="search-type-badge search-type-order">Order Search</span>
+                                {% else %}
+                                    <span class="search-type-badge search-type-customer">Customer Search</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="customer-name">{{ order.user.get_full_name|default:order.user.username }}</div>
+                                <div class="customer-username">@{{ order.user.username }}</div>
+                            </td>
+                            <td>
+                                <span class="order-status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+                            </td>
+                            <td>
+                                <span class="location-badge">{{ order.get_current_location_display }}</span>
+                            </td>
+                            <td class="order-total">${{ order.total }}</td>
+                            <td class="order-date">{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                            <td class="text-sm text-gray-700">{{ order.items.count }} item{{ order.items.count|pluralize }}</td>
+                            <td>
+                                <a href="{% url 'adminpanel:edit_order' order.id %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}" class="btn-edit">
+                                    <i data-lucide="edit" class="w-4 h-4 inline"></i> Update
+                                </a>
+                            </td>
+                        </tr>
+                    {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="no-results">No orders found. Try a different search term.</div>
+{% endif %}
+
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>

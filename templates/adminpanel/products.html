@@ -1,0 +1,435 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block admin_title %}Product Management{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .search-input {
+        width: 100%;
+        padding: 0.875rem 1.25rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        background: white;
+        color: #2d3748;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #a78bfa;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.1);
+        background: #fafafa;
+    }
+
+    .search-input::placeholder {
+        color: #a0aec0;
+    }
+
+    .products-table-container {
+        display: block;
+    }
+
+    .products-table-wrapper {
+        background: rgba(237, 233, 254, 0.4);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(196, 181, 253, 0.3);
+    }
+
+    .products-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 0;
+        background: transparent;
+    }
+
+    .products-table thead {
+        background: rgba(237, 233, 254, 0.6);
+        border-radius: 0.75rem 0.75rem 0 0;
+    }
+
+    .products-table thead th:first-child {
+        border-top-left-radius: 0.75rem;
+    }
+
+    .products-table thead th:last-child {
+        border-top-right-radius: 0.75rem;
+    }
+
+    .products-table th {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        font-weight: 600;
+        color: #5b21b6;
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid rgba(196, 181, 253, 0.4);
+    }
+
+    .products-table tbody tr {
+        background: rgba(255, 255, 255, 0.7);
+        transition: all 0.2s ease;
+    }
+
+    .products-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.95);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+    }
+
+    .products-table tbody tr:last-child td:first-child {
+        border-bottom-left-radius: 0.75rem;
+    }
+
+    .products-table tbody tr:last-child td:last-child {
+        border-bottom-right-radius: 0.75rem;
+    }
+
+    .products-table td {
+        padding: 1.125rem 1.25rem;
+        border-bottom: 1px solid rgba(196, 181, 253, 0.2);
+        vertical-align: top;
+    }
+
+    .products-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .product-image {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 0.5rem;
+        border: 2px solid #e5e7eb;
+    }
+
+    .product-name {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .product-sku {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.125rem;
+    }
+
+    .product-category {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    .stock-badge {
+        display: inline-block;
+        padding: 0.25rem 0.625rem;
+        border-radius: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .stock-in-stock {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .stock-low {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .stock-out {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.625rem;
+        border-radius: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .btn-edit {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        padding: 0.625rem 1.125rem;
+        border: none;
+        border-radius: 0.625rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+    }
+
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    }
+
+    .review-item {
+        padding: 0.75rem;
+        margin-bottom: 0.625rem;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 0.625rem;
+        border-left: 3px solid #a78bfa;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.25rem;
+    }
+
+    .review-user {
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: #1f2937;
+    }
+
+    .review-rating {
+        color: #fbbf24;
+        font-size: 0.75rem;
+    }
+
+    .review-title {
+        font-size: 0.75rem;
+        color: #374151;
+        margin-bottom: 0.125rem;
+        font-weight: 500;
+    }
+
+    .review-comment {
+        font-size: 0.688rem;
+        color: #6b7280;
+        line-height: 1.4;
+    }
+
+    .review-date {
+        font-size: 0.625rem;
+        color: #9ca3af;
+        margin-top: 0.25rem;
+    }
+
+    .no-reviews {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    .loading-state, .no-results {
+        text-align: center;
+        padding: 2.5rem;
+        color: #6b7280;
+    }
+
+    .search-instructions {
+        background: rgba(237, 233, 254, 0.3);
+        padding: 4rem 2rem;
+        border-radius: 1.25rem;
+        margin-top: 1.5rem;
+        text-align: center;
+        border: 1px solid rgba(196, 181, 253, 0.3);
+    }
+
+    .search-instructions h3 {
+        color: #5b21b6;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+
+    .search-instructions p {
+        color: #64748b;
+        font-size: 0.9375rem;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="admin-content-header">
+    <h2>Product Management</h2>
+    <p>Search and edit product details</p>
+</div>
+
+<div class="admin-content-body">
+    <div class="mb-6">
+        <form method="get" id="productSearchForm">
+            {{ form.query }}
+        </form>
+    </div>
+
+    <!-- Search Instructions -->
+    <div class="search-instructions" id="searchInstructions" style="display: none;">
+        <div class="text-6xl mb-5">🔍</div>
+        <h3 class="text-xl font-semibold">Search for Products</h3>
+        <p>Start typing a product name or SKU to search. Results will appear in real-time as you type.</p>
+    </div>
+
+    <!-- Products Table -->
+    <div class="products-table-container" id="productsTableContainer">
+        <h3 id="tableHeader" class="text-lg font-semibold text-gray-900 mb-6 pb-3 border-b-2 border-purple-300" style="color: #5b21b6;">
+            {% if search_query %}
+                Search Results for "{{ search_query }}"
+            {% else %}
+                All Products
+            {% endif %}
+        </h3>
+        <div id="productsTableLoading" class="loading-state" style="display: none;">
+            <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2"></i>
+            Loading products...
+        </div>
+        <div id="productsTableContent">
+            {% if products_data %}
+                <div class="products-table-wrapper">
+                    {% include 'adminpanel/includes/product_table.html' with products=products_data search_query=search_query %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+// Real-time search with debouncing
+let searchTimeout = null;
+const DEBOUNCE_DELAY = 300;
+
+const searchInput = document.getElementById('searchInput');
+const searchForm = document.getElementById('productSearchForm');
+const productsTableContainer = document.getElementById('productsTableContainer');
+const productsTableContent = document.getElementById('productsTableContent');
+const productsTableLoading = document.getElementById('productsTableLoading');
+const searchInstructions = document.getElementById('searchInstructions');
+const tableHeader = document.getElementById('tableHeader');
+
+if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, DEBOUNCE_DELAY);
+    });
+
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = e.target.value.trim();
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            performSearch(query);
+        }
+    });
+}
+
+if (searchForm) {
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const query = searchInput ? searchInput.value.trim() : '';
+        performSearch(query);
+    });
+}
+
+function performSearch(query) {
+    if (tableHeader) {
+        if (query && query.trim()) {
+            tableHeader.textContent = `Search Results for "${query}"`;
+        } else {
+            tableHeader.textContent = 'All Products';
+        }
+    }
+    
+    if (productsTableLoading) {
+        productsTableLoading.style.display = 'block';
+    }
+    if (productsTableContent) {
+        productsTableContent.innerHTML = '';
+    }
+    if (searchInstructions) {
+        searchInstructions.style.display = 'none';
+    }
+    
+    const searchUrl = `{% url 'adminpanel:search_product' %}?query=${encodeURIComponent(query || '')}`;
+    
+    fetch(searchUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            if (productsTableLoading) {
+                productsTableLoading.style.display = 'none';
+            }
+            
+            if (productsTableContent) {
+                // Wrap the table in the purple wrapper if it contains a table
+                if (html.includes('<table')) {
+                    productsTableContent.innerHTML = '<div class="products-table-wrapper">' + html + '</div>';
+                } else {
+                    productsTableContent.innerHTML = html;
+                }
+            }
+            
+            if (searchInstructions && html.trim().length > 0) {
+                searchInstructions.style.display = 'none';
+            }
+            
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        })
+        .catch(error => {
+            if (productsTableLoading) {
+                productsTableLoading.style.display = 'none';
+            }
+            if (productsTableContent) {
+                productsTableContent.innerHTML = '<div class="no-results text-red-600">❌ Error searching products. Please try again.</div>';
+            }
+            console.error('Error:', error);
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const hasInitialContent = productsTableContent && productsTableContent.innerHTML.trim().length > 0;
+    
+    if (!hasInitialContent) {
+        performSearch('');
+    }
+    
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1431 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Checkout - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen py-8">
+    <div class="container mx-auto px-4">
+        <!-- Back to Cart Button -->
+        <div class="mb-4">
+            <a href="{% url 'cart:cart_detail' %}" 
+               class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Back to Cart
+            </a>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="mb-8">
+            <div class="flex items-center justify-center">
+                <div class="flex items-center">
+                    <div class="flex items-center text-green-600">
+                        <div class="rounded-full h-10 w-10 flex items-center justify-center bg-green-600 text-white font-semibold">
+                            <i data-lucide="check" class="w-6 h-6"></i>
+                        </div>
+                        <span class="ml-2 font-semibold">Cart</span>
+                    </div>
+                    <div class="w-24 h-1 bg-blue-600 mx-4"></div>
+                    <div class="flex items-center text-blue-600">
+                        <div class="rounded-full h-10 w-10 flex items-center justify-center bg-blue-600 text-white font-semibold">2</div>
+                        <span class="ml-2 font-semibold">Checkout</span>
+                    </div>
+                    <div class="w-24 h-1 bg-gray-300 mx-4"></div>
+                    <div class="flex items-center text-gray-400">
+                        <div class="rounded-full h-10 w-10 flex items-center justify-center bg-gray-300 text-gray-600 font-semibold">3</div>
+                        <span class="ml-2">Complete</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Voucher Selection Modal -->
+        <div id="voucherModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
+            <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col transform transition-all scale-95 opacity-0" id="voucherModalContent">
+                <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                    <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <i data-lucide="ticket" class="w-6 h-6 text-orange-600"></i>
+                        Available Vouchers
+                    </h3>
+                    <button type="button" id="closeVoucherModal" class="text-gray-400 hover:text-gray-600 transition">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto flex-1" id="voucherListContainer">
+                    <div class="flex items-center justify-center py-8">
+                        <div class="text-center">
+                            <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                            <p class="text-gray-600">Loading vouchers...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
+            <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all scale-95 opacity-0" id="modalContent">
+                <div class="p-6">
+                    <div class="flex items-center justify-center w-16 h-16 mx-auto bg-blue-100 rounded-full mb-4">
+                        <i data-lucide="shopping-cart" class="w-8 h-8 text-blue-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-center text-gray-900 mb-2">Confirm Your Order</h3>
+                    <p class="text-center text-gray-600 mb-6">Are you sure you want to place this order?</p>
+                    
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-600">Order Total:</span>
+                            <span class="font-bold text-gray-900">${{ total|floatformat:2 }}</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span>Payment Method:</span>
+                            <span id="selectedPaymentMethod">Credit Card</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3">
+                        <button type="button" 
+                                id="cancelButton"
+                                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition">
+                            Cancel
+                        </button>
+                        <button type="button" 
+                                id="confirmButton"
+                                class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Confirm Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="bg-gray-50 min-h-screen py-6">
+            <div class="container mx-auto px-4">
+                <form method="post" action="{% url 'orders:process_checkout' %}" id="checkoutForm">
+                    {% csrf_token %}
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left Column - Checkout Form (2 columns) -->
+                        <div class="lg:col-span-2 space-y-5">
+                            
+                            <!-- Contact Information -->
+                            <div class="bg-white rounded-lg shadow-sm p-6">
+                                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                    <i data-lucide="user" class="w-5 h-5 mr-2 text-blue-600"></i>
+                                    Contact Information
+                                </h2>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                                        <input type="text" id="full_name" name="full_name" 
+                                               value="{% if user.first_name or user.last_name %}{{ user.first_name|default:'' }} {{ user.last_name|default:'' }}{% else %}{{ user.username }}{% endif %}"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                        <input type="email" id="email" name="email" 
+                                               value="{{ user.email }}"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Shipping Address -->
+                            <div class="bg-white rounded-lg shadow-sm p-6">
+                                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                    <i data-lucide="map-pin" class="w-5 h-5 mr-2 text-blue-600"></i>
+                                    Shipping Address
+                                </h2>
+                                
+                                <!-- Saved Addresses Selection -->
+                                {% if saved_addresses %}
+                                <div class="mb-4">
+                                    <!-- Default Address Display (shown by default) -->
+                                    {% if default_address %}
+                                    <div id="defaultAddressDisplay" class="mb-4">
+                                        <div class="flex items-start justify-between p-3 border-2 border-blue-300 rounded-lg bg-blue-50">
+                                            <div class="flex items-start flex-1">
+                                                <input type="radio" name="selected_address" value="{{ default_address.id }}" 
+                                                       class="mt-1 mr-3 address-radio" 
+                                                       checked="checked">
+                                                <div class="flex-1">
+                                                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded mb-2">Default</span>
+                                                    <div class="text-sm text-gray-700">
+                                                        <div>{{ default_address.address_line1 }}</div>
+                                                        {% if default_address.address_line2 %}
+                                                        <div>{{ default_address.address_line2 }}</div>
+                                                        {% endif %}
+                                                        <div>{{ default_address.city }}, {{ default_address.state }} {{ default_address.postal_code }}</div>
+                                                        <div>{{ default_address.country }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button type="button" onclick="showAllAddresses()" class="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer transition-colors duration-200 ml-4" style="background: transparent; border: none; padding: 0; white-space: nowrap;">
+                                                Change
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- All Addresses Selection (hidden by default, shown when "Change" is clicked) -->
+                                    <div id="allAddressesSelection" style="display: none;" class="mb-4">
+                                        <div class="space-y-2 mb-4" id="savedAddressesList">
+                                            {% for address in saved_addresses %}
+                                            <label class="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition address-option" style="pointer-events: auto;">
+                                                <input type="radio" name="selected_address" value="{{ address.id }}" 
+                                                       class="mt-1 mr-3 address-radio" 
+                                                       {% if address.is_default %}checked{% endif %}>
+                                                <div class="flex-1">
+                                                    {% if address.is_default %}
+                                                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded mb-1">Default</span>
+                                                    {% endif %}
+                                                    <div class="text-sm text-gray-700">
+                                                        <div>{{ address.address_line1 }}</div>
+                                                        {% if address.address_line2 %}
+                                                        <div>{{ address.address_line2 }}</div>
+                                                        {% endif %}
+                                                        <div>{{ address.city }}, {{ address.state }} {{ address.postal_code }}</div>
+                                                        <div>{{ address.country }}</div>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        <button type="button" id="useNewAddressBtn" class="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer transition-colors duration-200" style="pointer-events: auto; z-index: 10; position: relative; background: transparent; border: none; padding: 0;">
+                                            + Use a new address
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Address Form (shown by default if no saved addresses, or when "Use new address" is clicked) -->
+                                <div class="space-y-4" id="addressFormSection" {% if saved_addresses %}style="display: none;"{% endif %}>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Street Address *</label>
+                                        <input type="text" id="street_address" name="street_address"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               placeholder="123 Main Street, Apt 4B"
+                                               required>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">City *</label>
+                                            <input type="text" id="city" name="city"
+                                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                   placeholder="Singapore"
+                                                   required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Postal Code *</label>
+                                            <input type="text" id="postal_code" name="postal_code"
+                                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                   placeholder="10001"
+                                                   required>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Country *</label>
+                                        <select id="country" name="country"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                required>
+                                            <option value="">Select Country</option>
+                                            <option value="Singapore">Singapore</option>
+                                            <option value="Malaysia">Malaysia</option>
+                                            <option value="Thailand">Thailand</option>
+                                            <option value="Indonesia">Indonesia</option>
+                                            <option value="Philippines">Philippines</option>
+                                            <option value="Vietnam">Vietnam</option>
+                                            <option value="United States">United States</option>
+                                            <option value="United Kingdom">United Kingdom</option>
+                                            <option value="Australia">Australia</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- Phone and Delivery Notes (always visible) -->
+                                <div class="space-y-4 mt-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                                        <input type="tel" id="phone" name="phone"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               placeholder="+65 1234 5678"
+                                               required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Delivery Notes (Optional)</label>
+                                        <textarea id="delivery_notes" name="delivery_notes"
+                                                  rows="3"
+                                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                  placeholder="Any special instructions for delivery..."></textarea>
+                                    </div>
+                                </div>
+                                {% if saved_addresses %}
+                                <div id="backToSavedAddresses" style="display: none;" class="mt-4">
+                                    <button type="button" onclick="showSavedAddresses()" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                        ← Back to saved addresses
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Billing Address -->
+                            <div class="bg-white rounded-lg shadow-sm p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                        <i data-lucide="credit-card" class="w-5 h-5 mr-2 text-blue-600"></i>
+                                        Billing Address
+                                    </h2>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="checkbox" id="sameAsShipping" checked
+                                               class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                        <span class="ml-2 text-sm text-gray-700">Same as shipping</span>
+                                    </label>
+                                </div>
+                                
+                                <div id="billingAddressSection" class="hidden space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Street Address</label>
+                                        <input type="text" id="billing_street" name="billing_street"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               placeholder="123 Main Street, Apt 4B">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">City</label>
+                                            <input type="text" id="billing_city" name="billing_city"
+                                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                   placeholder="New York">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
+                                            <input type="text" id="billing_postal" name="billing_postal"
+                                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                   placeholder="10001">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                                        <select id="billing_country" name="billing_country"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                            <option value="">Select Country</option>
+                                            <option value="Singapore">Singapore</option>
+                                            <option value="Malaysia">Malaysia</option>
+                                            <option value="Thailand">Thailand</option>
+                                            <option value="Indonesia">Indonesia</option>
+                                            <option value="Philippines">Philippines</option>
+                                            <option value="Vietnam">Vietnam</option>
+                                            <option value="United States">United States</option>
+                                            <option value="United Kingdom">United Kingdom</option>
+                                            <option value="Australia">Australia</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Method -->
+                            <div class="bg-white rounded-lg shadow-sm p-6">
+                                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                    <i data-lucide="wallet" class="w-5 h-5 mr-2 text-blue-600"></i>
+                                    Payment Method
+                                </h2>
+                                <div class="space-y-3">
+                                    <label class="flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
+                                        <input type="radio" name="payment_method" value="credit_card" checked
+                                               class="payment-radio w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                        <div class="ml-3 flex items-center">
+                                            <i data-lucide="credit-card" class="w-5 h-5 text-gray-600 mr-2"></i>
+                                            <span class="text-sm font-medium text-gray-900">Credit/Debit Card</span>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
+                                        <input type="radio" name="payment_method" value="paypal"
+                                               class="payment-radio w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                        <div class="ml-3 flex items-center">
+                                            <i data-lucide="smartphone" class="w-5 h-5 text-gray-600 mr-2"></i>
+                                            <span class="text-sm font-medium text-gray-900">PayPal</span>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
+                                        <input type="radio" name="payment_method" value="bank_transfer"
+                                               class="payment-radio w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                        <div class="ml-3 flex items-center">
+                                            <i data-lucide="building" class="w-5 h-5 text-gray-600 mr-2"></i>
+                                            <span class="text-sm font-medium text-gray-900">Bank Transfer</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Order Summary (1 column) -->
+                        <div class="lg:col-span-1">
+                            <div id="orderSummary" class="bg-white rounded-lg shadow-sm p-6 sticky top-4 transition-transform duration-300">
+                                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                    <i data-lucide="shopping-bag" class="w-5 h-5 mr-2 text-blue-600"></i>
+                                    Order Summary
+                                </h2>
+                                
+                                <!-- Cart Items -->
+                                <div class="space-y-4 mb-4 max-h-64 overflow-y-auto">
+                                    {% for item in cart_items %}
+                                    <div class="flex items-start space-x-3 pb-3 border-b border-gray-100">
+                                        {% if item.product.images.first %}
+                                        <img src="{{ item.product.images.first.image.url }}" 
+                                             alt="{{ item.product.name }}"
+                                             class="w-16 h-16 object-cover rounded-lg">
+                                        {% else %}
+                                        <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                            <i data-lucide="image" class="w-6 h-6 text-gray-400"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div class="flex-1 min-w-0">
+                                            <h3 class="text-sm font-medium text-gray-900 truncate">{{ item.product.name }}</h3>
+                                            {% if item.product_variant %}
+                                            <p class="text-xs text-gray-500">{{ item.product_variant.name }}</p>
+                                            {% endif %}
+                                            <p class="text-sm text-gray-600">Qty: {{ item.quantity }}</p>
+                                        </div>
+                                        <div class="text-sm font-medium text-gray-900">
+                                            ${% if item.product_variant %}{{ item.product_variant.price|floatformat:2 }}{% else %}{{ item.product.price|floatformat:2 }}{% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <!-- Voucher Code Section -->
+                                <div class="py-4 border-t border-gray-200">
+                                    <div id="voucherSection">
+                                        {% if voucher_code %}
+                                        <!-- Applied Voucher Display -->
+                                        <div id="appliedVoucher" class="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center gap-2">
+                                                    <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-green-900">{{ voucher_code }}</p>
+                                                        <p class="text-xs text-green-700">Discount: ${{ discount|floatformat:2 }}</p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" id="removeVoucherBtn" class="text-red-600 hover:text-red-700 text-sm font-medium">
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <!-- Voucher Input Form -->
+                                        <div id="voucherInputForm">
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Have a voucher code?</label>
+                                            <div class="flex gap-2 mb-2">
+                                                <input type="text" 
+                                                       id="voucherCodeInput" 
+                                                       placeholder="Enter code"
+                                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm uppercase"
+                                                       maxlength="100">
+                                                <button type="button" 
+                                                        id="applyVoucherBtn"
+                                                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                                                    Apply
+                                                </button>
+                                            </div>
+                                            <button type="button" 
+                                                    id="browseVouchersBtn"
+                                                    class="w-full px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition font-medium border border-blue-200">
+                                                <i data-lucide="gift" class="w-4 h-4 inline mr-1"></i>
+                                                Browse Available Vouchers
+                                            </button>
+                                            <div id="voucherMessage" class="mt-2 text-sm"></div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Price Breakdown -->
+                                <div class="space-y-2 py-4 border-t border-gray-200">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Subtotal</span>
+                                        <span class="text-gray-900" id="displaySubtotal">${{ subtotal|floatformat:2 }}</span>
+                                    </div>
+                                    {% if discount %}
+                                    <div class="flex justify-between text-sm text-green-600">
+                                        <span>Discount</span>
+                                        <span id="displayDiscount">-${{ discount|floatformat:2 }}</span>
+                                    </div>
+                                    {% endif %}
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Tax (10%)</span>
+                                        <span class="text-gray-900" id="displayTax">${{ tax|floatformat:2 }}</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Shipping</span>
+                                        <span class="text-gray-900" id="displayShipping">${{ shipping|floatformat:2 }}</span>
+                                    </div>
+                                    <div class="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+                                        <span class="text-gray-900">Total</span>
+                                        <span class="text-blue-600" id="displayTotal">${{ total|floatformat:2 }}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Place Order Button -->
+                                <button type="button" id="submitButton"
+                                        class="place-order-btn w-full text-white py-3 px-6 rounded-lg font-bold flex items-center justify-center gap-2 mt-4">
+                                    <i data-lucide="lock" class="w-4 h-4"></i>
+                                    <span id="buttonText">Place Order</span>
+                                </button>
+                                
+                                <p class="text-xs text-gray-500 text-center mt-3">
+                                    <i data-lucide="shield-check" class="w-3 h-3 inline"></i>
+                                    Your payment information is secure
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <style>
+        @keyframes modalSlideIn {
+            from {
+                transform: scale(0.95) translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-show {
+            display: flex !important;
+        }
+
+        .modal-show #modalContent,
+        .modal-show #voucherModalContent {
+            animation: modalSlideIn 0.3s ease-out forwards;
+        }
+
+        .summary-compact {
+            transform: scale(0.95);
+        }
+
+        .place-order-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            border-radius: 0.625rem;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .place-order-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .place-order-btn:hover::before {
+            left: 100%;
+        }
+
+        .place-order-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .place-order-btn:active {
+            transform: translateY(0);
+        }
+        </style>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Lucide icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
+            // Ensure default address radio button is checked on page load
+            const defaultAddressDisplay = document.getElementById('defaultAddressDisplay');
+            if (defaultAddressDisplay) {
+                const defaultRadio = defaultAddressDisplay.querySelector('.address-radio');
+                if (defaultRadio) {
+                    defaultRadio.checked = true;
+                    // Uncheck any other address radios to ensure only default is selected
+                    document.querySelectorAll('.address-radio').forEach(radio => {
+                        if (radio !== defaultRadio) {
+                            radio.checked = false;
+                        }
+                    });
+                }
+            }
+
+            // Toggle billing address section
+            const sameAsShippingCheckbox = document.getElementById('sameAsShipping');
+            const billingAddressSection = document.getElementById('billingAddressSection');
+
+            if (sameAsShippingCheckbox && billingAddressSection) {
+                sameAsShippingCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        billingAddressSection.classList.add('hidden');
+                    } else {
+                        billingAddressSection.classList.remove('hidden');
+                    }
+                });
+            }
+
+            // Show all addresses when "Change" is clicked
+            window.showAllAddresses = function() {
+                const defaultAddressDisplay = document.getElementById('defaultAddressDisplay');
+                const allAddressesSelection = document.getElementById('allAddressesSelection');
+                
+                if (defaultAddressDisplay) {
+                    defaultAddressDisplay.style.display = 'none';
+                }
+                if (allAddressesSelection) {
+                    allAddressesSelection.style.display = 'block';
+                    allAddressesSelection.style.animation = 'fadeIn 0.3s ease-out';
+                }
+            };
+
+            // Address selection functions
+            window.showNewAddressForm = function() {
+                console.log('showNewAddressForm called');
+                const addressFormSection = document.getElementById('addressFormSection');
+                const allAddressesSelection = document.getElementById('allAddressesSelection');
+                const backToSavedAddresses = document.getElementById('backToSavedAddresses');
+                
+                if (addressFormSection) {
+                    addressFormSection.style.display = 'block';
+                    addressFormSection.style.animation = 'fadeIn 0.3s ease-out';
+                }
+                if (allAddressesSelection) {
+                    allAddressesSelection.style.display = 'none';
+                }
+                if (backToSavedAddresses) {
+                    backToSavedAddresses.style.display = 'block';
+                }
+                
+                // Uncheck all address radios
+                document.querySelectorAll('.address-radio').forEach(radio => radio.checked = false);
+                
+                // Make form fields required
+                const streetAddress = document.getElementById('street_address');
+                const city = document.getElementById('city');
+                const postalCode = document.getElementById('postal_code');
+                const country = document.getElementById('country');
+                const phone = document.getElementById('phone');
+                
+                if (streetAddress) streetAddress.required = true;
+                if (city) city.required = true;
+                if (postalCode) postalCode.required = true;
+                if (country) country.required = true;
+                if (phone) phone.required = true;
+            };
+
+            window.showSavedAddresses = function() {
+                console.log('showSavedAddresses called');
+                const addressFormSection = document.getElementById('addressFormSection');
+                const defaultAddressDisplay = document.getElementById('defaultAddressDisplay');
+                const allAddressesSelection = document.getElementById('allAddressesSelection');
+                const backToSavedAddresses = document.getElementById('backToSavedAddresses');
+                
+                if (addressFormSection) {
+                    addressFormSection.style.display = 'none';
+                }
+                if (backToSavedAddresses) {
+                    backToSavedAddresses.style.display = 'none';
+                }
+                
+                // Show default address if it exists, otherwise show all addresses
+                if (defaultAddressDisplay) {
+                    defaultAddressDisplay.style.display = 'block';
+                    defaultAddressDisplay.style.animation = 'fadeIn 0.3s ease-out';
+                }
+                if (allAddressesSelection) {
+                    allAddressesSelection.style.display = 'none';
+                }
+                
+                // Make form fields not required when using saved address
+                const streetAddress = document.getElementById('street_address');
+                const city = document.getElementById('city');
+                const postalCode = document.getElementById('postal_code');
+                const country = document.getElementById('country');
+                const phone = document.getElementById('phone');
+                
+                if (streetAddress) streetAddress.required = false;
+                if (city) city.required = false;
+                if (postalCode) postalCode.required = false;
+                if (country) country.required = false;
+                if (phone) phone.required = true;
+            };
+
+            // Handle saved address selection
+            document.querySelectorAll('.address-radio').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.checked) {
+                        // Hide new address form
+                        const addressFormSection = document.getElementById('addressFormSection');
+                        const backToSavedAddresses = document.getElementById('backToSavedAddresses');
+                        const allAddressesSelection = document.getElementById('allAddressesSelection');
+                        const defaultAddressDisplay = document.getElementById('defaultAddressDisplay');
+                        
+                        if (addressFormSection) {
+                            addressFormSection.style.display = 'none';
+                        }
+                        if (backToSavedAddresses) {
+                            backToSavedAddresses.style.display = 'none';
+                        }
+                        
+                        // If a saved address is selected, show default address display and hide all addresses selection
+                        if (defaultAddressDisplay && allAddressesSelection) {
+                            // Find which address was selected
+                            const selectedAddressId = this.value;
+                            const selectedAddress = document.querySelector(`[data-address-id="${selectedAddressId}"]`);
+                            
+                            // If default address is selected, show default display
+                            const defaultRadio = defaultAddressDisplay.querySelector('.address-radio');
+                            if (defaultRadio && defaultRadio.value === selectedAddressId) {
+                                defaultAddressDisplay.style.display = 'block';
+                                allAddressesSelection.style.display = 'none';
+                            } else {
+                                // Otherwise keep showing all addresses
+                                defaultAddressDisplay.style.display = 'none';
+                                allAddressesSelection.style.display = 'block';
+                            }
+                        }
+                        
+                        // Make form fields not required
+                        const streetAddress = document.getElementById('street_address');
+                        const city = document.getElementById('city');
+                        const postalCode = document.getElementById('postal_code');
+                        const country = document.getElementById('country');
+                        const phone = document.getElementById('phone');
+                        
+                        if (streetAddress) streetAddress.required = false;
+                        if (city) city.required = false;
+                        if (postalCode) postalCode.required = false;
+                        if (country) country.required = false;
+                        if (phone) phone.required = true;
+                    }
+                });
+            });
+
+            // Handle "Use a new address" button click
+            const useNewAddressBtn = document.getElementById('useNewAddressBtn');
+            if (useNewAddressBtn) {
+                useNewAddressBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Use new address button clicked');
+                    if (typeof showNewAddressForm === 'function') {
+                        showNewAddressForm();
+                    } else if (window.showNewAddressForm) {
+                        window.showNewAddressForm();
+                    }
+                });
+            }
+
+            // Modal elements
+            const confirmModal = document.getElementById('confirmModal');
+            const modalContent = document.getElementById('modalContent');
+            const cancelButton = document.getElementById('cancelButton');
+            const confirmButton = document.getElementById('confirmButton');
+            const checkoutForm = document.getElementById('checkoutForm');
+            const submitButton = document.getElementById('submitButton');
+            const buttonText = document.getElementById('buttonText');
+            const orderSummary = document.getElementById('orderSummary');
+            const selectedPaymentMethodSpan = document.getElementById('selectedPaymentMethod');
+
+            // Update payment method display in modal
+            const paymentRadios = document.querySelectorAll('.payment-radio');
+            paymentRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const paymentLabels = {
+                        'credit_card': 'Credit/Debit Card',
+                        'paypal': 'PayPal',
+                        'bank_transfer': 'Bank Transfer'
+                    };
+                    selectedPaymentMethodSpan.textContent = paymentLabels[this.value] || this.value;
+                });
+            });
+
+            // Form validation function
+            function validateForm() {
+                // Check if a saved address is selected (either from default display or all addresses)
+                const selectedAddressRadio = document.querySelector('.address-radio:checked');
+                
+                // Check if new address form is visible
+                const addressFormSection = document.getElementById('addressFormSection');
+                const isNewAddressFormVisible = addressFormSection && addressFormSection.style.display !== 'none';
+                
+                if (!selectedAddressRadio && isNewAddressFormVisible) {
+                    // Validate new address form
+                    const streetAddress = document.getElementById('street_address').value.trim();
+                    const city = document.getElementById('city').value.trim();
+                    const postalCode = document.getElementById('postal_code').value.trim();
+                    const country = document.getElementById('country').value;
+                    const phone = document.getElementById('phone').value.trim();
+                    
+                    if (!streetAddress || !city || !postalCode || !country || !phone) {
+                        if (window.toast && window.toast.error) {
+                            window.toast.error('Please select a saved address or fill in all required shipping address fields.');
+                        } else if (typeof showToast === 'function') {
+                            showToast('Please select a saved address or fill in all required shipping address fields.', 'error');
+                        } else {
+                            alert('Please select a saved address or fill in all required shipping address fields.');
+                        }
+                        return false;
+                    }
+                } else if (!selectedAddressRadio && !isNewAddressFormVisible) {
+                    // No address selected and form is hidden - this shouldn't happen but handle it
+                    if (window.toast && window.toast.error) {
+                        window.toast.error('Please select a shipping address.');
+                    }
+                    return false;
+                }
+
+                // Validate billing address if not same as shipping
+                if (!sameAsShippingCheckbox.checked) {
+                    const billingStreet = document.getElementById('billing_street').value.trim();
+                    const billingCity = document.getElementById('billing_city').value.trim();
+                    const billingPostal = document.getElementById('billing_postal').value.trim();
+                    const billingCountry = document.getElementById('billing_country').value;
+                    
+                    if (!billingStreet || !billingCity || !billingPostal || !billingCountry) {
+                        if (window.toast && window.toast.error) {
+                            window.toast.error('Please fill in all billing address fields.');
+                        } else if (typeof showToast === 'function') {
+                            showToast('Please fill in all billing address fields.', 'error');
+                        } else {
+                            alert('Please fill in all billing address fields.');
+                        }
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // Show modal function
+            function showModal() {
+                if (!validateForm()) {
+                    return false;
+                }
+
+                // Smoothly scale down order summary
+                if (orderSummary) {
+                    orderSummary.classList.add('summary-compact');
+                }
+                
+                // Show modal with animation
+                setTimeout(() => {
+                    confirmModal.classList.add('modal-show');
+                    setTimeout(() => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    }, 100);
+                }, 300);
+            }
+
+            // Hide modal function
+            function hideModal() {
+                modalContent.style.animation = 'none';
+                confirmModal.classList.remove('modal-show');
+                
+                // Scale back order summary
+                setTimeout(() => {
+                    if (orderSummary) {
+                        orderSummary.classList.remove('summary-compact');
+                    }
+                }, 300);
+            }
+
+            // Submit button click - show modal
+            if (submitButton) {
+                submitButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showModal();
+                });
+            }
+
+            // Cancel button - hide modal
+            if (cancelButton) {
+                cancelButton.addEventListener('click', hideModal);
+            }
+
+            // Click outside modal to close
+            if (confirmModal) {
+                confirmModal.addEventListener('click', function(e) {
+                    if (e.target === confirmModal) {
+                        hideModal();
+                    }
+                });
+            }
+
+            // Confirm button - submit form
+            if (confirmButton && checkoutForm) {
+                confirmButton.addEventListener('click', function() {
+                    console.log('Confirm button clicked - preparing to submit form');
+                    
+                    // Check if a saved address is selected
+                    const selectedAddressRadio = document.querySelector('.address-radio:checked');
+                    let shippingAddress = '';
+                    
+                    if (selectedAddressRadio) {
+                        // Use saved address
+                        const addressId = selectedAddressRadio.value;
+                        // Get address data from the selected address card (could be in default display or all addresses)
+                        const addressCard = selectedAddressRadio.closest('.address-option') || selectedAddressRadio.closest('#defaultAddressDisplay');
+                        let addressLines = [];
+                        
+                        if (addressCard) {
+                            const addressTextDivs = addressCard.querySelectorAll('.text-sm.text-gray-700 > div');
+                            if (addressTextDivs.length > 0) {
+                                addressLines = Array.from(addressTextDivs).map(div => div.textContent.trim());
+                            }
+                        }
+                        
+                        if (addressLines.length > 0) {
+                            shippingAddress = addressLines.join('\n');
+                        }
+                        
+                        // Add phone from form (if provided)
+                        const phone = document.getElementById('phone').value.trim();
+                        if (phone) {
+                            shippingAddress += `\nPhone: ${phone}`;
+                        }
+                    } else {
+                        // Use new address form
+                        const streetAddress = document.getElementById('street_address').value.trim();
+                        const city = document.getElementById('city').value.trim();
+                        const postalCode = document.getElementById('postal_code').value.trim();
+                        const country = document.getElementById('country').value;
+                        const phone = document.getElementById('phone').value.trim();
+                        
+                        shippingAddress = `${streetAddress}\n${city}, ${postalCode}\n${country}\nPhone: ${phone}`;
+                    }
+                    
+                    const deliveryNotes = document.getElementById('delivery_notes').value.trim();
+                    if (deliveryNotes) {
+                        shippingAddress += `\nNotes: ${deliveryNotes}`;
+                    }
+                    
+                    console.log('Shipping address:', shippingAddress);
+                    
+                    // Create hidden input for combined shipping address
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'shipping_address';
+                    hiddenInput.value = shippingAddress;
+                    checkoutForm.appendChild(hiddenInput);
+                    
+                    // Handle billing address
+                    if (!sameAsShippingCheckbox.checked) {
+                        const billingStreet = document.getElementById('billing_street').value.trim();
+                        const billingCity = document.getElementById('billing_city').value.trim();
+                        const billingPostal = document.getElementById('billing_postal').value.trim();
+                        const billingCountry = document.getElementById('billing_country').value;
+                        
+                        if (billingStreet && billingCity && billingPostal && billingCountry) {
+                            const billingAddress = `${billingStreet}\n${billingCity}, ${billingPostal}\n${billingCountry}`;
+                            const billingInput = document.createElement('input');
+                            billingInput.type = 'hidden';
+                            billingInput.name = 'billing_address';
+                            billingInput.value = billingAddress;
+                            checkoutForm.appendChild(billingInput);
+                            console.log('Billing address:', billingAddress);
+                        }
+                    }
+
+                    // Show loading state
+                    confirmButton.disabled = true;
+                    confirmButton.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Processing...';
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+
+                    console.log('Submitting form...');
+                    // Submit form
+                    checkoutForm.submit();
+                });
+            }
+
+            // Voucher Code Functionality
+            const applyVoucherBtn = document.getElementById('applyVoucherBtn');
+            const removeVoucherBtn = document.getElementById('removeVoucherBtn');
+            const voucherCodeInput = document.getElementById('voucherCodeInput');
+            const voucherMessage = document.getElementById('voucherMessage');
+            const voucherSection = document.getElementById('voucherSection');
+            const browseVouchersBtn = document.getElementById('browseVouchersBtn');
+            const voucherModal = document.getElementById('voucherModal');
+            const voucherModalContent = document.getElementById('voucherModalContent');
+            const closeVoucherModal = document.getElementById('closeVoucherModal');
+            const voucherListContainer = document.getElementById('voucherListContainer');
+
+            // Voucher Modal Functions
+            function showVoucherModal() {
+                voucherModal.classList.add('modal-show');
+                loadAvailableVouchers();
+            }
+
+            function hideVoucherModal() {
+                voucherModalContent.style.animation = 'none';
+                voucherModal.classList.remove('modal-show');
+            }
+
+            function loadAvailableVouchers() {
+                voucherListContainer.innerHTML = `
+                    <div class="flex items-center justify-center py-8">
+                        <div class="text-center">
+                            <i data-lucide="loader" class="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2"></i>
+                            <p class="text-gray-600">Loading vouchers...</p>
+                        </div>
+                    </div>
+                `;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+
+                fetch('{% url "orders:get_available_vouchers" %}')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            displayVouchers(data.vouchers, data.cart_subtotal);
+                        } else {
+                            voucherListContainer.innerHTML = `
+                                <div class="text-center py-8">
+                                    <i data-lucide="alert-circle" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+                                    <p class="text-gray-600">${data.error || 'Failed to load vouchers.'}</p>
+                                </div>
+                            `;
+                            if (typeof lucide !== 'undefined') {
+                                lucide.createIcons();
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        voucherListContainer.innerHTML = `
+                            <div class="text-center py-8">
+                                <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-3"></i>
+                                <p class="text-gray-600">An error occurred. Please try again.</p>
+                            </div>
+                        `;
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    });
+            }
+
+            function getDiscountDisplay(voucher) {
+                // Returns an object with main discount and label for coupon display
+                if (voucher.discount_type === 'percent') {
+                    return {
+                        main: `${voucher.discount_value}%`,
+                        label: 'OFF',
+                        subtext: voucher.max_discount ? `Up to $${parseFloat(voucher.max_discount).toFixed(2)}` : null
+                    };
+                } else if (voucher.discount_type === 'fixed') {
+                    return {
+                        main: `$${parseFloat(voucher.discount_value).toFixed(2)}`,
+                        label: 'OFF',
+                        subtext: null
+                    };
+                } else if (voucher.discount_type === 'free_shipping') {
+                    return {
+                        main: 'FREE',
+                        label: 'SHIPPING',
+                        subtext: null
+                    };
+                }
+                return {
+                    main: 'Discount',
+                    label: '',
+                    subtext: null
+                };
+            }
+
+            function displayVouchers(vouchers, cartSubtotal) {
+                if (vouchers.length === 0) {
+                    voucherListContainer.innerHTML = `
+                        <div class="text-center py-12">
+                            <i data-lucide="ticket" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                            <p class="text-gray-600 font-medium mb-1">No vouchers available</p>
+                            <p class="text-sm text-gray-500">Check back later for new vouchers!</p>
+                        </div>
+                    `;
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                    return;
+                }
+
+                const vouchersHtml = vouchers.map(voucher => {
+                    const discountText = getDiscountText(voucher);
+                    const discountDisplay = getDiscountDisplay(voucher);
+                    const minPurchaseText = voucher.min_purchase && parseFloat(voucher.min_purchase) > 0 
+                        ? `Min. purchase: $${parseFloat(voucher.min_purchase).toFixed(2)}` 
+                        : '';
+                    const canUse = !minPurchaseText || parseFloat(cartSubtotal) >= parseFloat(voucher.min_purchase);
+                    
+                    const couponBgClass = canUse ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600' : 'bg-gradient-to-br from-gray-400 to-gray-500';
+                    const borderClass = canUse ? 'border-blue-300' : 'border-gray-300';
+                    const textColor = canUse ? 'text-white' : 'text-gray-100';
+                    const hoverClass = canUse ? 'hover:scale-[1.02] hover:border-blue-400 hover:shadow-2xl' : '';
+                    
+                    return `
+                        <div class="relative bg-white border-2 ${borderClass} rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer group ${!canUse ? 'opacity-75' : ''} ${hoverClass} mb-3" 
+                             onclick="${canUse ? `applyVoucherFromModal('${voucher.promo_code}')` : ''}" style="max-width: 100%;">
+                            <!-- Decorative background pattern -->
+                            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-blue-200 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                                <div class="absolute bottom-0 left-0 w-24 h-24 bg-indigo-200 rounded-full blur-2xl -ml-12 -mb-12"></div>
+                            </div>
+                            
+                            <div class="flex relative z-10">
+                                <!-- Left side - Discount section (coupon stub) -->
+                                <div class="${couponBgClass} w-[40%] flex-shrink-0 flex flex-col items-center justify-center px-6 py-7 relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                                    <!-- Animated background pattern -->
+                                    <div class="absolute inset-0 opacity-10">
+                                        <div class="absolute top-0 right-0 w-20 h-20 bg-white rounded-full -mr-10 -mt-10"></div>
+                                        <div class="absolute bottom-0 left-0 w-16 h-16 bg-white rounded-full -ml-8 -mb-8"></div>
+                                    </div>
+                                    <!-- Perforated edge on the right -->
+                                    <div class="absolute right-0 top-0 bottom-0 w-4 flex flex-col justify-center" style="background: repeating-linear-gradient(to bottom, transparent, transparent 5px, rgba(255,255,255,0.4) 5px, rgba(255,255,255,0.4) 9px);"></div>
+                                    <div class="text-center ${textColor} relative z-10 transform group-hover:scale-110 transition-transform duration-300">
+                                        <p class="text-xs uppercase tracking-widest font-bold mb-3 opacity-90">Save</p>
+                                        <p class="text-5xl font-black leading-none mb-2 drop-shadow-lg">${discountDisplay.main}</p>
+                                        ${discountDisplay.label ? `<p class="text-sm font-bold uppercase tracking-wider mt-2 opacity-95">${discountDisplay.label}</p>` : ''}
+                                        ${discountDisplay.subtext ? `<p class="text-xs mt-3 opacity-80 font-medium">${discountDisplay.subtext}</p>` : ''}
+                                    </div>
+                                </div>
+                                
+                                <!-- Right side - Details section -->
+                                <div class="flex-1 p-6 bg-white group-hover:bg-gray-50 transition-colors duration-300">
+                                    <div class="flex items-start justify-between mb-4">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                                <span class="px-3.5 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 shadow-sm group-hover:shadow-md transition-shadow duration-300" style="font-family: 'Courier New', monospace; letter-spacing: 0.1em;">${voucher.promo_code}</span>
+                                                ${canUse ? `
+                                                    <span class="px-3 py-1 border rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm">
+                                                        Available
+                                                    </span>
+                                                ` : `
+                                                    <span class="px-3 py-1 border rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border-gray-200 shadow-sm">
+                                                        Not Eligible
+                                                    </span>
+                                                `}
+                                            </div>
+                                            <h4 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">${voucher.name}</h4>
+                                            ${voucher.description ? `<p class="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed">${voucher.description}</p>` : ''}
+                                            ${minPurchaseText ? `<p class="text-xs text-gray-500 mb-2">${minPurchaseText}</p>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-4 border-t border-gray-200 group-hover:border-gray-300 transition-colors duration-300">
+                                        ${voucher.remaining_uses > 0 ? 
+                                            `<span class="text-xs text-gray-500 font-semibold group-hover:text-blue-600 transition-colors duration-300">${voucher.remaining_uses} use${voucher.remaining_uses > 1 ? 's' : ''} left</span>` : 
+                                            `<span class="text-xs text-gray-400">No uses remaining</span>`
+                                        }
+                                        ${canUse ? `
+                                            <span class="text-xs text-blue-600 font-semibold">Click to apply →</span>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Shine effect on hover -->
+                            <div class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></div>
+                        </div>
+                    `;
+                }).join('');
+
+                voucherListContainer.innerHTML = vouchersHtml;
+
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+
+            function getDiscountText(voucher) {
+                if (voucher.discount_type === 'percent') {
+                    return `${voucher.discount_value}% OFF`;
+                } else if (voucher.discount_type === 'fixed') {
+                    return `$${parseFloat(voucher.discount_value).toFixed(2)} OFF`;
+                } else if (voucher.discount_type === 'free_shipping') {
+                    return 'FREE SHIPPING';
+                }
+                return 'Discount';
+            }
+
+            function applyVoucherFromModal(code) {
+                // Close modal first
+                hideVoucherModal();
+                
+                // Set the input value and trigger apply
+                if (voucherCodeInput) {
+                    voucherCodeInput.value = code;
+                }
+                
+                // Trigger apply button click
+                if (applyVoucherBtn) {
+                    applyVoucherBtn.click();
+                }
+            }
+
+            // Event listeners for voucher modal
+            if (browseVouchersBtn) {
+                browseVouchersBtn.addEventListener('click', showVoucherModal);
+            }
+
+            if (closeVoucherModal) {
+                closeVoucherModal.addEventListener('click', hideVoucherModal);
+            }
+
+            if (voucherModal) {
+                voucherModal.addEventListener('click', function(e) {
+                    if (e.target === voucherModal) {
+                        hideVoucherModal();
+                    }
+                });
+            }
+
+            // Apply voucher
+            if (applyVoucherBtn && voucherCodeInput) {
+                applyVoucherBtn.addEventListener('click', function() {
+                    const code = voucherCodeInput.value.trim().toUpperCase();
+                    
+                    if (!code) {
+                        showVoucherMessage('Please enter a voucher code.', 'error');
+                        return;
+                    }
+
+                    // Show loading state
+                    applyVoucherBtn.disabled = true;
+                    applyVoucherBtn.textContent = 'Applying...';
+                    voucherMessage.innerHTML = '';
+
+                    // Make AJAX request
+                    fetch('{% url "orders:apply_voucher" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: `voucher_code=${encodeURIComponent(code)}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update UI with applied voucher
+                            updateOrderSummary(data);
+                            showAppliedVoucher(code, data.discount, data.voucher_description);
+                            showVoucherMessage(data.message, 'success');
+                            
+                            // Reload page to show applied voucher
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showVoucherMessage(data.error || 'Failed to apply voucher.', 'error');
+                            applyVoucherBtn.disabled = false;
+                            applyVoucherBtn.textContent = 'Apply';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showVoucherMessage('An error occurred. Please try again.', 'error');
+                        applyVoucherBtn.disabled = false;
+                        applyVoucherBtn.textContent = 'Apply';
+                    });
+                });
+
+                // Allow Enter key to apply voucher
+                voucherCodeInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyVoucherBtn.click();
+                    }
+                });
+            }
+
+            // Remove voucher
+            if (removeVoucherBtn) {
+                removeVoucherBtn.addEventListener('click', function() {
+                    // Make AJAX request
+                    fetch('{% url "orders:remove_voucher" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update UI
+                            updateOrderSummary(data);
+                            showVoucherInputForm();
+                            showVoucherMessage(data.message, 'success');
+                            
+                            // Reload page
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showVoucherMessage(data.error || 'Failed to remove voucher.', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showVoucherMessage('An error occurred. Please try again.', 'error');
+                    });
+                });
+            }
+
+            function showVoucherMessage(message, type) {
+                if (!voucherMessage) return;
+                
+                const colors = {
+                    success: 'text-green-600 bg-green-50 border-green-200',
+                    error: 'text-red-600 bg-red-50 border-red-200'
+                };
+                
+                voucherMessage.innerHTML = `<div class="p-2 rounded border ${colors[type] || colors.error}">${message}</div>`;
+                
+                // Clear message after 5 seconds
+                setTimeout(() => {
+                    voucherMessage.innerHTML = '';
+                }, 5000);
+            }
+
+            function updateOrderSummary(data) {
+                // Update displayed totals
+                const displaySubtotal = document.getElementById('displaySubtotal');
+                const displayTax = document.getElementById('displayTax');
+                const displayShipping = document.getElementById('displayShipping');
+                const displayTotal = document.getElementById('displayTotal');
+                const displayDiscount = document.getElementById('displayDiscount');
+
+                if (displaySubtotal) displaySubtotal.textContent = `$${parseFloat(data.subtotal).toFixed(2)}`;
+                if (displayTax) displayTax.textContent = `$${parseFloat(data.tax).toFixed(2)}`;
+                if (displayShipping) displayShipping.textContent = `$${parseFloat(data.shipping).toFixed(2)}`;
+                if (displayTotal) displayTotal.textContent = `$${parseFloat(data.total).toFixed(2)}`;
+                
+                // Show/hide discount row
+                if (parseFloat(data.discount) > 0) {
+                    if (!displayDiscount) {
+                        // Create discount row if it doesn't exist
+                        const priceBreakdown = document.querySelector('.space-y-2.py-4.border-t');
+                        if (priceBreakdown) {
+                            const discountRow = document.createElement('div');
+                            discountRow.className = 'flex justify-between text-sm text-green-600';
+                            discountRow.id = 'discountRow';
+                            discountRow.innerHTML = `
+                                <span>Discount</span>
+                                <span id="displayDiscount">-$${parseFloat(data.discount).toFixed(2)}</span>
+                            `;
+                            // Insert before tax row
+                            const taxRow = priceBreakdown.querySelector('.flex.justify-between.text-sm');
+                            if (taxRow) {
+                                priceBreakdown.insertBefore(discountRow, taxRow);
+                            }
+                        }
+                    } else {
+                        displayDiscount.textContent = `-$${parseFloat(data.discount).toFixed(2)}`;
+                    }
+                } else {
+                    // Remove discount row if discount is 0
+                    const discountRow = document.getElementById('discountRow');
+                    if (discountRow) discountRow.remove();
+                }
+            }
+
+            function showAppliedVoucher(code, discount, description) {
+                if (!voucherSection) return;
+                
+                voucherSection.innerHTML = `
+                    <div id="appliedVoucher" class="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                                <div>
+                                    <p class="text-sm font-semibold text-green-900">${code}</p>
+                                    <p class="text-xs text-green-700">Discount: $${parseFloat(discount).toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <button type="button" id="removeVoucherBtn" class="text-red-600 hover:text-red-700 text-sm font-medium">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Re-initialize remove button
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+                
+                const newRemoveBtn = document.getElementById('removeVoucherBtn');
+                if (newRemoveBtn) {
+                    newRemoveBtn.addEventListener('click', function() {
+                        removeVoucherBtn.click();
+                    });
+                }
+            }
+
+            function showVoucherInputForm() {
+                if (!voucherSection) return;
+                
+                voucherSection.innerHTML = `
+                    <div id="voucherInputForm">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Have a voucher code?</label>
+                        <div class="flex gap-2">
+                            <input type="text" 
+                                   id="voucherCodeInput" 
+                                   placeholder="Enter code"
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm uppercase"
+                                   maxlength="100">
+                            <button type="button" 
+                                    id="applyVoucherBtn"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                                Apply
+                            </button>
+                        </div>
+                        <div id="voucherMessage" class="mt-2 text-sm"></div>
+                    </div>
+                `;
+                
+                // Re-initialize apply button
+                const newApplyBtn = document.getElementById('applyVoucherBtn');
+                const newInput = document.getElementById('voucherCodeInput');
+                if (newApplyBtn && newInput) {
+                    newApplyBtn.addEventListener('click', function() {
+                        applyVoucherBtn.click();
+                    });
+                    newInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            newApplyBtn.click();
+                        }
+                    });
+                }
+            }
+        });
+        </script>
+    </div>
+</div>
+{% endblock %}

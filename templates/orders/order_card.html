@@ -1,0 +1,115 @@
+{% load static %}
+
+<div class="card border-0 shadow-sm mb-3 hover-shadow">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <!-- Order Info -->
+            <div class="col-lg-3 col-md-4 mb-3 mb-md-0">
+                <h5 class="mb-1">
+                    <a href="{% url 'orders:order_detail' order.id %}" class="text-decoration-none text-dark">
+                        #{{ order.order_number }}
+                    </a>
+                </h5>
+                <p class="text-muted small mb-1">
+                    <i class="far fa-calendar"></i> {{ order.created_at|date:"M d, Y" }}
+                </p>
+                <p class="text-muted small mb-0">
+                    <i class="far fa-clock"></i> {{ order.created_at|time:"g:i A" }}
+                </p>
+            </div>
+
+            <!-- Order Items Preview -->
+            <div class="col-lg-3 col-md-4 mb-3 mb-md-0">
+                <div class="d-flex align-items-center">
+                    {% for item in order.items.all|slice:":3" %}
+                        {% if item.product.images.first %}
+                        <img src="{{ item.product.images.first.image.url }}" 
+                             alt="{{ item.product.name }}"
+                             class="rounded me-2"
+                             style="width: 50px; height: 50px; object-fit: cover;">
+                        {% else %}
+                        <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center"
+                             style="width: 50px; height: 50px;">
+                            <i class="fas fa-image text-muted"></i>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if order.items.count > 3 %}
+                    <div class="bg-light rounded d-flex align-items-center justify-content-center"
+                         style="width: 50px; height: 50px;">
+                        <small class="text-muted fw-bold">+{{ order.items.count|add:"-3" }}</small>
+                    </div>
+                    {% endif %}
+                </div>
+                <p class="text-muted small mt-2 mb-0">
+                    {{ order.items.count }} item{{ order.items.count|pluralize }}
+                </p>
+            </div>
+
+            <!-- Order Status -->
+            <div class="col-lg-2 col-md-4 mb-3 mb-md-0 text-center">
+                {% if order.status == 'pending' %}
+                    <span class="badge bg-warning text-dark px-3 py-2">
+                        <i class="fas fa-clock"></i> Pending
+                    </span>
+                {% elif order.status == 'processing' %}
+                    <span class="badge bg-info px-3 py-2">
+                        <i class="fas fa-cog"></i> Processing
+                    </span>
+                {% elif order.status == 'shipped' %}
+                    <span class="badge bg-primary px-3 py-2">
+                        <i class="fas fa-truck"></i> Shipped
+                    </span>
+                {% elif order.status == 'delivered' %}
+                    <span class="badge bg-success px-3 py-2">
+                        <i class="fas fa-check-circle"></i> Delivered
+                    </span>
+                {% elif order.status == 'cancelled' %}
+                    <span class="badge bg-danger px-3 py-2">
+                        <i class="fas fa-times-circle"></i> Cancelled
+                    </span>
+                {% else %}
+                    <span class="badge bg-secondary px-3 py-2">
+                        {{ order.get_status_display }}
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- Order Total -->
+            <div class="col-lg-2 col-md-6 mb-3 mb-lg-0 text-center">
+                <p class="text-muted small mb-1">Total Amount</p>
+                <h4 class="mb-0 text-primary">${{ order.total|floatformat:2 }}</h4>
+            </div>
+
+            <!-- Actions -->
+            <div class="col-lg-2 col-md-6 text-end">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'orders:order_detail' order.id %}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye"></i> View Details
+                    </a>
+                    
+                    {% comment %}
+                    <!-- Contact Support button - commented out until chat feature is ready -->
+                    {% if order.status != 'cancelled' and order.status != 'delivered' %}
+                    <a href="#" 
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-comment"></i> Support
+                    </a>
+                    {% endif %}
+                    {% endcomment %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hover-shadow {
+    transition: box-shadow 0.3s ease;
+}
+
+.hover-shadow:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>

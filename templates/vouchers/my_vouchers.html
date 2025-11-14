@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Vouchers - AuroraMart{% endblock %}
+
+{% block extra_css %}
+<style>
+    .voucher-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .voucher-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    
+    .voucher-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    
+    .voucher-card.available {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .voucher-card.used {
+        background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+        opacity: 0.7;
+    }
+    
+    .voucher-card.expired {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        opacity: 0.6;
+    }
+    
+    .voucher-card.unavailable {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    
+    .discount-badge {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        display: inline-block;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen py-8">
+    <div class="container mx-auto px-4">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                        <i data-lucide="ticket" class="w-8 h-8 text-blue-600"></i>
+                        My Vouchers
+                    </h1>
+                    <p class="text-gray-600 mt-2">View and manage your discount vouchers</p>
+                </div>
+                <a href="{% url 'accounts:profile' %}" 
+                   class="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    Back to Profile
+                </a>
+            </div>
+        </div>
+
+        <!-- Available Vouchers -->
+        {% if user_vouchers or public_vouchers %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                Available Vouchers
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- User-Specific Vouchers -->
+                {% for voucher in user_vouchers %}
+                    <div class="voucher-card {{ voucher.status }}">
+                        <div class="relative z-10">
+                            <div class="flex items-start justify-between mb-4">
+                                <div>
+                                    <span class="text-xs opacity-80">Your Exclusive Voucher</span>
+                                    <h3 class="text-xl font-bold mt-1">{{ voucher.name }}</h3>
+                                </div>
+                                {% if voucher.status == 'available' %}
+                                <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">Active</span>
+                                {% elif voucher.status == 'used' %}
+                                <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full">Used</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-4">
+                                <div class="discount-badge mb-2">
+                                    {% if voucher.discount_type == 'percent' %}
+                                        {{ voucher.discount_value }}% OFF
+                                        {% if voucher.max_discount %}
+                                            (up to ${{ voucher.max_discount }})
+                                        {% endif %}
+                                    {% elif voucher.discount_type == 'fixed' %}
+                                        ${{ voucher.discount_value }} OFF
+                                    {% elif voucher.discount_type == 'free_shipping' %}
+                                        FREE SHIPPING
+                                    {% endif %}
+                                </div>
+                                {% if voucher.description %}
+                                <p class="text-sm opacity-90">{{ voucher.description }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="flex items-center justify-between text-sm opacity-90">
+                                <div>
+                                    <p class="font-semibold">{{ voucher.promo_code }}</p>
+                                    <p class="text-xs">Expires: {{ voucher.end_date|date:"M d, Y" }}</p>
+                                </div>
+                                <a href="{% url 'vouchers:voucher_detail' voucher.id %}" 
+                                   class="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition">
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                <!-- Public Vouchers -->
+                {% for voucher in public_vouchers %}
+                    {% if voucher.status == 'available' %}
+                    <div class="voucher-card available">
+                        <div class="relative z-10">
+                            <div class="flex items-start justify-between mb-4">
+                                <div>
+                                    <span class="text-xs opacity-80">Public Voucher</span>
+                                    <h3 class="text-xl font-bold mt-1">{{ voucher.name }}</h3>
+                                </div>
+                                <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">Active</span>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <div class="discount-badge mb-2">
+                                    {% if voucher.discount_type == 'percent' %}
+                                        {{ voucher.discount_value }}% OFF
+                                        {% if voucher.max_discount %}
+                                            (up to ${{ voucher.max_discount }})
+                                        {% endif %}
+                                    {% elif voucher.discount_type == 'fixed' %}
+                                        ${{ voucher.discount_value }} OFF
+                                    {% elif voucher.discount_type == 'free_shipping' %}
+                                        FREE SHIPPING
+                                    {% endif %}
+                                </div>
+                                {% if voucher.description %}
+                                <p class="text-sm opacity-90">{{ voucher.description }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="flex items-center justify-between text-sm opacity-90">
+                                <div>
+                                    <p class="font-semibold">{{ voucher.promo_code }}</p>
+                                    <p class="text-xs">Expires: {{ voucher.end_date|date:"M d, Y" }}</p>
+                                </div>
+                                <a href="{% url 'vouchers:voucher_detail' voucher.id %}" 
+                                   class="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition">
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Used Vouchers -->
+        {% if used_vouchers %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="history" class="w-6 h-6 text-gray-600"></i>
+                Used Vouchers
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for voucher in used_vouchers %}
+                <div class="voucher-card used">
+                    <div class="relative z-10">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-xl font-bold">{{ voucher.name }}</h3>
+                            </div>
+                            <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full">Used</span>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="discount-badge mb-2">
+                                {% if voucher.discount_type == 'percent' %}
+                                    {{ voucher.discount_value }}% OFF
+                                {% elif voucher.discount_type == 'fixed' %}
+                                    ${{ voucher.discount_value }} OFF
+                                {% elif voucher.discount_type == 'free_shipping' %}
+                                    FREE SHIPPING
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="text-sm opacity-90">
+                            <p class="font-semibold">{{ voucher.promo_code }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Expired Vouchers -->
+        {% if expired_vouchers %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="clock" class="w-6 h-6 text-gray-600"></i>
+                Expired Vouchers
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for voucher in expired_vouchers %}
+                <div class="voucher-card expired">
+                    <div class="relative z-10">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-xl font-bold">{{ voucher.name }}</h3>
+                            </div>
+                            <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full">Expired</span>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="discount-badge mb-2">
+                                {% if voucher.discount_type == 'percent' %}
+                                    {{ voucher.discount_value }}% OFF
+                                {% elif voucher.discount_type == 'fixed' %}
+                                    ${{ voucher.discount_value }} OFF
+                                {% elif voucher.discount_type == 'free_shipping' %}
+                                    FREE SHIPPING
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="text-sm opacity-90">
+                            <p class="font-semibold">{{ voucher.promo_code }}</p>
+                            <p class="text-xs">Expired: {{ voucher.end_date|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Empty State -->
+        {% if not user_vouchers and not public_vouchers and not used_vouchers and not expired_vouchers %}
+        <div class="text-center py-16">
+            <i data-lucide="ticket" class="w-16 h-16 text-gray-400 mx-auto mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">No Vouchers Available</h3>
+            <p class="text-gray-600 mb-6">You don't have any vouchers yet. Check back later for special offers!</p>
+            <a href="{% url 'products:product_list' %}" 
+               class="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                Start Shopping
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+</script>
+{% endblock %}
+

@@ -1,0 +1,113 @@
+{% load static %}
+
+{% if products %}
+    <div class="overflow-x-auto">
+        <table class="products-table" style="background: transparent;">
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th>Product Info</th>
+                    <th>SKU</th>
+                    <th>Category</th>
+                    <th>Rating</th>
+                    <th>Stock</th>
+                    <th>Status</th>
+                    <th>Reviews</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in products %}
+                    {% with product=item.product primary_image_url=item.primary_image_url total_stock=item.total_stock reviews=item.reviews rating_stars=item.rating_stars %}
+                        <tr>
+                            <td>
+                                {% if primary_image_url %}
+                                    <img src="{{ primary_image_url }}" class="product-image" alt="{{ product.name }}">
+                                {% else %}
+                                    <div class="product-image bg-gray-100 flex items-center justify-center text-gray-400 text-xs">
+                                        No Image
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="product-name">{{ product.name }}</div>
+                                <div class="product-sku">SKU: {{ product.sku }}</div>
+                                <div class="product-category">{{ product.category.name|default:"N/A" }}</div>
+                            </td>
+                            <td class="text-sm text-gray-700">{{ product.sku }}</td>
+                            <td class="text-sm text-gray-700">{{ product.category.name|default:"N/A" }}</td>
+                            <td>
+                                {% if product.rating > 0 %}
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-yellow-400 text-sm">{{ rating_stars }}</span>
+                                        <span class="text-xs text-gray-600">{{ product.rating|floatformat:1 }} ({{ product.review_count }})</span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-xs text-gray-400">No ratings</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if total_stock > 10 %}
+                                    <span class="stock-badge stock-in-stock">In Stock ({{ total_stock }})</span>
+                                {% elif total_stock > 0 %}
+                                    <span class="stock-badge stock-low">Low Stock ({{ total_stock }})</span>
+                                {% else %}
+                                    <span class="stock-badge stock-out">Out of Stock</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if product.is_active %}
+                                    <span class="status-badge status-active">Active</span>
+                                {% else %}
+                                    <span class="status-badge status-inactive">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="max-w-xs">
+                                {% if reviews %}
+                                    {% for review in reviews %}
+                                        <div class="review-item">
+                                            <div class="review-header">
+                                                <span class="review-user">{{ review.user.get_full_name|default:review.user.username }}</span>
+                                                <span class="review-rating">
+                                                    {% if review.rating >= 1 %}★{% else %}☆{% endif %}
+                                                    {% if review.rating >= 2 %}★{% else %}☆{% endif %}
+                                                    {% if review.rating >= 3 %}★{% else %}☆{% endif %}
+                                                    {% if review.rating >= 4 %}★{% else %}☆{% endif %}
+                                                    {% if review.rating >= 5 %}★{% else %}☆{% endif %}
+                                                </span>
+                                            </div>
+                                            <div class="review-title">{{ review.title }}</div>
+                                            <div class="review-comment">
+                                                {% if review.comment|length > 100 %}
+                                                    {{ review.comment|slice:":100" }}...
+                                                {% else %}
+                                                    {{ review.comment }}
+                                                {% endif %}
+                                            </div>
+                                            <div class="review-date">{{ review.created_at|date:"Y-m-d" }}</div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="no-reviews">No reviews yet</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'adminpanel:edit_product' product.id %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}" class="btn-edit">
+                                    <i data-lucide="edit" class="w-4 h-4 inline"></i> Edit
+                                </a>
+                            </td>
+                        </tr>
+                    {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="no-results">No products found. Try a different search term.</div>
+{% endif %}
+
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>

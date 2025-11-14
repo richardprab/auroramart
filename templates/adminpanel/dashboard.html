@@ -1,0 +1,324 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block admin_title %}Dashboard{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 1.25rem;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--card-color-start), var(--card-color-end));
+        opacity: 0.8;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06);
+        border-color: rgba(196, 181, 253, 0.4);
+    }
+    
+    .stat-card.blue {
+        --card-color-start: #6366f1;
+        --card-color-end: #818cf8;
+    }
+    
+    .stat-card.yellow {
+        --card-color-start: #f59e0b;
+        --card-color-end: #fbbf24;
+    }
+    
+    .stat-card.purple {
+        --card-color-start: #8b5cf6;
+        --card-color-end: #a78bfa;
+    }
+    
+    .stat-icon-wrapper {
+        width: 60px;
+        height: 60px;
+        border-radius: 0.875rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    .stat-card.blue .stat-icon-wrapper {
+        background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    }
+    
+    .stat-card.yellow .stat-icon-wrapper {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    }
+    
+    .stat-card.purple .stat-icon-wrapper {
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    }
+    
+    .stat-icon-wrapper i {
+        width: 28px;
+        height: 28px;
+        color: var(--card-color-start);
+    }
+    
+    .stat-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 0.625rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        line-height: 1;
+        letter-spacing: -0.03em;
+    }
+    
+    .table-container {
+        background: rgba(237, 233, 254, 0.3);
+        border-radius: 1.25rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(196, 181, 253, 0.25);
+    }
+    
+    .table-header {
+        padding: 1.75rem 2.25rem;
+        border-bottom: 1px solid rgba(196, 181, 253, 0.3);
+        background: rgba(237, 233, 254, 0.5);
+    }
+    
+    .table-header h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #5b21b6;
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        letter-spacing: -0.01em;
+    }
+    
+    .table-header h3 i {
+        width: 20px;
+        height: 20px;
+        color: #8b5cf6;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: transparent;
+    }
+    
+    thead {
+        background: rgba(237, 233, 254, 0.6);
+    }
+    
+    thead th {
+        padding: 1.125rem 2.25rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #5b21b6;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border-bottom: 2px solid rgba(196, 181, 253, 0.4);
+    }
+    
+    tbody tr {
+        background: rgba(255, 255, 255, 0.6);
+        border-bottom: 1px solid rgba(196, 181, 253, 0.15);
+        transition: all 0.2s ease;
+    }
+    
+    tbody tr:hover {
+        background: rgba(255, 255, 255, 0.9);
+        transform: translateX(2px);
+    }
+    
+    tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    tbody td {
+        padding: 1.375rem 2.25rem;
+        font-size: 0.875rem;
+        color: #2d3748;
+    }
+    
+    .order-link {
+        color: #7c3aed;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    
+    .order-link:hover {
+        color: #6d28d9;
+        text-decoration: underline;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 0.875rem;
+        border-radius: 0.625rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .status-pending {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fef3c7;
+    }
+    
+    .status-processing {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #dbeafe;
+    }
+    
+    .status-shipped {
+        background: #f5f3ff;
+        color: #5b21b6;
+        border: 1px solid #e9d5ff;
+    }
+    
+    .status-delivered {
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+    
+    .status-cancelled {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+    
+    .empty-state {
+        text-center;
+        padding: 4rem 2rem;
+        color: #94a3b8;
+    }
+    
+    .empty-state i {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1rem;
+        color: #cbd5e1;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="admin-content-header">
+    <h2>Welcome back, {{ request.user.get_full_name|default:request.user.username }}!</h2>
+    <p>Here's an overview of your admin dashboard</p>
+</div>
+
+<div class="admin-content-body">
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="stat-card blue">
+            <div class="stat-icon-wrapper">
+                <i data-lucide="package"></i>
+            </div>
+            <div class="stat-label">Total Products</div>
+            <div class="stat-value">{{ total_products }}</div>
+        </div>
+
+        <div class="stat-card yellow">
+            <div class="stat-icon-wrapper">
+                <i data-lucide="clipboard-list"></i>
+            </div>
+            <div class="stat-label">Pending Orders</div>
+            <div class="stat-value">{{ pending_orders }}</div>
+        </div>
+
+        <div class="stat-card purple">
+            <div class="stat-icon-wrapper">
+                <i data-lucide="message-circle"></i>
+            </div>
+            <div class="stat-label">Open Conversations</div>
+            <div class="stat-value">{{ open_conversations }}</div>
+        </div>
+    </div>
+
+    <!-- Recent Orders Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h3>
+                <i data-lucide="clock"></i>
+                Recent Orders
+            </h3>
+        </div>
+        {% if recent_orders %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                    <td>
+                        <a href="{% url 'adminpanel:order_management' %}?search={{ order.order_number }}" 
+                           class="order-link">
+                            #{{ order.order_number }}
+                        </a>
+                    </td>
+                    <td>
+                        <span style="font-weight: 500;">{{ order.user.username }}</span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ order.status }}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="color: #64748b;">{{ order.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i data-lucide="inbox"></i>
+            <p style="font-size: 0.875rem; font-weight: 500;">No recent orders</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>
+{% endblock %}

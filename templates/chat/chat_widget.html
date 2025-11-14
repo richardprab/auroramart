@@ -1,0 +1,107 @@
+{% if user.is_authenticated %}
+<!-- Chat FAB Button -->
+<div id="chat-fab" class="fixed bottom-6 right-6 z-40">
+    <button type="button" id="chat-fab-button"
+        class="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg transition-all relative group">
+        <i data-lucide="message-circle" class="w-6 h-6"></i>
+        <span id="chat-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+            0
+        </span>
+        <span class="absolute right-16 bg-gray-900 text-white text-sm px-3 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            Chat with Support
+        </span>
+    </button>
+</div>
+
+<!-- Chat Window -->
+<div id="chat-window" class="hidden fixed bottom-24 right-6 w-96 bg-white rounded-lg shadow-2xl z-50 flex flex-col" style="height: 500px; max-height: calc(100vh - 150px);" data-user-first-name="{{ user.first_name|default:user.username }}" data-user-id="{{ user.id }}">
+    <!-- Header -->
+    <div class="bg-blue-600 text-white p-4 rounded-t-lg flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <i data-lucide="headphones" class="w-5 h-5"></i>
+            <h3 class="font-semibold">Support Chat</h3>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="button" id="new-chat-btn" class="hover:bg-blue-700 p-1 rounded transition" title="New Chat">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+            </button>
+            <button type="button" id="chat-close-btn" class="hover:bg-blue-700 p-1 rounded transition" title="Close">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Session Selector -->
+    <div id="session-selector" class="border-b bg-gray-50">
+        <div class="p-3 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition" id="session-toggle">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-gray-600">Conversations</span>
+                <span id="session-indicator" class="text-xs text-gray-500"></span>
+            </div>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-600 transition-transform" id="session-chevron"></i>
+        </div>
+        <div id="session-list" class="max-h-40 overflow-y-auto space-y-1 px-3 pb-3">
+            <div class="text-xs text-gray-500 text-center py-2">Loading conversations...</div>
+        </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+        <div class="text-center text-gray-500 py-8">
+            <i data-lucide="message-square" class="w-12 h-12 mx-auto mb-2 text-gray-400"></i>
+            <p>Start a conversation with our support team</p>
+        </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="p-4 border-t bg-white rounded-b-lg">
+        <form id="chat-form" class="flex gap-2">
+            <input type="text" id="chat-input" placeholder="Type your message..." 
+                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="submit" id="chat-send-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Chat Confirmation Modal -->
+<div id="delete-chat-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between p-6 border-b">
+            <h3 class="text-xl font-bold text-gray-900">Delete Chat</h3>
+            <button onclick="ChatWidget.hideDeleteModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0">
+                    <i data-lucide="alert-circle" class="w-12 h-12 text-red-600"></i>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Are you sure?</h4>
+                    <p class="text-gray-600" id="delete-chat-message">
+                        This will permanently delete all messages in this conversation. This action cannot be undone.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="flex gap-3 p-6 border-t bg-gray-50 rounded-b-lg">
+            <button onclick="ChatWidget.hideDeleteModal()" 
+                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition">
+                Cancel
+            </button>
+            <button onclick="ChatWidget.confirmDeleteSession()" 
+                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
+                Delete Chat
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
