@@ -20,7 +20,9 @@
                     {% with order=item.order search_type=item.search_type %}
                         <tr>
                             <td>
-                                <div class="order-number">{{ order.order_number }}</div>
+                                <a href="{% url 'adminpanel:edit_order' order.id %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}" class="order-number order-link">
+                                    {{ order.order_number }}
+                                </a>
                                 {% if search_type == 'order' %}
                                     <span class="search-type-badge search-type-order">Order Search</span>
                                 {% else %}

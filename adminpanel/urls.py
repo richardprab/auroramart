@@ -15,6 +15,7 @@ urlpatterns = [
     
     path('products/', views.product_management, name='products'),
     path('products/search/', views.search_product, name='search_product'),
+    path('products/<int:product_id>/reorder/', views.reorder_product, name='reorder_product'),
     path('products/edit/<int:product_id>/', views.edit_product, name='edit_product'),
     path('products/update/', views.update_product, name='update_product'),
     
@@ -24,6 +25,8 @@ urlpatterns = [
     path('orders/update/<int:order_id>/', views.update_order, name='update_order'),
     
     path('analytics/', views.analytics, name='analytics'),
+    path('analytics/data/', views.analytics_data, name='analytics_data'),
+    path('analytics/export/', views.analytics_export, name='analytics_export'),
     
     path('vouchers/', views.voucher_management, name='voucher_management'),
     path('vouchers/add/', views.add_voucher, name='add_voucher'),

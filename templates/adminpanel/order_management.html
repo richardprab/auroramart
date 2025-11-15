@@ -250,6 +250,152 @@
         color: #64748b;
         font-size: 0.9375rem;
     }
+
+    .pending-panel {
+        background: rgba(237, 233, 254, 0.35);
+        border: 1px solid rgba(196, 181, 253, 0.4);
+        border-radius: 1.25rem;
+        padding: 1.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.08);
+    }
+
+    .pending-panel h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #5b21b6;
+        margin-bottom: 1rem;
+    }
+
+    .pending-meta {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+        align-items: center;
+    }
+
+    .pending-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: rgba(251, 191, 36, 0.15);
+        color: #b45309;
+        padding: 0.4rem 0.9rem;
+        border-radius: 999px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        outline: none;
+        transition: all 0.2s ease;
+        margin-left: auto;
+    }
+
+    .pending-count:hover:not(:disabled),
+    .pending-count:focus-visible {
+        background: rgba(251, 191, 36, 0.3);
+        box-shadow: 0 4px 12px rgba(180, 83, 9, 0.2);
+    }
+
+    .pending-count:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    .pending-orders-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .pending-orders-table th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #7c3aed;
+        padding: 0.75rem 0;
+    }
+
+    .pending-orders-table td {
+        padding: 0.9rem 0;
+        border-bottom: 1px solid rgba(124, 58, 237, 0.1);
+        vertical-align: middle;
+        font-size: 0.875rem;
+    }
+
+    .pending-orders-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .pending-order-number {
+        font-weight: 600;
+        color: #7c3aed;
+    }
+
+    .pending-order-customer {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .pending-status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.75rem;
+        border-radius: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .pending-status-badge.status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .pending-status-badge.status-confirmed,
+    .pending-status-badge.status-processing {
+        background: #e0f2fe;
+        color: #075985;
+    }
+
+    .pending-status-badge.status-other {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .btn-update-order {
+        background: #fff;
+        border: 1.5px solid rgba(124, 58, 237, 0.4);
+        border-radius: 0.75rem;
+        padding: 0.5rem 1.25rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #6d28d9;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        text-decoration: none;
+    }
+
+    .btn-update-order:hover {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 8px 16px rgba(124, 58, 237, 0.2);
+    }
+
+    .pending-empty {
+        text-align: center;
+        padding: 1.5rem;
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
 </style>
 {% endblock %}
 
@@ -271,6 +417,73 @@
         <div class="text-6xl mb-5">🔍</div>
         <h3 class="text-xl font-semibold">Search for Orders</h3>
         <p>Start typing an order number or customer username to search. Results will appear in real-time as you type.</p>
+    </div>
+
+    <!-- Pending Orders Alert -->
+    <div id="pending-orders-alert" class="pending-panel">
+        <h3>
+            <i data-lucide="alert-octagon"></i>
+            Pending Order Alerts
+        </h3>
+        <div class="pending-meta">
+            <span>Orders awaiting attention. Update their status once processed.</span>
+            <button type="button" class="pending-count" id="togglePendingOrdersBtn" aria-expanded="false" {% if not pending_orders_alert %}disabled{% endif %}>
+                <span id="pendingOrdersCountDisplay">{{ pending_orders_count }}</span>
+                orders need updates
+            </button>
+        </div>
+        <div id="pendingOrdersDetails" data-expanded="false" style="display: none;">
+            {% if pending_orders_alert %}
+                <div class="overflow-x-auto" id="pendingOrdersTableWrapper">
+                    <table class="pending-orders-table">
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Placed</th>
+                                <th>Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in pending_orders_alert %}
+                            <tr>
+                                <td>
+                                    <div class="pending-order-number">{{ alert.order_number }}</div>
+                                </td>
+                                <td>
+                                    <div class="pending-order-customer">{{ alert.customer_name }}</div>
+                                    {% if alert.username %}
+                                    <div class="customer-username">@{{ alert.username }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="pending-status-badge status-{{ alert.status }}">{{ alert.status_display }}</span>
+                                </td>
+                                <td>{{ alert.created_at|date:"M d, Y" }}</td>
+                                <td>${{ alert.total }}</td>
+                                <td style="text-align: right;">
+                                    <a href="{% url 'adminpanel:edit_order' alert.id %}" class="btn-update-order">
+                                        <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                                        Update
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            <div class="pending-empty" id="pendingOrdersEmptyState" style="display: {% if pending_orders_alert %}none{% else %}block{% endif %};">
+                <i data-lucide="check-circle" class="inline w-5 h-5 mr-2 text-green-500"></i>
+                All pending orders are handled.
+            </div>
+        </div>
+        <div class="pending-empty" id="pendingOrdersEmptyStateCollapsed" style="display: {% if pending_orders_alert %}none{% else %}block{% endif %};">
+            <i data-lucide="check-circle" class="inline w-5 h-5 mr-2 text-green-500"></i>
+            All pending orders are handled.
+        </div>
     </div>
 
     <!-- Orders Table -->
@@ -310,6 +523,9 @@ const ordersTableContent = document.getElementById('ordersTableContent');
 const ordersTableLoading = document.getElementById('ordersTableLoading');
 const searchInstructions = document.getElementById('searchInstructions');
 const tableHeader = document.getElementById('tableHeader');
+const togglePendingOrdersBtn = document.getElementById('togglePendingOrdersBtn');
+const pendingOrdersDetails = document.getElementById('pendingOrdersDetails');
+const pendingOrdersEmptyStateCollapsed = document.getElementById('pendingOrdersEmptyStateCollapsed');
 
 if (searchInput) {
     searchInput.addEventListener('input', function(e) {
@@ -414,6 +630,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
+    }
+
+    if (togglePendingOrdersBtn && pendingOrdersDetails) {
+        togglePendingOrdersBtn.addEventListener('click', () => {
+            if (togglePendingOrdersBtn.disabled) {
+                return;
+            }
+            const isExpanded = pendingOrdersDetails.getAttribute('data-expanded') === 'true';
+            const newState = !isExpanded;
+            pendingOrdersDetails.style.display = newState ? 'block' : 'none';
+            pendingOrdersDetails.setAttribute('data-expanded', newState ? 'true' : 'false');
+            togglePendingOrdersBtn.setAttribute('aria-expanded', newState ? 'true' : 'false');
+            if (pendingOrdersEmptyStateCollapsed) {
+                pendingOrdersEmptyStateCollapsed.style.display = newState ? 'none' : (togglePendingOrdersBtn.disabled ? 'block' : 'none');
+            }
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
     }
 });
 </script>

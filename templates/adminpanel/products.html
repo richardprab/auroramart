@@ -36,6 +36,7 @@
         padding: 1.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         border: 1px solid rgba(196, 181, 253, 0.3);
+        overflow: hidden;
     }
 
     .products-table {
@@ -44,6 +45,7 @@
         border-spacing: 0;
         margin-top: 0;
         background: transparent;
+        table-layout: auto;
     }
 
     .products-table thead {
@@ -60,14 +62,15 @@
     }
 
     .products-table th {
-        padding: 1rem 1.25rem;
+        padding: 0.875rem 1rem;
         text-align: left;
         font-weight: 600;
         color: #5b21b6;
-        font-size: 0.8125rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         border-bottom: 2px solid rgba(196, 181, 253, 0.4);
+        white-space: nowrap;
     }
 
     .products-table tbody tr {
@@ -90,9 +93,20 @@
     }
 
     .products-table td {
-        padding: 1.125rem 1.25rem;
+        padding: 1rem 1rem;
         border-bottom: 1px solid rgba(196, 181, 253, 0.2);
         vertical-align: top;
+        word-wrap: break-word;
+    }
+
+    .products-table th.col-action,
+    .products-table td.action-cell {
+        width: 120px;
+        white-space: nowrap;
+    }
+
+    .products-table td.action-cell {
+        text-align: right;
     }
 
     .products-table tbody tr:last-child td {
@@ -105,6 +119,11 @@
         object-fit: cover;
         border-radius: 0.5rem;
         border: 2px solid #e5e7eb;
+    }
+
+    .product-info-cell {
+        min-width: 180px;
+        max-width: 240px;
     }
 
     .product-name {
@@ -265,6 +284,157 @@
         color: #64748b;
         font-size: 0.9375rem;
     }
+
+    .low-stock-panel {
+        background: rgba(237, 233, 254, 0.35);
+        border: 1px solid rgba(196, 181, 253, 0.4);
+        border-radius: 1.25rem;
+        padding: 1.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.08);
+    }
+
+    .low-stock-panel h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #5b21b6;
+        margin-bottom: 1rem;
+    }
+
+    .low-stock-meta {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+        align-items: center;
+    }
+
+    .low-stock-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: rgba(124, 58, 237, 0.12);
+        color: #5b21b6;
+        padding: 0.4rem 0.9rem;
+        border-radius: 999px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        outline: none;
+        transition: all 0.2s ease;
+        margin-left: auto;
+    }
+
+    .low-stock-count:hover:not(:disabled),
+    .low-stock-count:focus-visible {
+        background: rgba(124, 58, 237, 0.2);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+    }
+
+    .low-stock-count:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    .low-stock-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .low-stock-table th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #7c3aed;
+        padding: 0.75rem 0;
+    }
+
+    .low-stock-table td {
+        padding: 0.9rem 0;
+        border-bottom: 1px solid rgba(124, 58, 237, 0.1);
+        vertical-align: middle;
+        font-size: 0.875rem;
+    }
+
+    .low-stock-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .low-stock-product {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .low-stock-thumb,
+    .low-stock-product img {
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 0.5rem;
+        border: 2px solid rgba(124, 58, 237, 0.25);
+        flex-shrink: 0;
+    }
+
+    .low-stock-thumb.placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.8);
+        font-size: 0.65rem;
+        color: #94a3b8;
+        border-style: dashed;
+    }
+
+    .low-stock-product .name {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .low-stock-product .sku {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+
+    .btn-reorder {
+        background: #fff;
+        border: 1.5px solid rgba(124, 58, 237, 0.4);
+        border-radius: 0.75rem;
+        padding: 0.5rem 1.25rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #6d28d9;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .btn-reorder:hover:not(:disabled) {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 8px 16px rgba(124, 58, 237, 0.2);
+    }
+
+    .btn-reorder:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .low-stock-empty {
+        text-align: center;
+        padding: 1.5rem;
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
 </style>
 {% endblock %}
 
@@ -288,6 +458,80 @@
         <p>Start typing a product name or SKU to search. Results will appear in real-time as you type.</p>
     </div>
 
+    <!-- Low Stock Panel -->
+    <div id="low-stock-alerts" class="low-stock-panel">
+        <h3>
+            <i data-lucide="alert-triangle"></i>
+            Low Stock Alerts
+        </h3>
+        <div class="low-stock-meta">
+            <span>Use the reorder button to add the recommended quantity instantly.</span>
+            <button type="button" class="low-stock-count" id="toggleLowStockBtn" aria-expanded="false" {% if not low_stock_products %}disabled{% endif %}>
+                <span id="lowStockCountDisplay">{{ low_stock_products|length }}</span>
+                products below {{ low_stock_threshold }} units
+            </button>
+        </div>
+        <div id="lowStockDetails" data-expanded="false" style="display: none;">
+            {% if low_stock_products %}
+                <div class="overflow-x-auto" id="lowStockTableWrapper">
+                    <table class="low-stock-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Reorder Qty</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in low_stock_products %}
+                            <tr data-low-stock-row="{{ alert.id }}">
+                                <td>
+                                    <div class="low-stock-product">
+                                        {% if alert.image %}
+                                            <img src="{{ alert.image }}" alt="{{ alert.name }}">
+                                        {% else %}
+                                            <div class="low-stock-thumb placeholder">No Image</div>
+                                        {% endif %}
+                                        <div>
+                                            <div class="name">{{ alert.name }}</div>
+                                            <div class="sku">SKU: {{ alert.sku }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ alert.category }}</td>
+                                <td>
+                                    <span data-stock-value>{{ alert.total_stock }}</span> units
+                                </td>
+                                <td>{{ alert.reorder_quantity }}</td>
+                                <td style="text-align: right;">
+                                    <button 
+                                        type="button" 
+                                        class="btn-reorder"
+                                        data-url="{% url 'adminpanel:reorder_product' alert.id %}"
+                                        data-product-id="{{ alert.id }}">
+                                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                        Reorder
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            <div class="low-stock-empty" id="lowStockEmptyState" style="display: {% if low_stock_products %}none{% else %}block{% endif %};">
+                <i data-lucide="check-circle" class="inline w-5 h-5 mr-2 text-green-500"></i>
+                All products are above the low-stock threshold.
+            </div>
+        </div>
+        <div class="low-stock-empty" id="lowStockEmptyStateCollapsed" style="display: {% if low_stock_products %}none{% else %}block{% endif %};">
+            <i data-lucide="check-circle" class="inline w-5 h-5 mr-2 text-green-500"></i>
+            All products are above the low-stock threshold.
+        </div>
+    </div>
+
     <!-- Products Table -->
     <div class="products-table-container" id="productsTableContainer">
         <h3 id="tableHeader" class="text-lg font-semibold text-gray-900 mb-6 pb-3 border-b-2 border-purple-300" style="color: #5b21b6;">
@@ -309,6 +553,7 @@
             {% endif %}
         </div>
     </div>
+    <input type="hidden" id="csrfTokenInput" value="{{ csrf_token }}">
 </div>
 {% endblock %}
 
@@ -325,6 +570,11 @@ const productsTableContent = document.getElementById('productsTableContent');
 const productsTableLoading = document.getElementById('productsTableLoading');
 const searchInstructions = document.getElementById('searchInstructions');
 const tableHeader = document.getElementById('tableHeader');
+const csrfTokenInput = document.getElementById('csrfTokenInput');
+const LOW_STOCK_THRESHOLD = {{ low_stock_threshold|default:5 }};
+const toggleLowStockBtn = document.getElementById('toggleLowStockBtn');
+const lowStockDetails = document.getElementById('lowStockDetails');
+const lowStockEmptyStateCollapsed = document.getElementById('lowStockEmptyStateCollapsed');
 
 if (searchInput) {
     searchInput.addEventListener('input', function(e) {
@@ -420,6 +670,138 @@ function performSearch(query) {
         });
 }
 
+function getCsrfToken() {
+    return csrfTokenInput ? csrfTokenInput.value : '';
+}
+
+function attachReorderHandlers() {
+    document.querySelectorAll('.btn-reorder').forEach(button => {
+        if (button.dataset.bound === 'true') return;
+        button.dataset.bound = 'true';
+        button.addEventListener('click', () => handleReorder(button));
+    });
+}
+
+function updateLowStockCount(delta) {
+    const countEl = document.getElementById('lowStockCountDisplay');
+    if (!countEl) {
+        return;
+    }
+    const current = parseInt(countEl.textContent, 10) || 0;
+    const next = Math.max(0, current + delta);
+    countEl.textContent = next;
+}
+
+function showLowStockEmptyStateIfNeeded() {
+    const remainingRows = document.querySelectorAll('[data-low-stock-row]').length;
+    const tableWrapper = document.getElementById('lowStockTableWrapper');
+    const emptyState = document.getElementById('lowStockEmptyState');
+
+    if (remainingRows === 0) {
+        if (tableWrapper) {
+            tableWrapper.style.display = 'none';
+        }
+        if (emptyState) {
+            emptyState.style.display = 'block';
+        }
+    }
+
+    if (lowStockEmptyStateCollapsed) {
+        const isExpanded = lowStockDetails && lowStockDetails.getAttribute('data-expanded') === 'true';
+        if (!isExpanded) {
+            lowStockEmptyStateCollapsed.style.display = remainingRows === 0 ? 'block' : 'none';
+        }
+    }
+
+    if (toggleLowStockBtn) {
+        toggleLowStockBtn.disabled = remainingRows === 0;
+    }
+}
+
+function setLowStockExpanded(expanded) {
+    if (!lowStockDetails) {
+        return;
+    }
+    lowStockDetails.style.display = expanded ? 'block' : 'none';
+    lowStockDetails.setAttribute('data-expanded', expanded ? 'true' : 'false');
+    if (toggleLowStockBtn) {
+        toggleLowStockBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+    if (!expanded && lowStockEmptyStateCollapsed) {
+        const remainingRows = document.querySelectorAll('[data-low-stock-row]').length;
+        lowStockEmptyStateCollapsed.style.display = remainingRows === 0 ? 'block' : 'none';
+    } else if (expanded && lowStockEmptyStateCollapsed) {
+        lowStockEmptyStateCollapsed.style.display = 'none';
+    }
+}
+
+function handleReorder(button) {
+    const url = button.dataset.url;
+    if (!url) {
+        return;
+    }
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="animate-pulse">Reordering…</span>';
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().catch(() => {
+                throw new Error('Unable to restock product.');
+            }).then(data => {
+                throw new Error(data.message || 'Unable to restock product.');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status !== 'success') {
+            throw new Error(data.message || 'Unable to restock product.');
+        }
+        const row = button.closest('tr');
+        if (row) {
+            const stockValue = row.querySelector('[data-stock-value]');
+            if (stockValue) {
+                stockValue.textContent = data.new_total_stock;
+            }
+            if (data.new_total_stock >= LOW_STOCK_THRESHOLD) {
+                row.classList.add('opacity-50');
+                setTimeout(() => {
+                    row.remove();
+                    showLowStockEmptyStateIfNeeded();
+                }, 400);
+                updateLowStockCount(-1);
+            }
+        }
+        button.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> Restocked';
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        setTimeout(() => {
+            if (row && !document.body.contains(row)) {
+                return;
+            }
+            button.innerHTML = originalContent;
+            button.disabled = false;
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 1200);
+    })
+    .catch(error => {
+        alert(error.message);
+        button.innerHTML = originalContent;
+        button.disabled = false;
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const hasInitialContent = productsTableContent && productsTableContent.innerHTML.trim().length > 0;
     
@@ -429,6 +811,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
+    }
+
+    attachReorderHandlers();
+
+    if (toggleLowStockBtn && lowStockDetails) {
+        toggleLowStockBtn.addEventListener('click', () => {
+            if (toggleLowStockBtn.disabled) {
+                return;
+            }
+            const isExpanded = lowStockDetails.getAttribute('data-expanded') === 'true';
+            setLowStockExpanded(!isExpanded);
+            if (!isExpanded) {
+                attachReorderHandlers();
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        });
     }
 });
 </script>

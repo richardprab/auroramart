@@ -13,6 +13,10 @@
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
     }
     
     .stat-card::before {
@@ -26,10 +30,16 @@
         opacity: 0.8;
     }
     
-    .stat-card:hover {
+    .stat-card:hover,
+    .stat-card:focus-visible {
         transform: translateY(-4px);
         box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06);
         border-color: rgba(196, 181, 253, 0.4);
+    }
+
+    .stat-card:focus-visible {
+        outline: 3px solid rgba(99, 102, 241, 0.4);
+        outline-offset: 4px;
     }
     
     .stat-card.blue {
@@ -45,6 +55,11 @@
     .stat-card.purple {
         --card-color-start: #8b5cf6;
         --card-color-end: #a78bfa;
+    }
+
+    .stat-card.rose {
+        --card-color-start: #f43f5e;
+        --card-color-end: #fb7185;
     }
     
     .stat-icon-wrapper {
@@ -68,6 +83,10 @@
     
     .stat-card.purple .stat-icon-wrapper {
         background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    }
+
+    .stat-card.rose .stat-icon-wrapper {
+        background: linear-gradient(135deg, #fef2f2 0%, #ffe4e6 100%);
     }
     
     .stat-icon-wrapper i {
@@ -241,30 +260,38 @@
 
 <div class="admin-content-body">
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="stat-card blue">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+        <a class="stat-card blue" href="{% url 'adminpanel:products' %}">
             <div class="stat-icon-wrapper">
                 <i data-lucide="package"></i>
             </div>
             <div class="stat-label">Total Products</div>
             <div class="stat-value">{{ total_products }}</div>
-        </div>
+        </a>
 
-        <div class="stat-card yellow">
+        <a class="stat-card yellow" href="{% url 'adminpanel:order_management' %}">
             <div class="stat-icon-wrapper">
                 <i data-lucide="clipboard-list"></i>
             </div>
             <div class="stat-label">Pending Orders</div>
             <div class="stat-value">{{ pending_orders }}</div>
-        </div>
+        </a>
 
-        <div class="stat-card purple">
+        <a class="stat-card purple" href="{% url 'adminpanel:customer_support' %}">
             <div class="stat-icon-wrapper">
                 <i data-lucide="message-circle"></i>
             </div>
             <div class="stat-label">Open Conversations</div>
             <div class="stat-value">{{ open_conversations }}</div>
-        </div>
+        </a>
+
+        <a class="stat-card rose" href="{% url 'adminpanel:products' %}#low-stock-alerts">
+            <div class="stat-icon-wrapper">
+                <i data-lucide="alert-triangle"></i>
+            </div>
+            <div class="stat-label">Low Stock Products</div>
+            <div class="stat-value">{{ low_stock_count }}</div>
+        </a>
     </div>
 
     <!-- Recent Orders Table -->
@@ -289,7 +316,7 @@
                 {% for order in recent_orders %}
                 <tr>
                     <td>
-                        <a href="{% url 'adminpanel:order_management' %}?search={{ order.order_number }}" 
+                        <a href="{% url 'adminpanel:edit_order' order.id %}" 
                            class="order-link">
                             #{{ order.order_number }}
                         </a>
