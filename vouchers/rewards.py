@@ -368,9 +368,7 @@ def get_milestone_progress(user):
             current_badge = badge_info
             break
     
-    # Find next badge to earn (first milestone not yet reached based on spending)
-    # This should be based on cumulative spending, not earned_milestones
-    # because a user might have reached a threshold but voucher hasn't been created yet
+  
     next_badge = None
     next_threshold = None
     
