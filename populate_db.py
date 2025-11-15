@@ -192,6 +192,27 @@ BRANDS = {
 COLORS = ["Black", "White", "Blue", "Red", "Gray", "Navy", "Green"]
 SIZES = ["XS", "S", "M", "L", "XL", "XXL"]
 
+# Distribution used to seed more realistic fulfillment states for analytics
+ORDER_STATUS_DISTRIBUTION = [
+    ("delivered", 0.55),
+    ("shipped", 0.15),
+    ("processing", 0.10),
+    ("confirmed", 0.08),
+    ("pending", 0.07),
+    ("cancelled", 0.03),
+    ("refunded", 0.02),
+]
+
+ORDER_LOCATION_MAP = {
+    "pending": "warehouse",
+    "confirmed": "warehouse",
+    "processing": "at_dc",
+    "shipped": "out_delivery",
+    "delivered": "delivered",
+    "cancelled": "warehouse",
+    "refunded": "warehouse",
+}
+
 # User demographic data options
 AGE_RANGES = ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"]
 GENDERS = ["Male", "Female", "Other"]
@@ -822,6 +843,9 @@ def seed_from_csv(csv_path, reset=True):
     # Assign milestone reward vouchers based on cumulative spending
     assign_milestone_vouchers()
 
+    # Seed browsing/chat data so analytics dashboard has activity
+    create_adminpanel_analytics_data()
+
 
 def create_sample_vouchers():
     """
@@ -1142,6 +1166,128 @@ def assign_milestone_vouchers():
     print()
 
 
+def create_adminpanel_analytics_data():
+    """
+    Seed browsing history and chat activity so the admin analytics dashboard
+    shows meaningful conversion, repeat visit, and response-time metrics.
+    """
+    print("\n" + "=" * 60)
+    print("CREATING ANALYTICS SUPPORT DATA")
+    print("=" * 60)
+
+    BrowsingHistory = apps.get_model("accounts", "BrowsingHistory")
+    ChatConversation = apps.get_model("chat", "ChatConversation")
+    ChatMessage = apps.get_model("chat", "ChatMessage")
+    Product = apps.get_model("products", "Product")
+
+    customers = list(Customer.objects.all()[:40])
+    products = list(Product.objects.filter(is_active=True)[:60])
+    staff_user = Staff.objects.filter(is_active=True).first()
+
+    if not customers or not products:
+        print("  ⚠️  Missing customers or products. Skipping analytics seed.")
+        print()
+        return
+
+    # Browsing activity to drive conversion rate denominator
+    history_targets = min(len(customers) * 4, 160)
+    history_created = 0
+    for _ in range(history_targets):
+        user = RNG.choice(customers)
+        product = RNG.choice(products)
+        timestamp = timezone.now() - timedelta(
+            days=RNG.randint(0, 45),
+            hours=RNG.randint(0, 23),
+            minutes=RNG.randint(0, 59),
+        )
+        view_count = RNG.randint(1, 12)
+        history_obj, created = BrowsingHistory.objects.get_or_create(
+            user=user,
+            product=product,
+            defaults={"view_count": view_count},
+        )
+        BrowsingHistory.objects.filter(id=history_obj.id).update(
+            view_count=view_count,
+            viewed_at=timestamp,
+        )
+        if created:
+            history_created += 1
+
+    print(f"  ✅ Seeded {history_created} browsing history entries")
+
+    if not staff_user:
+        print("  ⚠️  No staff users available for chat analytics.")
+        print()
+        return
+
+    # Chat conversations to produce response-time metrics
+    conversation_subjects = [
+        "Question about shipping",
+        "Product sizing help",
+        "Voucher not applying",
+        "Bulk order inquiry",
+        "Need delivery update",
+    ]
+    conversations_to_create = min(6, len(customers))
+    conversations_created = 0
+
+    for idx in range(conversations_to_create):
+        customer = customers[idx]
+        product = RNG.choice(products)
+        is_pending = idx % 3 == 0  # ensure a mix of pending vs replied
+        status = 'pending' if is_pending else 'replied'
+
+        conv = ChatConversation.objects.create(
+            user=customer,
+            product=product,
+            admin=staff_user,
+            subject=RNG.choice(conversation_subjects),
+            message_type=RNG.choice(['contact_us', 'product_chat']),
+            status=status,
+            user_has_unread=not is_pending,
+            admin_has_unread=is_pending,
+        )
+        created_at = timezone.now() - timedelta(
+            days=RNG.randint(1, 25),
+            hours=RNG.randint(0, 10),
+            minutes=RNG.randint(0, 59),
+        )
+        ChatConversation.objects.filter(id=conv.id).update(
+            created_at=created_at,
+            updated_at=created_at,
+        )
+        conv.refresh_from_db()
+
+        # Customer message
+        customer_msg_time = created_at + timedelta(minutes=RNG.randint(0, 20))
+        cust_msg = ChatMessage.objects.create(
+            conversation=conv,
+            sender=customer,
+            content=f"Hi, I need help with {product.name}.",
+        )
+        ChatMessage.objects.filter(id=cust_msg.id).update(created_at=customer_msg_time)
+
+        if not is_pending:
+            reply_delay = RNG.randint(5, 240)  # minutes
+            staff_msg_time = customer_msg_time + timedelta(minutes=reply_delay)
+            reply = ChatMessage.objects.create(
+                conversation=conv,
+                staff_sender=staff_user,
+                content="Thanks for reaching out! Here's what I can do to help.",
+            )
+            ChatMessage.objects.filter(id=reply.id).update(created_at=staff_msg_time)
+            ChatConversation.objects.filter(id=conv.id).update(
+                updated_at=staff_msg_time,
+                user_has_unread=True,
+                admin_has_unread=False,
+            )
+
+        conversations_created += 1
+
+    print(f"  ✅ Created {conversations_created} chat conversations for analytics")
+    print()
+
+
 def create_sample_orders_and_reviews():
     """
     Create sample orders and reviews for testing.
@@ -1185,6 +1331,8 @@ def create_sample_orders_and_reviews():
         orders_created = 0
         reviews_created = 0
         
+        status_options, status_weights = zip(*ORDER_STATUS_DISTRIBUTION)
+
         # Create orders for customers
         for customer in customers:
             # Create an address for the customer if they don't have one
@@ -1284,9 +1432,35 @@ def create_sample_orders_and_reviews():
                 tax = subtotal * tax_rate
                 total = subtotal + tax + shipping_cost
                 
-                # Create order with delivered status (so customers can review)
-                order_date = timezone.now() - timedelta(days=RNG.randint(1, 90))  # Orders from 1-90 days ago
-                delivered_date = order_date + timedelta(days=RNG.randint(3, 7))  # Delivered 3-7 days after order
+                # Spread orders across last ~2 months to populate analytics graphs
+                days_ago = RNG.randint(0, 60)
+                order_date = timezone.now() - timedelta(days=days_ago, hours=RNG.randint(0, 23), minutes=RNG.randint(0, 59))
+                
+                # Ensure each customer has at least one delivered order for reviews
+                if order_num == 0:
+                    status = 'delivered'
+                else:
+                    status = RNG.choices(status_options, weights=status_weights, k=1)[0]
+
+                delivered_date = None
+                shipped_date = None
+                expected_delivery_date = order_date.date() + timedelta(days=RNG.randint(3, 7))
+                
+                if status in ['processing', 'shipped', 'delivered']:
+                    shipped_date = order_date + timedelta(days=RNG.randint(1, 3))
+                if status == 'delivered':
+                    delivered_date = order_date + timedelta(days=RNG.randint(3, 7))
+                    expected_delivery_date = delivered_date.date()
+                elif status in ['pending', 'confirmed']:
+                    expected_delivery_date = (timezone.now() + timedelta(days=7)).date()
+
+                payment_status = 'paid' if status in ['confirmed', 'processing', 'shipped', 'delivered'] else 'pending'
+                if status == 'cancelled':
+                    payment_status = 'cancelled'
+                elif status == 'refunded':
+                    payment_status = 'refunded'
+
+                current_location = ORDER_LOCATION_MAP.get(status, 'warehouse')
                 
                 # Generate unique order number
                 import uuid
@@ -1303,13 +1477,15 @@ def create_sample_orders_and_reviews():
                     voucher_code=voucher_code,
                     discount_amount=discount_amount,
                     total=total,
-                    status='delivered',  # Delivered so customers can review
-                    payment_status='paid',
+                    status=status,
+                    payment_status=payment_status,
                     payment_method=RNG.choice(['Credit Card', 'PayPal', 'Bank Transfer']),
-                    current_location='delivered',
+                    current_location=current_location,
                     contact_number=customer.phone or f"+65{RNG.randint(8000, 9999)}{RNG.randint(1000, 9999)}",
                     tracking_number=f"TRK{RNG.randint(100000000, 999999999)}",
-                    expected_delivery_date=delivered_date.date(),
+                    expected_delivery_date=expected_delivery_date,
+                    paid_at=order_date if payment_status == 'paid' else None,
+                    shipped_at=shipped_date,
                     delivered_at=delivered_date,
                 )
                 
@@ -1343,55 +1519,56 @@ def create_sample_orders_and_reviews():
                 
                 orders_created += 1
                 
-                # Create reviews for some products in this order (50% chance per product)
-                for item_data in order_items_data:
-                    if RNG.random() < 0.5:  # 50% chance to review
-                        product = item_data['product']
-                        
-                        # Check if customer already reviewed this product
-                        if Review.objects.filter(user=customer, product=product).exists():
-                            continue
-                        
-                        # Create review
-                        rating = RNG.randint(3, 5)  # Mostly positive reviews (3-5 stars)
-                        review_titles = [
-                            "Great product!",
-                            "Very satisfied",
-                            "Good quality",
-                            "Would recommend",
-                            "Excellent purchase",
-                            "Love it!",
-                            "As described",
-                            "Fast delivery",
-                        ]
-                        review_comments = [
-                            "Really happy with this purchase. Quality is great and delivery was fast.",
-                            "Product met my expectations. Would buy again.",
-                            "Good value for money. Highly recommend.",
-                            "Excellent quality and fast shipping. Very satisfied!",
-                            "Great product, exactly as described. Very happy with my purchase.",
-                            "Love this product! Quality is excellent and it arrived quickly.",
-                            "Good product, good service. Would recommend to others.",
-                            "Satisfied with the purchase. Product is as described.",
-                        ]
-                        
-                        review = Review.objects.create(
-                            user=customer,
-                            product=product,
-                            rating=rating,
-                            title=RNG.choice(review_titles),
-                            comment=RNG.choice(review_comments),
-                            is_verified_purchase=True,  # All reviews are from verified purchases
-                        )
-                        # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
-                        Review.objects.filter(id=review.id).update(
-                            created_at=delivered_date + timedelta(days=RNG.randint(1, 7))
-                        )
-                        reviews_created += 1
-                        
-                        # Update product rating based on all reviews
-                        from products.utils import update_product_rating
-                        update_product_rating(product)
+                # Create reviews only for fulfilled orders
+                if status == 'delivered':
+                    for item_data in order_items_data:
+                        if RNG.random() < 0.5:  # 50% chance to review
+                            product = item_data['product']
+                            
+                            # Check if customer already reviewed this product
+                            if Review.objects.filter(user=customer, product=product).exists():
+                                continue
+                            
+                            # Create review
+                            rating = RNG.randint(3, 5)  # Mostly positive reviews (3-5 stars)
+                            review_titles = [
+                                "Great product!",
+                                "Very satisfied",
+                                "Good quality",
+                                "Would recommend",
+                                "Excellent purchase",
+                                "Love it!",
+                                "As described",
+                                "Fast delivery",
+                            ]
+                            review_comments = [
+                                "Really happy with this purchase. Quality is great and delivery was fast.",
+                                "Product met my expectations. Would buy again.",
+                                "Good value for money. Highly recommend.",
+                                "Excellent quality and fast shipping. Very satisfied!",
+                                "Great product, exactly as described. Very happy with my purchase.",
+                                "Love this product! Quality is excellent and it arrived quickly.",
+                                "Good product, good service. Would recommend to others.",
+                                "Satisfied with the purchase. Product is as described.",
+                            ]
+                            
+                            review = Review.objects.create(
+                                user=customer,
+                                product=product,
+                                rating=rating,
+                                title=RNG.choice(review_titles),
+                                comment=RNG.choice(review_comments),
+                                is_verified_purchase=True,  # All reviews are from verified purchases
+                            )
+                            # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
+                            Review.objects.filter(id=review.id).update(
+                                created_at=delivered_date + timedelta(days=RNG.randint(1, 7))
+                            )
+                            reviews_created += 1
+                            
+                            # Update product rating based on all reviews
+                            from products.utils import update_product_rating
+                            update_product_rating(product)
         
         print(f"Created {orders_created} orders")
         print(f"Created {reviews_created} reviews")
