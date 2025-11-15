@@ -9,3 +9,5 @@ Pillow>=10.0.0
 channels>=4.0.0
 channels-redis>=4.1.0
 uvicorn[standard]>=0.24.0
+stripe>=7.0.0
+python-decouple>=3.8

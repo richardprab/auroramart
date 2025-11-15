@@ -63,7 +63,11 @@
                     {% if user.is_authenticated %}
                     <div class="relative" id="notification-dropdown-container">
                         <button type="button" id="notification-bell" class="relative p-2 text-gray-700 hover:text-blue-600 transition-colors cursor-pointer focus:outline-none">
-                            <i data-lucide="bell" class="w-6 h-6"></i>
+                            <i data-lucide="bell" class="w-6 h-6" id="bell-icon"></i>
+                            <span id="notification-count"
+                                class="absolute -top-0 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center hidden">
+                                0
+                            </span>
                         </button>
                         
                         <!-- Notification Dropdown -->
@@ -86,14 +90,14 @@
                             
                             <!-- Footer -->
                             <div class="border-t border-gray-200 p-3">
-                                <a href="{% url 'notifications:notification_list' %}" class="block text-center text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                    View All Notifications
-                                </a>
+                                <button type="button" id="view-all-notifications-btn" class="block w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                    View All
+                                </button>
                             </div>
                         </div>
                     </div>
                     {% else %}
-                    <a href="{% url 'accounts:login' %}?next={% url 'notifications:notification_list' %}"
+                    <a href="{% url 'accounts:login' %}"
                         class="relative p-2 text-gray-700 hover:text-blue-600">
                         <i data-lucide="bell" class="w-6 h-6"></i>
                     </a>

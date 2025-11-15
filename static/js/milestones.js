@@ -25,9 +25,9 @@ const GRADIENT_PRESETS = {
 };
 
 const PROGRESS_RING = {
-    RADIUS: 60,
-    CENTER_X: 70,
-    CENTER_Y: 70,
+    RADIUS: 50,
+    CENTER_X: 60,
+    CENTER_Y: 60,
     COLOR_ADJUSTMENT: 30
 };
 
@@ -88,14 +88,30 @@ function createGradient(badgeColor) {
 function applyWhiteIconStyles(icon) {
     if (!icon) return;
     
+    // Apply white styling to match the left badge design
     icon.setAttribute('style', `
         color: #ffffff !important;
         fill: #ffffff !important;
         stroke: #ffffff !important;
         stroke-width: 2px !important;
     `);
-    icon.classList.remove('text-gray-400');
+    icon.classList.remove('text-gray-400', 'text-gray-500', 'text-gray-600');
     icon.classList.add('text-white');
+    
+    // Also style the SVG element if lucide has created it
+    const svg = icon.querySelector('svg');
+    if (svg) {
+        svg.setAttribute('style', `
+            color: #ffffff !important;
+            fill: #ffffff !important;
+            stroke: #ffffff !important;
+            stroke-width: 2px !important;
+        `);
+        svg.style.color = '#ffffff';
+        svg.style.fill = '#ffffff';
+        svg.style.stroke = '#ffffff';
+        svg.style.strokeWidth = '2px';
+    }
 }
 
 function applyGrayIconStyles(icon) {
@@ -305,30 +321,30 @@ const MilestoneModule = {
                 }
             }
             
-            let badgeIcon = document.getElementById('badge-icon-profile');
+        let badgeIcon = document.getElementById('badge-icon-profile');
             
-            if (!badgeIcon) {
-                badgeIcon = badgeContainer.querySelector('.badge-icon-large-profile');
-            }
+        if (!badgeIcon) {
+            badgeIcon = badgeContainer.querySelector('.badge-icon-large-profile');
+        }
             
-            if (!badgeIcon) {
+        if (!badgeIcon) {
                 const centerWrapper = badgeContainer.querySelector('.badge-icon-large-center');
                 if (centerWrapper) {
                     badgeIcon = centerWrapper.querySelector('.badge-icon-large-profile');
                 }
-            }
-            
-            const { current_badge: currentBadge, next_badge: nextBadge } = progress;
+        }
+        
+        const { current_badge: currentBadge, next_badge: nextBadge } = progress;
 
             if (!badgeIcon) {
                 console.warn('Badge icon not found in badge-container.');
                 return;
             }
 
-            badgeContainer.style.opacity = '1';
-            badgeContainer.style.display = 'block';
-            badgeContainer.style.visibility = 'visible';
-            
+        badgeContainer.style.opacity = '1';
+        badgeContainer.style.display = 'block';
+        badgeContainer.style.visibility = 'visible';
+
             badgeIcon.className = 'badge-icon-large-profile';
             badgeIcon.id = 'badge-icon-profile';
             
@@ -338,75 +354,114 @@ const MilestoneModule = {
             const existingSvgs = badgeIcon.querySelectorAll('svg');
             existingSvgs.forEach(svg => svg.remove());
             
-            badgeIcon.innerHTML = '';
-            
-            const iconName = currentBadge ? (currentBadge.icon || 'award') : 'award';
-            const icon = document.createElement('i');
-            icon.setAttribute('data-lucide', iconName);
-            badgeIcon.appendChild(icon);
-            
-            if (typeof lucide !== 'undefined') {
+        badgeIcon.innerHTML = '';
+        
+        const iconName = currentBadge ? (currentBadge.icon || 'award') : 'award';
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', iconName);
+        icon.className = 'w-12 h-12';
+        badgeIcon.appendChild(icon);
+        
+        if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
 
             if (currentBadge && currentBadge.color) {
                 const badgeColor = currentBadge.color;
                 const gradient = createGradient(badgeColor);
-                
-                badgeIcon.style.cssText = `
-                    background: ${gradient} !important;
-                    border-color: ${badgeColor} !important;
-                    border-width: 3px !important;
-                    box-shadow: 0 8px 20px ${badgeColor}40, 0 2px 6px rgba(0, 0, 0, 0.1) !important;
-                    width: 100px !important;
-                    height: 100px !important;
-                    border-radius: 50% !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    transition: none !important;
-                    opacity: 1 !important;
-                `;
-                
-                icon.className = 'w-12 h-12 text-white';
+            
+            badgeIcon.style.cssText = `
+                background: ${gradient} !important;
+                box-shadow: 0 8px 20px ${badgeColor}40 !important;
+                width: 5rem !important;
+                height: 5rem !important;
+                border-radius: 50% !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                flex-shrink: 0 !important;
+                position: relative !important;
+                z-index: 10 !important;
+            `;
+            
+            // Apply white icon styles to match the left badge design - ensure icon is white
+            applyWhiteIconStyles(icon);
+            
+            // Re-apply after a short delay to ensure lucide icons are rendered and styled white
+            setTimeout(() => {
                 applyWhiteIconStyles(icon);
-            } else {
-                badgeIcon.style.cssText = `
-                    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%) !important;
-                    border-color: #9ca3af !important;
-                    border-width: 3px !important;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
-                    width: 100px !important;
-                    height: 100px !important;
-                    border-radius: 50% !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    transition: none !important;
-                    opacity: 1 !important;
-                `;
-                
-                icon.className = 'w-16 h-16 text-gray-500';
-                applyGrayIconStyles(icon);
-            }
-
-            const nextInfo = document.getElementById('next-milestone-info');
-            if (nextInfo) {
-                if (nextBadge) {
-                    const voucherAmount = nextBadge.voucher_amount || 0;
-                    nextInfo.innerHTML = `
-                        <span class="font-medium">Next: </span>
-                        <span class="font-semibold" style="color: ${nextBadge.color};">${nextBadge.name}</span>
-                        ${voucherAmount > 0 ? `<span class="text-green-600 font-semibold"> • $${voucherAmount.toFixed(2)} voucher</span>` : ''}
-                        <span class="text-gray-400"> • </span>
-                        <span>$${parseFloat(progress.current_amount).toFixed(2)}</span>
-                        <span class="text-gray-400"> / </span>
-                        <span class="font-semibold">$${parseFloat(progress.next_threshold).toFixed(2)}</span>
-                    `;
-                    nextInfo.classList.remove('hidden');
-                } else {
-                    nextInfo.classList.add('hidden');
+                // Force white color on all SVG paths and elements
+                const svg = icon.querySelector('svg');
+                if (svg) {
+                    svg.style.color = '#ffffff';
+                    svg.style.fill = '#ffffff';
+                    svg.style.stroke = '#ffffff';
+                    const paths = svg.querySelectorAll('path, circle, line, polyline, polygon');
+                    paths.forEach(path => {
+                        path.style.stroke = '#ffffff';
+                        path.style.fill = 'none';
+                        path.setAttribute('stroke', '#ffffff');
+                        path.setAttribute('fill', 'none');
+                    });
                 }
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }, 50);
+            
+            // One more pass after lucide fully renders
+            setTimeout(() => {
+                applyWhiteIconStyles(icon);
+                const svg = icon.querySelector('svg');
+                if (svg) {
+                    svg.style.color = '#ffffff';
+                    svg.style.fill = '#ffffff';
+                    svg.style.stroke = '#ffffff';
+                    const paths = svg.querySelectorAll('path, circle, line, polyline, polygon');
+                    paths.forEach(path => {
+                        path.style.stroke = '#ffffff';
+                        path.style.fill = 'none';
+                        path.setAttribute('stroke', '#ffffff');
+                        path.setAttribute('fill', 'none');
+                    });
+                }
+            }, 150);
+        } else {
+            badgeIcon.style.cssText = `
+                background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%) !important;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+                width: 5rem !important;
+                height: 5rem !important;
+                border-radius: 50% !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                flex-shrink: 0 !important;
+                position: relative !important;
+                z-index: 10 !important;
+            `;
+                
+                icon.className = 'w-12 h-12 text-gray-500';
+                applyGrayIconStyles(icon);
+        }
+
+        const nextInfo = document.getElementById('next-milestone-info');
+        if (nextInfo) {
+            if (nextBadge) {
+                const voucherAmount = nextBadge.voucher_amount || 0;
+                nextInfo.innerHTML = `
+                    <span class="font-medium">Next: </span>
+                    <span class="font-semibold" style="color: ${nextBadge.color};">${nextBadge.name}</span>
+                    ${voucherAmount > 0 ? `<span class="text-green-600 font-semibold"> • $${voucherAmount.toFixed(2)} voucher</span>` : ''}
+                    <span class="text-gray-400"> • </span>
+                    <span>$${parseFloat(progress.current_amount).toFixed(2)}</span>
+                    <span class="text-gray-400"> / </span>
+                    <span class="font-semibold">$${parseFloat(progress.next_threshold).toFixed(2)}</span>
+                `;
+                nextInfo.classList.remove('hidden');
+            } else {
+                nextInfo.classList.add('hidden');
+            }
             }
             
             this.updateProgressBar(progress);
@@ -567,7 +622,7 @@ const MilestoneModule = {
     updateAllEarnedSection(currentBadge, nextBadge) {
         const section = document.getElementById('milestone-all-earned-section');
         if (!section) return;
-
+        
         if (currentBadge && !nextBadge) {
             section.classList.remove('hidden');
         } else {

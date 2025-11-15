@@ -17,6 +17,9 @@ const NotificationSystem = {
     init() {
         this.attachEventListeners();
         
+        // Update badge immediately on init
+        this.checkNotifications();
+        
         if (this.useWebSocket) {
             this.connectWebSocket();
         } else {
@@ -102,6 +105,15 @@ const NotificationSystem = {
             markAllBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.markAllAsRead();
+            });
+        }
+        
+        // View All button (marks all as read and resets counter)
+        const viewAllBtn = document.getElementById('view-all-notifications-btn');
+        if (viewAllBtn) {
+            viewAllBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.viewAllNotifications();
             });
         }
         
@@ -249,14 +261,32 @@ const NotificationSystem = {
             });
             
             if (response.ok) {
+                // Update badge count to 0
+                this.updateBadgeCount(0);
+                this.lastNotificationCount = 0;
+                
+                // Reload notifications
                 this.loadNotifications();
+                
+                // Send unread count update via WebSocket if connected
+                if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                    // The server will send the updated count via WebSocket
+                }
+                
                 if (window.toast) {
                     window.toast.success('All notifications marked as read');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast('All notifications marked as read', 'success');
                 }
             }
         } catch (error) {
             console.error('Error marking all as read:', error);
         }
+    },
+    
+    async viewAllNotifications() {
+        // View All marks all as read and resets counter
+        await this.markAllAsRead();
     },
     
     getCSRFToken() {
@@ -438,6 +468,8 @@ const NotificationSystem = {
                 }
                 
                 this.lastNotificationCount = newCount;
+            } else {
+                console.error('Failed to fetch unread count:', response.status);
             }
         } catch (error) {
             console.error('Error checking notifications:', error);
@@ -445,10 +477,27 @@ const NotificationSystem = {
     },
     
     getCurrentBadgeCount() {
-        return 0;
+        const badge = document.getElementById('notification-count');
+        if (!badge || badge.classList.contains('hidden')) {
+            return 0;
+        }
+        const count = parseInt(badge.textContent);
+        return isNaN(count) ? 0 : count;
     },
     
     updateBadgeCount(count) {
+        const badge = document.getElementById('notification-count');
+        if (!badge) {
+            console.warn('Notification badge element not found');
+            return;
+        }
+        
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
     },
     
     

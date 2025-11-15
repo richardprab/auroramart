@@ -35,6 +35,18 @@ urlpatterns = [
     
     path('database/', views.database_management, name='database_management'),
     path('database/run/', views.run_populate_db, name='run_populate_db'),
+    
+    path('staff/', views.staff_management, name='staff_management'),
+    path('staff/search/', views.search_staff, name='search_staff'),
+    path('staff/edit/<int:staff_id>/', views.edit_staff, name='edit_staff'),
+    path('staff/update/<int:staff_id>/', views.update_staff, name='update_staff'),
+    
+    path('customers/', views.customer_management, name='customer_management'),
+    path('customers/search/', views.search_customer, name='search_customer'),
+    path('customers/view/<int:customer_id>/', views.view_customer, name='view_customer'),
+    path('customers/suspend/<int:customer_id>/', views.suspend_customer, name='suspend_customer'),
+    
+    path('notifications/send/', views.send_notification, name='send_notification'),
 
     # Logout
     path("logout/", LogoutView.as_view(), name="logout"),

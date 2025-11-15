@@ -3,15 +3,22 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse
 from .models import Order, OrderItem
 from cart.models import Cart
 from cart.views import get_or_create_cart, calculate_cart_totals
 from decimal import Decimal
 import re
 import logging
+import stripe
+import json
 
 logger = logging.getLogger(__name__)
+
+# Initialize Stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 @login_required
@@ -56,15 +63,10 @@ def checkout(request):
 
 @login_required
 def process_checkout(request):
-    """Process the checkout and create order"""
+    """Process the checkout - create order and redirect to Stripe payment"""
     if request.method != 'POST':
         messages.warning(request, "Invalid request method.")
         return redirect('orders:checkout')
-    
-    # Debug: Log all POST data
-    logger.info(f"=== CHECKOUT DEBUG ===")
-    logger.info(f"User: {request.user.username}")
-    logger.info(f"POST keys: {list(request.POST.keys())}")
     
     cart = get_or_create_cart(request)
     cart_items = cart.items.select_related("product", "product_variant").all()
@@ -78,20 +80,13 @@ def process_checkout(request):
     billing_address = request.POST.get('billing_address', '').strip()
     payment_method = request.POST.get('payment_method', 'credit_card')
     
-    # Debug logging
-    logger.info(f"Shipping address length: {len(shipping_address)}")
-    logger.info(f"Payment method: {payment_method}")
-    
     # Validation
     if not shipping_address:
-        logger.error("Shipping address is empty!")
         messages.error(request, "Please provide a shipping address.")
         return redirect('orders:checkout')
     
-    # If billing address is not provided, use shipping address
     if not billing_address:
         billing_address = shipping_address
-        logger.info("Using shipping address as billing address")
 
     try:
         with transaction.atomic():
@@ -105,47 +100,39 @@ def process_checkout(request):
                 try:
                     from vouchers.utils import apply_voucher_to_cart
                     
-                    # Calculate subtotal for voucher validation (using effective prices)
                     subtotal_before_voucher = sum(
                         ((item.product_variant.effective_price if item.product_variant else Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
                         for item in cart_items
                     )
                     
-                    # Calculate shipping for voucher validation
                     if subtotal_before_voucher < Decimal(str(settings.FREE_SHIPPING_THRESHOLD)):
                         shipping_before_voucher = Decimal(str(settings.SHIPPING_COST))
                     else:
                         shipping_before_voucher = Decimal("0.00")
                     
-                    # Apply voucher
                     voucher_result = apply_voucher_to_cart(
                         voucher_code, request.user, cart_items, subtotal_before_voucher, shipping_before_voucher
                     )
                     voucher = voucher_result['voucher']
                     discount_amount = voucher_result['discount_amount']
-                    logger.info(f"Voucher {voucher_code} applied - Discount: ${discount_amount}")
                 except Exception as e:
                     logger.warning(f"Voucher validation failed: {str(e)}")
-                    # Continue without voucher if validation fails
                     voucher_code = None
                     discount_amount = Decimal('0.00')
             
-            # Calculate totals (with voucher if applied)
+            # Calculate totals
             totals = calculate_cart_totals(cart_items, voucher_code=voucher_code, user=request.user)
             
             # Extract phone number from shipping address
             phone_match = re.search(r'Phone:\s*(.+?)(?:\n|$)', shipping_address)
             contact_number = phone_match.group(1).strip() if phone_match else ''
             
-            logger.info(f"Creating order - Subtotal: {totals['subtotal']}, Tax: {totals['tax']}, Shipping: {totals['shipping']}, Discount: {discount_amount}, Total: {totals['total']}")
-            logger.info(f"Contact number: {contact_number}")
-            
-            # Create order - ONLY using fields that exist in Order model
+            # Create order (pending payment)
             order = Order.objects.create(
                 user=request.user,
-                address=None,  # ForeignKey to Address model, set to None
-                delivery_address=shipping_address,  # TextField for full delivery address
-                contact_number=contact_number,  # Phone number extracted from address
+                address=None,
+                delivery_address=shipping_address,
+                contact_number=contact_number,
                 payment_method=payment_method,
                 status='pending',
                 subtotal=totals['subtotal'],
@@ -153,38 +140,15 @@ def process_checkout(request):
                 shipping_cost=totals['shipping'],
                 voucher_code=voucher_code or '',
                 discount_amount=discount_amount,
-                total=totals['total'],  # Use 'total' field only
+                total=totals['total'],
                 payment_status='pending'
             )
             
-            logger.info(f"Order created successfully: {order.order_number} (ID: {order.id})")
-            
-            # Track voucher usage if voucher was applied
-            if voucher and discount_amount > 0:
-                from vouchers.models import VoucherUsage
-                VoucherUsage.objects.create(
-                    voucher=voucher,
-                    user=request.user,
-                    order=order,
-                    discount_amount=discount_amount
-                )
-                
-                # Update voucher usage count
-                voucher.current_uses += 1
-                voucher.save()
-                
-                logger.info(f"Voucher usage tracked for {voucher_code}")
-            
-            # Clear voucher from session after successful order
-            if 'applied_voucher_code' in request.session:
-                del request.session['applied_voucher_code']
-                request.session.modified = True
-            
-            # Create order items (store effective price at time of purchase)
+            # Create order items and update stock
             for cart_item in cart_items:
                 item_price = cart_item.product_variant.effective_price if cart_item.product_variant else Decimal("0")
                 
-                order_item = OrderItem.objects.create(
+                OrderItem.objects.create(
                     order=order,
                     product=cart_item.product,
                     product_variant=cart_item.product_variant,
@@ -192,45 +156,252 @@ def process_checkout(request):
                     price=item_price
                 )
                 
-                logger.info(f"Created order item: {cart_item.product.name} x {cart_item.quantity} @ ${item_price}")
-                
-                # Update product stock
+                # Update product stock (reserve items)
                 if cart_item.product_variant:
                     if cart_item.product_variant.stock >= cart_item.quantity:
                         cart_item.product_variant.stock -= cart_item.quantity
                         cart_item.product_variant.save()
-                        # Use variant ID instead of name since it doesn't have a name attribute
-                        logger.info(f"Updated stock for variant ID {cart_item.product_variant.id} (remaining: {cart_item.product_variant.stock})")
                     else:
-                        logger.error(f"Insufficient stock for {cart_item.product.name} variant ID {cart_item.product_variant.id}")
                         raise ValueError(f"Insufficient stock for {cart_item.product.name}")
                 else:
-                    # If no variant, update main product stock
                     if cart_item.product.stock >= cart_item.quantity:
                         cart_item.product.stock -= cart_item.quantity
                         cart_item.product.save()
-                        logger.info(f"Updated stock for product: {cart_item.product.name} (remaining: {cart_item.product.stock})")
                     else:
-                        logger.error(f"Insufficient stock for {cart_item.product.name}")
                         raise ValueError(f"Insufficient stock for {cart_item.product.name}")
             
-            # Clear cart
-            deleted_count = cart_items.count()
-            cart_items.delete()
-            logger.info(f"Cart cleared - {deleted_count} items removed")
+            # Store order ID in session for Stripe checkout
+            request.session['pending_order_id'] = order.id
+            request.session.modified = True
             
-            messages.success(request, f"Order {order.order_number} placed successfully! Thank you for your purchase.")
-            logger.info(f"Redirecting to order detail page for order {order.id}")
-            return redirect('orders:order_detail', order_id=order.id)
+            # Redirect to Stripe checkout
+            return redirect('orders:create_stripe_checkout')
             
     except ValueError as ve:
         logger.error(f"Validation error: {str(ve)}")
         messages.error(request, str(ve))
         return redirect('orders:checkout')
     except Exception as e:
-        logger.error(f"Checkout error for user {request.user.username}: {str(e)}", exc_info=True)
+        logger.error(f"Checkout error: {str(e)}", exc_info=True)
         messages.error(request, f"An error occurred while processing your order. Please try again.")
         return redirect('orders:checkout')
+
+
+@login_required
+def create_stripe_checkout(request):
+    """Create Stripe Checkout Session"""
+    order_id = request.session.get('pending_order_id')
+    if not order_id:
+        messages.error(request, "No pending order found.")
+        return redirect('orders:checkout')
+    
+    try:
+        order = Order.objects.get(id=order_id, user=request.user, payment_status='pending')
+        
+        # Prepare line items for Stripe
+        line_items = []
+        for item in order.items.all():
+            line_items.append({
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': item.product.name,
+                        'description': f"{item.product_variant.name if item.product_variant else ''} - Qty: {item.quantity}",
+                    },
+                    'unit_amount': int(item.price * 100),  # Convert to cents
+                },
+                'quantity': item.quantity,
+            })
+        
+        # Add tax and shipping as separate line items
+        if order.tax > 0:
+            line_items.append({
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': 'Tax',
+                    },
+                    'unit_amount': int(order.tax * 100),
+                },
+                'quantity': 1,
+            })
+        
+        if order.shipping_cost > 0:
+            line_items.append({
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': 'Shipping',
+                    },
+                    'unit_amount': int(order.shipping_cost * 100),
+                },
+                'quantity': 1,
+            })
+        
+        # Create Stripe Checkout Session
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=line_items,
+            mode='payment',
+            success_url=request.build_absolute_uri(reverse('orders:payment_success')) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=request.build_absolute_uri(reverse('orders:payment_cancel')),
+            metadata={
+                'order_id': str(order.id),
+                'user_id': str(request.user.id),
+            },
+            customer_email=request.user.email,
+        )
+        
+        # Store checkout session ID in order
+        order.stripe_payment_intent_id = checkout_session.id
+        order.save()
+        
+        return redirect(checkout_session.url)
+        
+    except Order.DoesNotExist:
+        messages.error(request, "Order not found.")
+        return redirect('orders:checkout')
+    except Exception as e:
+        logger.error(f"Stripe checkout error: {str(e)}", exc_info=True)
+        messages.error(request, "Error creating payment session. Please try again.")
+        return redirect('orders:checkout')
+
+
+@login_required
+def payment_success(request):
+    """Handle successful payment"""
+    session_id = request.GET.get('session_id')
+    
+    if not session_id:
+        messages.error(request, "Invalid payment session.")
+        return redirect('orders:order_list')
+    
+    try:
+        # Retrieve the checkout session from Stripe
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+        order_id = checkout_session.metadata.get('order_id')
+        
+        if not order_id:
+            messages.error(request, "Order information not found.")
+            return redirect('orders:order_list')
+        
+        order = Order.objects.get(id=order_id, user=request.user)
+        
+        # Verify payment was successful
+        if checkout_session.payment_status == 'paid':
+            # Update order with payment information
+            order.payment_status = 'paid'
+            order.status = 'confirmed'
+            order.stripe_payment_intent_id = checkout_session.payment_intent
+            order.stripe_customer_id = checkout_session.customer or ''
+            
+            # Get payment method type
+            if checkout_session.payment_intent:
+                payment_intent = stripe.PaymentIntent.retrieve(checkout_session.payment_intent)
+                if payment_intent.payment_method:
+                    pm = stripe.PaymentMethod.retrieve(payment_intent.payment_method)
+                    order.stripe_payment_method = pm.type
+                    order.payment_method = pm.type
+            
+            from django.utils import timezone
+            order.paid_at = timezone.now()
+            order.save()
+            
+            # Clear cart
+            cart = get_or_create_cart(request)
+            cart.items.all().delete()
+            
+            # Clear pending order from session
+            if 'pending_order_id' in request.session:
+                del request.session['pending_order_id']
+                request.session.modified = True
+            
+            messages.success(request, f"Payment successful! Order {order.order_number} has been confirmed.")
+            return redirect('orders:order_detail', order_id=order.id)
+        else:
+            messages.warning(request, "Payment is still processing. Please check back later.")
+            return redirect('orders:order_detail', order_id=order.id)
+            
+    except Order.DoesNotExist:
+        messages.error(request, "Order not found.")
+        return redirect('orders:order_list')
+    except Exception as e:
+        logger.error(f"Payment success error: {str(e)}", exc_info=True)
+        messages.error(request, "Error processing payment confirmation.")
+        return redirect('orders:order_list')
+
+
+@login_required
+def payment_cancel(request):
+    """Handle cancelled payment"""
+    order_id = request.session.get('pending_order_id')
+    
+    if order_id:
+        try:
+            order = Order.objects.get(id=order_id, user=request.user)
+            # Optionally delete the pending order or keep it for retry
+            messages.info(request, "Payment was cancelled. You can try again.")
+        except Order.DoesNotExist:
+            pass
+        
+        # Clear pending order from session
+        if 'pending_order_id' in request.session:
+            del request.session['pending_order_id']
+            request.session.modified = True
+    
+    return redirect('orders:checkout')
+
+
+@csrf_exempt
+def stripe_webhook(request):
+    """Handle Stripe webhooks"""
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    
+    # Webhook secret is optional - skip verification if not set
+    webhook_secret = getattr(settings, 'STRIPE_WEBHOOK_SECRET', '')
+    if not webhook_secret:
+        # For development: parse event without verification
+        try:
+            event = json.loads(payload)
+        except ValueError:
+            logger.error("Invalid payload")
+            return HttpResponse(status=400)
+    else:
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, webhook_secret
+            )
+        except ValueError:
+            logger.error("Invalid payload")
+            return HttpResponse(status=400)
+        except stripe.error.SignatureVerificationError:
+            logger.error("Invalid signature")
+            return HttpResponse(status=400)
+    
+    # Handle the event
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        order_id = session.metadata.get('order_id')
+        
+        if order_id:
+            try:
+                order = Order.objects.get(id=order_id)
+                if session.payment_status == 'paid':
+                    order.payment_status = 'paid'
+                    order.status = 'confirmed'
+                    order.stripe_payment_intent_id = session.payment_intent
+                    order.stripe_customer_id = session.customer or ''
+                    
+                    from django.utils import timezone
+                    order.paid_at = timezone.now()
+                    order.save()
+                    
+                    logger.info(f"Order {order.order_number} confirmed via webhook")
+            except Order.DoesNotExist:
+                logger.error(f"Order {order_id} not found in webhook")
+    
+    return HttpResponse(status=200)
 
 
 @login_required
