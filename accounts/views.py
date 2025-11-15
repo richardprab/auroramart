@@ -290,12 +290,12 @@ def update_demographics(request):
             customer.monthly_income_sgd = Decimal(request.POST.get('monthly_income_sgd'))
         
         # Check profile completion before saving
-        was_complete = customer.calculate_profile_completion() == 100
+        was_complete = customer.get_profile_completion_percentage() == 100
         
         customer.save()
         
         # Check if profile is now complete and wasn't before
-        is_now_complete = customer.calculate_profile_completion() == 100
+        is_now_complete = customer.get_profile_completion_percentage() == 100
         profile_just_completed = is_now_complete and not was_complete
         
         # Give profile completion voucher if profile was just completed

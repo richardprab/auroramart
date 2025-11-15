@@ -114,8 +114,38 @@
         font-size: 1rem;
     }
 
-    .btn-update {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        margin-top: 1.5rem;
+    }
+
+    .btn-cancel {
+        background: white;
+        color: #374151;
+        padding: 0.938rem 2.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .btn-cancel:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
         color: white;
         padding: 0.938rem 2.5rem;
         border: none;
@@ -124,18 +154,23 @@
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
-        margin-top: 1.25rem;
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
     }
 
-    .btn-update:hover {
+    .btn-submit:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
     }
 
-    .btn-update:disabled {
+    .btn-submit:disabled {
         background: #6b7280;
         cursor: not-allowed;
         transform: none;
+        box-shadow: none;
     }
 
     .readonly-field {
@@ -278,9 +313,24 @@
             </div>
         </div>
 
-        <button type="submit" class="btn-update" id="updateButton">
-            <i data-lucide="save" class="w-4 h-4 inline"></i> Update Product
-        </button>
+        <div class="form-actions">
+            {% if from_chat %}
+            <a href="{% url 'adminpanel:chat_conversation' from_chat %}" class="btn-cancel">
+                <i data-lucide="x" class="w-4 h-4"></i> Cancel
+            </a>
+            {% elif search_query %}
+            <a href="{% url 'adminpanel:products' %}?q={{ search_query|urlencode }}" class="btn-cancel">
+                <i data-lucide="x" class="w-4 h-4"></i> Cancel
+            </a>
+            {% else %}
+            <a href="{% url 'adminpanel:products' %}" class="btn-cancel">
+                <i data-lucide="x" class="w-4 h-4"></i> Cancel
+            </a>
+            {% endif %}
+            <button type="submit" class="btn-submit" id="updateButton">
+                Update Product
+            </button>
+        </div>
     </form>
 </div>
 {% endblock %}
