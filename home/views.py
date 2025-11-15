@@ -1,6 +1,11 @@
+from datetime import timedelta
+
 from django.shortcuts import render
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.utils import timezone
+
 from products.models import Product, Category
+from orders.models import OrderItem
 
 
 def index(request):
@@ -37,6 +42,39 @@ def index(request):
             .count()
         )
     
+    # Trending products (top purchases last 30 days)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    trending_stats = (
+        OrderItem.objects.filter(
+            order__created_at__gte=thirty_days_ago,
+            product__isnull=False,
+        )
+        .values("product")
+        .annotate(total_quantity=Sum("quantity"))
+        .order_by("-total_quantity")[:6]
+    )
+
+    trending_products = []
+    if trending_stats:
+        product_ids = [item["product"] for item in trending_stats]
+        products_map = {
+            product.id: product
+            for product in Product.objects.filter(
+                id__in=product_ids, is_active=True
+            )
+            .select_related("category")
+            .prefetch_related("images", "variants")
+        }
+
+        for stat in trending_stats:
+            product = products_map.get(stat["product"])
+            if not product:
+                continue
+            product.trending_quantity = stat["total_quantity"]
+            product.lowest_variant = product.get_lowest_priced_variant()
+            product.primary_image_obj = product.get_primary_image()
+            trending_products.append(product)
+
     # Get user's wishlist items if authenticated
     user_wishlist_ids = []
     profile_completion_percentage = None
@@ -75,6 +113,7 @@ def index(request):
         {
             "categories": cats,
             "featured_products": featured_products,
+            "trending_products": trending_products,
             "user_wishlist_ids": user_wishlist_ids,
             "profile_completion_percentage": profile_completion_percentage,
             "recently_viewed": recently_viewed,
