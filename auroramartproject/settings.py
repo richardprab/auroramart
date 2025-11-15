@@ -177,19 +177,19 @@ REWARD_BADGES = {
         'name': 'Bronze Shopper',
         'color': '#CD7F32',  # Rich bronze - clearly distinguishable
         'icon': 'award',
-        'description': 'Earned for a $1,000+ purchase'
+        'description': 'Earned when you reach $1,000 in total spending'
     },
     2500: {
         'name': 'Silver Shopper',
         'color': '#A8A8A8',  # Medium silver - more visible than pure silver
         'icon': 'award',
-        'description': 'Earned for a $2,500+ purchase'
+        'description': 'Earned when you reach $2,500 in total spending'
     },
     5000: {
         'name': 'Gold Shopper',
         'color': '#FFA500',  # Vibrant gold/orange - clearly distinguishable
         'icon': 'award',
-        'description': 'Earned for a $5,000+ purchase'
+        'description': 'Earned when you reach $5,000 in total spending'
     },
 }
 

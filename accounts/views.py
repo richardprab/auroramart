@@ -18,10 +18,17 @@ User = get_user_model()
 def user_login(request):
     """
     User login - only allows Customer login via username or email.
-    Uses Django's standard authenticate() function which delegates to backends.
+    Staff users are explicitly rejected with a clear error message.
     """
+    # If user is already authenticated, check if they're a Customer
     if request.user.is_authenticated:
-        return redirect('home:index')
+        if isinstance(request.user, Customer):
+            return redirect('home:index')
+        else:
+            # Staff/Superuser logged in - log them out and show error
+            from django.contrib.auth import logout
+            logout(request)
+            messages.error(request, 'Staff accounts cannot access customer login. Please use the staff login page.')
     
     from django.contrib.auth.forms import AuthenticationForm
     form = AuthenticationForm()
@@ -30,17 +37,43 @@ def user_login(request):
         username_or_email = request.POST.get('username')
         password = request.POST.get('password')
         
+        # First, check if this username/email belongs to a Staff user
+        # If so, reject immediately with a clear message
+        from .models import Staff
+        try:
+            staff_user = Staff.objects.filter(
+                Q(username=username_or_email) | Q(email__iexact=username_or_email)
+            ).first()
+            if staff_user and staff_user.check_password(password):
+                messages.error(
+                    request, 
+                    'Staff accounts cannot login here. Please use the staff login page at /adminpanel/login/'
+                )
+                return render(request, 'accounts/login.html', {
+                    'form': form,
+                    'next': request.GET.get('next', '')
+                })
+        except Exception:
+            pass  # Continue with normal authentication
+        
         # Use Django's authenticate() - this will use our custom backend
         # which only checks the Customer table (staff/superuser will return None)
         user = authenticate(request, username=username_or_email, password=password)
         
         if user is not None:
+            # Double-check that the authenticated user is a Customer instance
+            if not isinstance(user, Customer):
+                messages.error(request, 'Invalid account type. Only customer accounts can login here.')
+                return render(request, 'accounts/login.html', {
+                    'form': form,
+                    'next': request.GET.get('next', '')
+                })
+            
             login(request, user)
             next_url = request.POST.get('next') or request.GET.get('next', 'home:index')
             return redirect(next_url)
         else:
             # Authentication failed - show error message
-            # This handles both invalid credentials and staff/superuser login attempts
             messages.error(request, 'Invalid credentials. Please try again.')
     
     return render(request, 'accounts/login.html', {
@@ -296,7 +329,7 @@ def update_demographics(request):
                     Voucher.objects.create(
                         name='Welcome Discount',
                         promo_code='WELCOME',
-                        description='5% off your order as a thank you for completing your profile! Use code WELCOME at checkout.',
+                        description='Congratulations on completing your profile! You\'ve earned a 5% discount voucher as a reward. Use code WELCOME at checkout to apply this discount to your order.',
                         discount_type='percent',
                         discount_value=Decimal('5.00'),
                         max_discount=Decimal('50.00'),

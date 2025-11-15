@@ -138,6 +138,23 @@ const MilestoneModule = {
             setTimeout(() => {
                 this.updateMilestoneProgress();
             }, INIT_DELAY);
+            
+            // Refresh milestone progress periodically (every 30 seconds) to catch new milestones
+            // This ensures the badge updates when a new milestone is reached
+            setInterval(() => {
+                this.updateMilestoneProgress();
+            }, 30000); // 30 seconds
+            
+            // Refresh when page becomes visible (user switches back to tab)
+            // This ensures badge updates if user completes an order in another tab
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    // Page became visible, refresh milestone progress
+                    setTimeout(() => {
+                        this.updateMilestoneProgress();
+                    }, 500);
+                }
+            });
         };
         
         if (document.readyState === 'loading') {
@@ -223,10 +240,6 @@ const MilestoneModule = {
             badgeHTML = '<i data-lucide="award" class="w-4 h-4 text-gray-400"></i>';
         }
 
-        if (nextBadge) {
-            badgeHTML += '<span class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-yellow-500 rounded-full border border-white animate-pulse"></span>';
-        }
-
         badgeContainer.innerHTML = badgeHTML;
         
         if (typeof lucide !== 'undefined') {
@@ -308,19 +321,46 @@ const MilestoneModule = {
             return;
         }
 
+        // Store previous badge info to detect changes
+        const previousBadgeName = badgeIcon.getAttribute('data-badge-name');
+        const currentBadgeName = currentBadge ? currentBadge.name : null;
+        const badgeChanged = previousBadgeName !== currentBadgeName;
+
         badgeIcon.className = 'badge-icon-large-profile';
-        let icon = badgeIcon.querySelector('i');
         
-        // Create icon if it doesn't exist
-        if (!icon) {
-            icon = document.createElement('i');
-            icon.setAttribute('data-lucide', 'award');
-            icon.className = 'w-12 h-12 text-white';
-            badgeIcon.appendChild(icon);
-            // Initialize lucide icons if available
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        // Clear all children (remove any existing icons and SVGs that lucide created)
+        badgeIcon.innerHTML = '';
+        
+        // Determine icon to use - use badge icon if available, otherwise default to 'award'
+        const iconName = currentBadge ? (currentBadge.icon || 'award') : 'award';
+        
+        // Create a single icon element
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', iconName);
+        icon.className = 'w-12 h-12 text-white';
+        badgeIcon.appendChild(icon);
+        
+        // Initialize lucide icons - scope it to only this badge icon to prevent duplicates
+        if (typeof lucide !== 'undefined') {
+            // Process only this specific element to avoid global reprocessing
+            lucide.createIcons(badgeIcon);
+            
+            // Safety check: if somehow we have multiple children, keep only the first SVG
+            // Wait a bit for lucide to process, then clean up
+            setTimeout(() => {
+                if (badgeIcon.children.length > 1) {
+                    const svgElement = badgeIcon.querySelector('svg');
+                    if (svgElement) {
+                        badgeIcon.innerHTML = '';
+                        badgeIcon.appendChild(svgElement);
+                    } else {
+                        // If no SVG, keep only the first child
+                        while (badgeIcon.children.length > 1) {
+                            badgeIcon.removeChild(badgeIcon.lastChild);
+                        }
+                    }
+                }
+            }, 100);
         }
 
         if (currentBadge) {
@@ -340,13 +380,19 @@ const MilestoneModule = {
                 transition: none !important;
             `;
             
+            // Store current badge name for change detection
+            badgeIcon.setAttribute('data-badge-name', currentBadge.name);
+            badgeIcon.setAttribute('data-badge-color', currentBadge.color);
+            
             applyWhiteIconStyles(icon);
         } else {
+            // Show black badge when user has no badge
+            const blackGradient = 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #000000 100%)';
             badgeIcon.style.cssText = `
-                background: #ffffff !important;
-                border-color: #e5e7eb !important;
+                background: ${blackGradient} !important;
+                border-color: #333333 !important;
                 border-width: 3px !important;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3) !important;
                 width: 100px !important;
                 height: 100px !important;
                 border-radius: 50% !important;
@@ -356,7 +402,11 @@ const MilestoneModule = {
                 transition: none !important;
             `;
             
-            applyGrayIconStyles(icon);
+            badgeIcon.removeAttribute('data-badge-name');
+            badgeIcon.removeAttribute('data-badge-color');
+            
+            // Keep icon white for visibility on black background
+            applyWhiteIconStyles(icon);
         }
 
         // Update next milestone info
@@ -393,9 +443,28 @@ const MilestoneModule = {
         const { current_badge: currentBadge, next_badge: nextBadge } = progress;
         let html = '';
 
-        if (currentBadge) {
+        if (!currentBadge) {
+            // Show black badge when user has no badge
+            const blackGradient = 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #000000 100%)';
+            html += `
+                <div class="mb-8">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Current Badge</h3>
+                    <div class="flex items-center gap-4 p-4 rounded-xl" style="background: linear-gradient(135deg, #1a1a1a15 0%, #00000005 100%); border: 2px solid #333333;">
+                        <div class="badge-icon-large" style="background: ${blackGradient}; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); border-color: #333333;">
+                            <i data-lucide="award" class="w-12 h-12 text-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-xl font-bold text-gray-700">No Badge Yet</h4>
+                            <p class="text-sm text-gray-600">Start shopping to earn your first badge!</p>
+                            <p class="text-xs text-gray-500 mt-1">Total spending: $${parseFloat(progress.current_amount || 0).toFixed(2)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (currentBadge) {
             const gradient = createGradient(currentBadge.color);
             const voucherAmount = currentBadge.voucher_amount || 0;
+            const voucherReceived = currentBadge.voucher_received !== false; // Default to true if not specified
             
             html += `
                 <div class="mb-8">
@@ -409,11 +478,13 @@ const MilestoneModule = {
                             <p class="text-sm text-gray-600">${currentBadge.description || ''}</p>
                             ${voucherAmount > 0 ? `
                                 <div class="mt-2 flex items-center gap-2">
-                                    <i data-lucide="gift" class="w-4 h-4 text-green-600"></i>
-                                    <span class="text-sm font-semibold text-green-600">Reward: $${voucherAmount.toFixed(2)} voucher received!</span>
+                                    <i data-lucide="gift" class="w-4 h-4 ${voucherReceived ? 'text-green-600' : 'text-yellow-600'}"></i>
+                                    <span class="text-sm font-semibold ${voucherReceived ? 'text-green-600' : 'text-yellow-600'}">
+                                        ${voucherReceived ? `Reward: $${voucherAmount.toFixed(2)} voucher received!` : `Reward: $${voucherAmount.toFixed(2)} voucher pending...`}
+                                    </span>
                                 </div>
                             ` : ''}
-                            <p class="text-xs text-gray-500 mt-1">Highest order: $${parseFloat(progress.current_amount).toFixed(2)}</p>
+                            <p class="text-xs text-gray-500 mt-1">Total spending: $${parseFloat(progress.current_amount).toFixed(2)}</p>
                         </div>
                     </div>
                 </div>
@@ -422,13 +493,14 @@ const MilestoneModule = {
 
         if (nextBadge) {
             const voucherAmount = nextBadge.voucher_amount || 0;
+            const nextGradient = createGradient(nextBadge.color);
             
             html += `
                 <div>
                     <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Next Milestone</h3>
                     <div class="bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
                         <div class="flex items-center gap-4 mb-4">
-                            <div class="badge-icon-large bg-gradient-to-br from-gray-300 to-gray-400">
+                            <div class="badge-icon-large" style="background: ${nextGradient}; box-shadow: 0 8px 20px ${nextBadge.color}40; border-color: ${nextBadge.color};">
                                 <i data-lucide="${nextBadge.icon || 'award'}" class="w-12 h-12 text-white"></i>
                             </div>
                             <div class="flex-1">
@@ -471,7 +543,7 @@ const MilestoneModule = {
 
                         <div class="mt-4 text-center">
                             <p class="text-sm text-gray-600">
-                                Make a single order of <span class="font-bold" style="color: ${nextBadge.color};">$${parseFloat(progress.next_threshold).toFixed(2)}</span> to earn this badge${voucherAmount > 0 ? ` and receive a <span class="font-bold text-green-600">$${voucherAmount.toFixed(2)} voucher</span>` : ''}!
+                                Spend a total of <span class="font-bold" style="color: ${nextBadge.color};">$${parseFloat(progress.next_threshold).toFixed(2)}</span> across all orders to earn this badge${voucherAmount > 0 ? ` and receive a <span class="font-bold text-green-600">$${voucherAmount.toFixed(2)} voucher</span>` : ''}!
                             </p>
                         </div>
                     </div>

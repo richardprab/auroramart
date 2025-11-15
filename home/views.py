@@ -42,26 +42,32 @@ def index(request):
     profile_completion_percentage = None
     recently_viewed = []
     if request.user.is_authenticated:
-        from accounts.models import Wishlist, BrowsingHistory, Customer
-        user_wishlist_ids = list(
-            Wishlist.objects.filter(user=request.user)
-            .values_list('product_id', flat=True)
-        )
-        # Calculate profile completion percentage (only for customers)
-        # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
-        try:
-            if isinstance(request.user, Customer):
+        from accounts.models import Wishlist, BrowsingHistory, Customer, Staff
+        from django.contrib.auth import logout
+        from django.contrib import messages
+        
+        # If a Staff user is logged in, log them out and redirect to staff login
+        if isinstance(request.user, Staff) or (hasattr(request.user, 'is_staff') and request.user.is_staff):
+            logout(request)
+            messages.info(request, 'Staff accounts cannot access customer pages. Please use the staff login.')
+            from django.shortcuts import redirect
+            return redirect('/adminpanel/login/')
+        
+        # Only proceed if user is a Customer
+        if isinstance(request.user, Customer):
+            user_wishlist_ids = list(
+                Wishlist.objects.filter(user=request.user)
+                .values_list('product_id', flat=True)
+            )
+            # Calculate profile completion percentage
+            try:
                 profile_completion_percentage = request.user.get_profile_completion_percentage()
-            else:
-                # Edge case: staff/superuser viewing home page
+            except (AttributeError, TypeError):
                 profile_completion_percentage = None
-        except (AttributeError, TypeError):
-            # User is not a customer (staff/superuser) or error accessing customer
-            profile_completion_percentage = None
-        # Get recently viewed products (last 8)
-        recently_viewed = BrowsingHistory.objects.filter(
-            user=request.user
-        ).select_related('product').prefetch_related('product__images', 'product__variants').order_by('-viewed_at')[:8]
+            # Get recently viewed products (last 8)
+            recently_viewed = BrowsingHistory.objects.filter(
+                user=request.user
+            ).select_related('product').prefetch_related('product__images', 'product__variants').order_by('-viewed_at')[:8]
 
     return render(
         request,
