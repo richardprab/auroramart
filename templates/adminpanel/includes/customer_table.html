@@ -1,0 +1,86 @@
+{% load static %}
+
+{% if customers %}
+    <div class="overflow-x-auto">
+        <table class="customers-table" style="background: transparent;">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Orders</th>
+                    <th>Total Spent</th>
+                    <th>Joined</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in customers %}
+                    {% with customer=item.customer order_count=item.order_count total_spent=item.total_spent %}
+                        <tr>
+                            <td>
+                                <div class="customer-name">{{ customer.get_full_name|default:customer.username }}</div>
+                                <div class="customer-username">@{{ customer.username }}</div>
+                            </td>
+                            <td class="customer-email">{{ customer.email|default:"N/A" }}</td>
+                            <td>
+                                {% if customer.is_active %}
+                                    <span class="status-badge status-active">Active</span>
+                                {% else %}
+                                    <span class="status-badge status-suspended">Suspended</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-sm text-gray-700">{{ order_count }} order{{ order_count|pluralize }}</td>
+                            <td class="customer-total">${{ total_spent|floatformat:2 }}</td>
+                            <td class="customer-date">{{ customer.date_joined|date:"Y-m-d" }}</td>
+                            <td>
+                                <div class="flex gap-2">
+                                    <a href="{% url 'adminpanel:view_customer' customer.id %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}" class="btn-view">
+                                        <i data-lucide="eye" class="w-4 h-4 inline"></i> View
+                                    </a>
+                                    <form method="post" action="{% url 'adminpanel:suspend_customer' customer.id %}" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="search_query" value="{{ search_query }}">
+                                        <button type="submit" class="btn-suspend {% if customer.is_active %}btn-suspend-active{% else %}btn-unsuspend{% endif %}" onclick="return confirm('Are you sure you want to {% if customer.is_active %}suspend{% else %}unsuspend{% endif %} this customer?');">
+                                            <i data-lucide="{% if customer.is_active %}ban{% else %}check-circle{% endif %}" class="w-4 h-4 inline"></i> 
+                                            {% if customer.is_active %}Suspend{% else %}Unsuspend{% endif %}
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    {% with query_string=extra_query|default:'' %}
+    <div class="table-pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{{ query_string }}" class="page-button" aria-label="Previous page">&lt;</a>
+        {% else %}
+        <span class="page-button disabled" aria-disabled="true">&lt;</span>
+        {% endif %}
+
+        <span class="page-info">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} total
+        </span>
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{{ query_string }}" class="page-button" aria-label="Next page">&gt;</a>
+        {% else %}
+        <span class="page-button disabled" aria-disabled="true">&gt;</span>
+        {% endif %}
+    </div>
+    {% endwith %}
+    {% endif %}
+{% else %}
+    <div class="no-results">No customers found. Try a different search term.</div>
+{% endif %}
+
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>

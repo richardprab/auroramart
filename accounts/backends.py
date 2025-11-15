@@ -3,7 +3,7 @@ Custom authentication backend to support Customer model only.
 Only customers can login through the regular login page.
 """
 from django.contrib.auth.backends import ModelBackend
-from .models import Customer, Staff
+from .models import Customer, Staff, Superuser
 
 
 class MultiUserModelBackend(ModelBackend):
@@ -91,6 +91,51 @@ class StaffModelBackend(ModelBackend):
         try:
             return Staff.objects.get(pk=user_id)
         except Staff.DoesNotExist:
+            pass
+        
+        return None
+
+
+class SuperuserModelBackend(ModelBackend):
+    """
+    Custom authentication backend for Superuser users.
+    Used specifically for superuser login in the admin panel.
+    """
+    
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        """
+        Authenticate a Superuser by username or email.
+        """
+        if username is None:
+            username = kwargs.get('username')
+        
+        if username is None or password is None:
+            return None
+        
+        # Try to find Superuser by username first
+        try:
+            user = Superuser.objects.get(username=username)
+        except Superuser.DoesNotExist:
+            # If not found by username, try email (case-insensitive)
+            try:
+                user = Superuser.objects.get(email__iexact=username)
+            except Superuser.DoesNotExist:
+                return None
+        
+        # Verify password and check if user can authenticate
+        if user.check_password(password) and self.user_can_authenticate(user):
+            return user
+        
+        return None
+    
+    def get_user(self, user_id):
+        """
+        Retrieve a Superuser by ID.
+        This is critical for session management.
+        """
+        try:
+            return Superuser.objects.get(pk=user_id)
+        except Superuser.DoesNotExist:
             pass
         
         return None

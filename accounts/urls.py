@@ -1,6 +1,11 @@
 from django.urls import path
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import (
+    LoginView, LogoutView,
+    PasswordResetView, PasswordResetDoneView,
+    PasswordResetConfirmView, PasswordResetCompleteView
+)
 from . import views
+from .forms import CustomerPasswordResetForm
 
 app_name = "accounts"
 
@@ -30,6 +35,25 @@ urlpatterns = [
         views.move_to_cart,
         name="move_to_cart",
     ),
+    
+    # Password reset URLs
+    path("password-reset/", PasswordResetView.as_view(
+        template_name='accounts/password_reset.html',
+        email_template_name='accounts/password_reset_email.html',
+        subject_template_name='accounts/password_reset_subject.txt',
+        success_url='/accounts/password-reset/done/',
+        form_class=CustomerPasswordResetForm
+    ), name='password_reset'),
+    path("password-reset/done/", PasswordResetDoneView.as_view(
+        template_name='accounts/password_reset_done.html'
+    ), name='password_reset_done'),
+    path("password-reset-confirm/<uidb64>/<token>/", PasswordResetConfirmView.as_view(
+        template_name='accounts/password_reset_confirm.html',
+        success_url='/accounts/password-reset/complete/'
+    ), name='password_reset_confirm'),
+    path("password-reset/complete/", PasswordResetCompleteView.as_view(
+        template_name='accounts/password_reset_complete.html'
+    ), name='password_reset_complete'),
     
     # AJAX endpoints (JSON responses)
     path("ajax/wishlist/count/", views.get_wishlist_count, name="ajax_wishlist_count"),

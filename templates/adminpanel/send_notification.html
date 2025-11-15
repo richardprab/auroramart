@@ -1,0 +1,398 @@
+{% extends 'adminpanel/base.html' %}
+{% load static %}
+
+{% block admin_title %}Send Notification{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 1.25rem;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+        opacity: 0.8;
+    }
+    
+    .stat-icon-wrapper {
+        width: 60px;
+        height: 60px;
+        border-radius: 0.875rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    }
+    
+    .stat-icon-wrapper i {
+        width: 28px;
+        height: 28px;
+        color: #8b5cf6;
+    }
+    
+    .stat-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 0.625rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        line-height: 1;
+        letter-spacing: -0.03em;
+    }
+
+    .admin-card {
+        background: white;
+        border-radius: 1.25rem;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    .admin-card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+        width: 100%;
+        padding: 0.875rem 1.25rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        background: white;
+        color: #2d3748;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: #a78bfa;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.1);
+        background: #fafafa;
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    .recipient-option {
+        padding: 1.25rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        background: white;
+    }
+
+    .recipient-option:hover {
+        border-color: #a78bfa;
+        background: #fafafa;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.05);
+    }
+
+    .recipient-option input[type="radio"]:checked ~ .recipient-content {
+        color: #5b21b6;
+    }
+
+    .recipient-option input[type="radio"]:checked {
+        accent-color: #8b5cf6;
+    }
+
+    .user-selection-box {
+        margin-top: 1rem;
+        padding: 1.25rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        background: #f8f9fa;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .user-search-input {
+        width: 100%;
+        padding: 0.875rem 1.25rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .user-search-input:focus {
+        outline: none;
+        border-color: #a78bfa;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.1);
+        background: white;
+    }
+
+    .user-checkbox-item {
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        transition: background 0.2s ease;
+        cursor: pointer;
+    }
+
+    .user-checkbox-item:hover {
+        background: white;
+    }
+
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.875rem 1.75rem;
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        border-radius: 0.875rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.35);
+    }
+
+    .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.875rem 1.75rem;
+        background: white;
+        color: #64748b;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.875rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+    }
+
+    .btn-secondary:hover {
+        background: #f8f9fa;
+        border-color: #cbd5e1;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="admin-content-header">
+    <div>
+        <h2>Send Notification</h2>
+        <p>Send notifications to customers. Notifications will be delivered via WebSocket for instant delivery.</p>
+    </div>
+</div>
+
+<div class="admin-content-body">
+
+{% if messages %}
+    <div class="admin-messages">
+        {% for message in messages %}
+            <div class="admin-alert admin-alert-{{ message.tags }}">
+                <i data-lucide="{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}alert-circle{% else %}info{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Stat Card -->
+<div class="stat-card mb-6">
+    <div class="stat-icon-wrapper">
+        <i data-lucide="users"></i>
+    </div>
+    <div class="stat-label">Total Customers</div>
+    <div class="stat-value">{{ total_users }}</div>
+</div>
+
+<div class="admin-card">
+    <h2 class="admin-card-title">Notification Details</h2>
+    
+    <form method="post" id="send-notification-form" class="space-y-6">
+        {% csrf_token %}
+        
+        <div>
+            <label for="id_message" class="block text-sm font-medium text-gray-700 mb-2">
+                Message <span class="text-red-500">*</span>
+            </label>
+            <textarea 
+                name="message" 
+                id="id_message" 
+                rows="4" 
+                required 
+                class="form-textarea"
+                placeholder="Enter your notification message here..."></textarea>
+            <p class="text-sm text-gray-500 mt-2">This message will be displayed to customers.</p>
+        </div>
+        
+        <div>
+            <label for="id_notification_type" class="block text-sm font-medium text-gray-700 mb-2">
+                Notification Type
+            </label>
+            <select 
+                name="notification_type" 
+                id="id_notification_type" 
+                class="form-select">
+                {% for value, label in notification_types %}
+                    <option value="{{ value }}" {% if value == 'platform' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="border-t border-gray-200 pt-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recipients</h3>
+            
+            <div class="space-y-3">
+                <label class="recipient-option flex items-start space-x-3">
+                    <input 
+                        type="radio" 
+                        name="recipient_type" 
+                        value="all" 
+                        id="recipient_all" 
+                        checked
+                        class="mt-1 w-4 h-4">
+                    <div class="recipient-content flex-1">
+                        <div class="font-semibold text-gray-900">All Customers</div>
+                        <p class="text-sm text-gray-500 mt-1">Send to all {{ total_users }} registered customers in the system.</p>
+                    </div>
+                </label>
+                
+                <label class="recipient-option flex items-start space-x-3">
+                    <input 
+                        type="radio" 
+                        name="recipient_type" 
+                        value="selected" 
+                        id="recipient_selected"
+                        class="mt-1 w-4 h-4">
+                    <div class="recipient-content flex-1">
+                        <div class="font-semibold text-gray-900">Selected Customers</div>
+                        <p class="text-sm text-gray-500 mt-1">Select specific customers to notify.</p>
+                    </div>
+                </label>
+            </div>
+            
+            <div id="user-selection" class="user-selection-box hidden">
+                <input 
+                    type="text" 
+                    id="user-search" 
+                    placeholder="Search customers..." 
+                    class="user-search-input">
+                <div id="user-list" class="space-y-1">
+                    {% for user in users %}
+                        <label class="user-checkbox-item flex items-center space-x-2">
+                            <input 
+                                type="checkbox" 
+                                name="selected_users" 
+                                value="{{ user.id }}" 
+                                class="user-checkbox w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                            <span class="text-sm text-gray-700">{{ user.username }} ({{ user.email }})</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+            <a href="{% url 'adminpanel:dashboard' %}" class="btn-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="btn-primary">
+                <i data-lucide="send" class="w-4 h-4"></i>
+                Send Notification
+            </button>
+        </div>
+    </form>
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
+    const recipientAll = document.getElementById('recipient_all');
+    const recipientSelected = document.getElementById('recipient_selected');
+    const userSelection = document.getElementById('user-selection');
+    const userSearch = document.getElementById('user-search');
+    const userList = document.getElementById('user-list');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    
+    // Toggle user selection visibility
+    function updateUserSelection() {
+        if (recipientSelected.checked) {
+            userSelection.classList.remove('hidden');
+        } else {
+            userSelection.classList.add('hidden');
+        }
+    }
+    
+    recipientAll.addEventListener('change', updateUserSelection);
+    recipientSelected.addEventListener('change', updateUserSelection);
+    
+    // User search functionality
+    userSearch.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        checkboxes.forEach(function(checkbox) {
+            const label = checkbox.closest('label');
+            const text = label.textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                label.style.display = 'flex';
+            } else {
+                label.style.display = 'none';
+            }
+        });
+    });
+    
+    // Form validation
+    document.getElementById('send-notification-form').addEventListener('submit', function(e) {
+        if (recipientSelected.checked) {
+            const checked = document.querySelectorAll('.user-checkbox:checked');
+            if (checked.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one customer or choose "All Customers".');
+                return false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

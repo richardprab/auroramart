@@ -1,5 +1,6 @@
 from django import forms
 from vouchers.models import Voucher
+from accounts.models import Staff
 
 
 class ProductSearchForm(forms.Form):
@@ -84,4 +85,68 @@ class VoucherForm(forms.ModelForm):
         # Make user field optional
         self.fields['user'].required = False
         self.fields['user'].queryset = self.fields['user'].queryset.order_by('username')
+
+
+class StaffSearchForm(forms.Form):
+    """Form for searching staff by username or email"""
+    
+    query = forms.CharField(
+        required=False,
+        max_length=200,
+        widget=forms.TextInput(
+            attrs={
+                'class': 'search-input',
+                'placeholder': 'Search by username or email...',
+                'autocomplete': 'off',
+                'id': 'searchInput',
+            }
+        ),
+        label='',
+        help_text='',
+    )
+    
+    def clean_query(self):
+        """Clean and normalize the search query"""
+        query = self.cleaned_data.get('query', '').strip()
+        return query
+
+
+class StaffPermissionForm(forms.ModelForm):
+    """Form for editing staff permissions"""
+    
+    class Meta:
+        model = Staff
+        fields = ['permissions']
+        widgets = {
+            'permissions': forms.Select(
+                attrs={
+                    'class': 'form-control',
+                    'style': 'width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;'
+                }
+            )
+        }
+
+
+class CustomerSearchForm(forms.Form):
+    """Form for searching customers by username, email, or name"""
+    
+    query = forms.CharField(
+        required=False,
+        max_length=200,
+        widget=forms.TextInput(
+            attrs={
+                'class': 'search-input',
+                'placeholder': 'Search by username, email, or name (e.g., john, john@example.com)...',
+                'autocomplete': 'off',
+                'id': 'searchInput',
+            }
+        ),
+        label='',
+        help_text='',
+    )
+    
+    def clean_query(self):
+        """Clean and normalize the search query"""
+        query = self.cleaned_data.get('query', '').strip()
+        return query
 

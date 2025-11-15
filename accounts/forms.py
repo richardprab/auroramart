@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, PasswordResetForm
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from .models import Address, Customer
@@ -662,3 +662,20 @@ class AddressForm(forms.ModelForm):
         if commit:
             address.save()
         return address
+
+
+class CustomerPasswordResetForm(PasswordResetForm):
+    """
+    Custom password reset form that only allows Customer users to reset passwords.
+    This ensures staff/superusers cannot reset passwords through the customer login flow.
+    """
+    
+    def get_users(self, email):
+        """
+        Override to only return Customer users with the given email.
+        """
+        active_customers = Customer.objects.filter(
+            email__iexact=email,
+            is_active=True
+        )
+        return (u for u in active_customers if u.has_usable_password())

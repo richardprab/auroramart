@@ -60,9 +60,14 @@
 
             <!-- Password Field -->
             <div class="form-group">
-                <label for="{{ form.password.id_for_label }}" class="form-label">
-                    Password<span class="required-mark">*</span>
-                </label>
+                <div class="flex items-center justify-between mb-2">
+                    <label for="{{ form.password.id_for_label }}" class="form-label">
+                        Password<span class="required-mark">*</span>
+                    </label>
+                    <a href="{% url 'accounts:password_reset' %}" class="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                        Forgot Password?
+                    </a>
+                </div>
                 <input type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}"
                     class="form-control {% if form.password.errors %}error{% endif %}" placeholder="Enter your password"
                     required>

@@ -93,6 +93,11 @@ class Order(models.Model):
     payment_status = models.CharField(max_length=20, blank=True)
 
     payment_method = models.CharField(max_length=50, blank=True)
+    
+    # Stripe payment tracking
+    stripe_payment_intent_id = models.CharField(max_length=255, blank=True, help_text="Stripe Payment Intent ID")
+    stripe_customer_id = models.CharField(max_length=255, blank=True, help_text="Stripe Customer ID")
+    stripe_payment_method = models.CharField(max_length=50, blank=True, help_text="Stripe payment method type (card, etc.)")
     current_location = models.CharField(max_length=50, choices=LOCATION_CHOICES, default='warehouse')
     
     # Contact information

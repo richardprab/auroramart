@@ -1,0 +1,442 @@
+{% extends 'adminpanel/base.html' %}
+
+{% block admin_title %}Customer Details - {{ customer.username }}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        background: #3b82f6;
+        color: white;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        margin-bottom: 1.25rem;
+        transition: all 0.2s;
+        font-weight: 500;
+    }
+
+    .back-button:hover {
+        background: #2563eb;
+        transform: translateX(-4px);
+    }
+
+    .customer-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.625rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid #e5e7eb;
+    }
+
+    .customer-section h3 {
+        font-size: 1.125rem;
+        margin-bottom: 1.25rem;
+        color: #1f2937;
+        border-bottom: 2px solid #3b82f6;
+        padding-bottom: 0.625rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .customer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+        padding-bottom: 1.25rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .customer-name-large {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #3b82f6;
+    }
+
+    .customer-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+    }
+
+    .info-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+    }
+
+    .info-value {
+        font-size: 0.9375rem;
+        color: #1f2937;
+        font-weight: 500;
+    }
+
+    .info-value-large {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .info-value-green {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #059669;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.875rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .status-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-suspended {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-pending, .status-confirmed, .status-processing {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-shipped {
+        background: #ddd6fe;
+        color: #5b21b6;
+    }
+
+    .status-delivered {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-cancelled, .status-refunded {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .btn-suspend {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: #dc2626;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+    }
+
+    .btn-suspend:hover {
+        background: #b91c1c;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-unsuspend {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: #059669;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+    }
+
+    .btn-unsuspend:hover {
+        background: #047857;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
+
+    .orders-table-wrapper {
+        background: rgba(237, 233, 254, 0.4);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(196, 181, 253, 0.3);
+        overflow: hidden;
+    }
+
+    .orders-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: transparent;
+    }
+
+    .orders-table thead {
+        background: rgba(237, 233, 254, 0.6);
+        border-radius: 0.75rem 0.75rem 0 0;
+    }
+
+    .orders-table thead th:first-child {
+        border-top-left-radius: 0.75rem;
+    }
+
+    .orders-table thead th:last-child {
+        border-top-right-radius: 0.75rem;
+    }
+
+    .orders-table th {
+        padding: 0.875rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #5b21b6;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid rgba(196, 181, 253, 0.4);
+    }
+
+    .orders-table tbody tr {
+        background: rgba(255, 255, 255, 0.7);
+        transition: all 0.2s ease;
+    }
+
+    .orders-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.95);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+    }
+
+    .orders-table td {
+        padding: 1rem 1rem;
+        border-bottom: 1px solid rgba(196, 181, 253, 0.2);
+        vertical-align: middle;
+    }
+
+    .orders-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .orders-table th.col-action,
+    .orders-table td.action-cell {
+        width: 100px;
+        text-align: right;
+    }
+
+    .btn-view {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.5rem 1rem;
+        background: #ede9fe;
+        color: #6d28d9;
+        border-radius: 0.5rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+
+    .btn-view:hover {
+        background: #ddd6fe;
+        border-color: rgba(124, 58, 237, 0.4);
+        transform: translateY(-1px);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        color: #6b7280;
+    }
+
+    .empty-state i {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 1rem;
+        color: #d1d5db;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="admin-content-header">
+    <h2>Customer Details</h2>
+    <p>View and manage customer account information</p>
+</div>
+
+<div class="admin-content-body">
+    {% if search_query %}
+    <a href="{% url 'adminpanel:customer_management' %}?q={{ search_query|urlencode }}" class="back-button">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        Back to Customer Search
+    </a>
+    {% else %}
+    <a href="{% url 'adminpanel:customer_management' %}" class="back-button">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        Back to Customer Management
+    </a>
+    {% endif %}
+
+    <!-- Customer Information Section -->
+    <div class="customer-section">
+        <div class="customer-header">
+            <div>
+                <div class="customer-name-large">{{ customer.get_full_name|default:customer.username }}</div>
+                <div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">@{{ customer.username }}</div>
+            </div>
+            <div>
+                {% if customer.is_active %}
+                    <span class="status-badge status-active">Active</span>
+                {% else %}
+                    <span class="status-badge status-suspended">Suspended</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="customer-info-grid">
+            <div class="info-item">
+                <span class="info-label">Email</span>
+                <span class="info-value">{{ customer.email|default:"—" }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Full Name</span>
+                <span class="info-value">{{ customer.get_full_name|default:"—" }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Phone</span>
+                <span class="info-value">{{ customer.phone|default:"—" }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Member Since</span>
+                <span class="info-value">{{ customer.date_joined|date:"F d, Y" }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Last Login</span>
+                <span class="info-value">{{ customer.last_login|date:"F d, Y g:i A"|default:"Never" }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Total Orders</span>
+                <span class="info-value-large">{{ total_orders }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Total Spent</span>
+                <span class="info-value-green">${{ total_spent|floatformat:2 }}</span>
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'adminpanel:suspend_customer' customer.id %}" onsubmit="return confirm('Are you sure you want to {% if customer.is_active %}suspend{% else %}unsuspend{% endif %} this customer?');">
+            {% csrf_token %}
+            {% if search_query %}
+                <input type="hidden" name="search_query" value="{{ search_query }}">
+            {% endif %}
+            {% if customer.is_active %}
+                <button type="submit" class="btn-suspend">
+                    <i data-lucide="ban" class="w-4 h-4"></i>
+                    Suspend Account
+                </button>
+            {% else %}
+                <button type="submit" class="btn-unsuspend">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    Unsuspend Account
+                </button>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Recent Orders Section -->
+    <div class="customer-section">
+        <h3>
+            <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+            Recent Orders
+        </h3>
+        
+        {% if orders %}
+            <div class="orders-table-wrapper">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Order Number</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Total</th>
+                            <th class="col-action">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                            <tr>
+                                <td>
+                                    <span style="font-weight: 600; color: #1f2937;">{{ order.order_number }}</span>
+                                </td>
+                                <td>{{ order.created_at|date:"M d, Y" }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ order.status|lower }}">{{ order.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <span style="font-weight: 600; color: #1f2937;">${{ order.total|floatformat:2 }}</span>
+                                </td>
+                                <td class="action-cell">
+                                    <a href="{% url 'adminpanel:edit_order' order.id %}" class="btn-view">
+                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if total_orders > 10 %}
+            <p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280; text-align: center;">
+                Showing 10 most recent orders of {{ total_orders }} total orders.
+            </p>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <i data-lucide="shopping-cart"></i>
+                <p>No orders found for this customer</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+});
+</script>
+{% endblock %}

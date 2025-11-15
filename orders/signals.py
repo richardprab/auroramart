@@ -88,7 +88,7 @@ def generate_reward_on_order_completion(sender, instance, created, **kwargs):
                     f"(threshold: ${threshold_amount}, cumulative: ${cumulative_spending}) "
                     f"for order {instance.order_number} "
                     f"(user: {instance.user.username})"
-                )
+                    )
             else:
                 logger.error(
                     f"Failed to create milestone voucher for order {instance.order_number}"

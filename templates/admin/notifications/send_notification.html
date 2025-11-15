@@ -1,0 +1,198 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Send Notification | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; <a href="{% url 'admin:notifications_notification_changelist' %}">Notifications</a>
+    &rsaquo; Send Notification
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>Send Company Notification</h1>
+<p class="help">Send notifications to users. Notifications will be delivered via WebSocket for instant delivery.</p>
+
+{% if messages %}
+    <ul class="messagelist">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<form method="post" id="send-notification-form">
+    {% csrf_token %}
+    
+    <fieldset class="module aligned">
+        <h2>Recipients</h2>
+        
+        <div class="form-row">
+            <div>
+                <label>
+                    <input type="radio" name="recipient_type" value="all" id="recipient_all" checked>
+                    <strong>All Users</strong> ({{ total_users }} users)
+                </label>
+                <p class="help">Send to all registered users in the system.</p>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div>
+                <label>
+                    <input type="radio" name="recipient_type" value="selected" id="recipient_selected">
+                    <strong>Selected Users</strong>
+                </label>
+                <p class="help">Select specific users to notify.</p>
+                <div id="user-selection" style="display: none; margin-top: 10px; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;">
+                    <input type="text" id="user-search" placeholder="Search users..." style="width: 100%; margin-bottom: 10px; padding: 5px;">
+                    <div id="user-list">
+                        {% for user in users %}
+                            <label style="display: block; padding: 5px;">
+                                <input type="checkbox" name="selected_users" value="{{ user.id }}" class="user-checkbox">
+                                {{ user.username }} ({{ user.email }})
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    
+    <fieldset class="module aligned">
+        <h2>Notification Details</h2>
+        
+        <div class="form-row">
+            <div>
+                <label for="id_message"><strong>Message:</strong> <span style="color: red;">*</span></label>
+                <textarea name="message" id="id_message" rows="4" required style="width: 100%; max-width: 800px; font-size: 14px;" placeholder="Enter your notification message here..."></textarea>
+                <p class="help">This message will be displayed to users.</p>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div>
+                <label for="id_notification_type"><strong>Notification Type:</strong></label>
+                <select name="notification_type" id="id_notification_type" style="width: 100%; max-width: 400px;">
+                    {% for value, label in notification_types %}
+                        <option value="{{ value }}" {% if value == 'platform' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div>
+                <label for="id_link"><strong>Link (optional):</strong></label>
+                <input type="text" name="link" id="id_link" style="width: 100%; max-width: 600px;" placeholder="/products/ or /notifications/ or leave empty">
+                <p class="help">Users will be redirected to this URL when they click the notification.</p>
+            </div>
+        </div>
+    </fieldset>
+    
+    <div class="submit-row">
+        <input type="submit" value="Send Notification" class="default" name="_save" style="font-weight: bold;">
+        <a href="{% url 'admin:notifications_notification_changelist' %}" class="button">Cancel</a>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const recipientAll = document.getElementById('recipient_all');
+    const recipientSelected = document.getElementById('recipient_selected');
+    const userSelection = document.getElementById('user-selection');
+    const userSearch = document.getElementById('user-search');
+    const userList = document.getElementById('user-list');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    
+    // Toggle user selection visibility
+    function updateUserSelection() {
+        if (recipientSelected.checked) {
+            userSelection.style.display = 'block';
+        } else {
+            userSelection.style.display = 'none';
+        }
+    }
+    
+    recipientAll.addEventListener('change', updateUserSelection);
+    recipientSelected.addEventListener('change', updateUserSelection);
+    
+    // User search functionality
+    userSearch.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        checkboxes.forEach(function(checkbox) {
+            const label = checkbox.parentElement;
+            const text = label.textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                label.style.display = 'block';
+            } else {
+                label.style.display = 'none';
+            }
+        });
+    });
+    
+    // Form validation
+    document.getElementById('send-notification-form').addEventListener('submit', function(e) {
+        if (recipientSelected.checked) {
+            const checked = document.querySelectorAll('.user-checkbox:checked');
+            if (checked.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one user or choose "All Users".');
+                return false;
+            }
+        }
+    });
+});
+</script>
+
+<style>
+.form-row {
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-left: 3px solid #007cba;
+}
+
+.form-row label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-row input[type="radio"] {
+    margin-right: 8px;
+}
+
+.form-row textarea,
+.form-row input[type="text"],
+.form-row select {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#user-selection {
+    background: white;
+    border-radius: 4px;
+}
+
+#user-selection label {
+    font-weight: normal;
+    padding: 8px;
+    margin: 2px 0;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#user-selection label:hover {
+    background: #f0f0f0;
+}
+
+#user-selection input[type="checkbox"] {
+    margin-right: 8px;
+}
+</style>
+{% endblock %}
+
