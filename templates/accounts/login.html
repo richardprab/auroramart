@@ -60,9 +60,14 @@
 
             <!-- Password Field -->
             <div class="form-group">
-                <label for="{{ form.password.id_for_label }}" class="form-label">
-                    Password<span class="required-mark">*</span>
-                </label>
+                <div class="flex items-center justify-between mb-2">
+                    <label for="{{ form.password.id_for_label }}" class="form-label">
+                        Password<span class="required-mark">*</span>
+                    </label>
+                    <a href="{% url 'accounts:password_reset' %}" class="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                        Forgot Password?
+                    </a>
+                </div>
                 <input type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}"
                     class="form-control {% if form.password.errors %}error{% endif %}" placeholder="Enter your password"
                     required>
@@ -71,15 +76,6 @@
                 <div class="form-error"><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ error }}</div>
                 {% endfor %}
                 {% endif %}
-            </div>
-
-            <!-- Remember Me & Forgot Password -->
-            <div class="form-options">
-                <div class="remember-me">
-                    <input type="checkbox" name="remember" id="remember">
-                    <label for="remember">Remember me</label>
-                </div>
-                <a href="#" class="forgot-password">Forgot password?</a>
             </div>
 
             <!-- Submit Button -->
@@ -95,9 +91,7 @@
 
         <div class="auth-footer">
             <p>
-                By signing in, you agree to our
-                <a href="#">Terms of Service</a> and
-                <a href="#">Privacy Policy</a>
+                We're glad to have you back! Happy shopping at AuroraMart.
             </p>
         </div>
     </div>

@@ -11,8 +11,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 import warnings
 from sklearn.exceptions import InconsistentVersionWarning
+from decouple import config
 
 # Suppress scikit-learn version warnings for pre-trained models
 warnings.filterwarnings('ignore', category=InconsistentVersionWarning)
@@ -25,18 +27,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-@*#gx&&s2h^h0cg(1nz-3!an7pwsh%=sr@iwwlk=_(q3!rx#mk"
+# Load from .env file or environment variable
+# Generate a new key with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-only-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 AUTH_USER_MODEL = "accounts.Customer"
 
 
 AUTHENTICATION_BACKENDS = [
     'accounts.backends.MultiUserModelBackend',  # Custom backend for Customer login
     'accounts.backends.StaffModelBackend',  # Custom backend for Staff login
+    'accounts.backends.SuperuserModelBackend',  # Custom backend for Superuser login
     'django.contrib.auth.backends.ModelBackend',  # Fallback to default
 ]
 
@@ -165,6 +170,13 @@ TAX_RATE = 0.10
 SHIPPING_COST = 10.00
 FREE_SHIPPING_THRESHOLD = 100.00
 
+# Stripe settings
+# Only SECRET_KEY is required for Stripe Checkout (hosted payment page)
+# PUBLIC_KEY is only needed if using Stripe Elements (embedded forms) - not needed here
+# WEBHOOK_SECRET is optional - only needed for webhook verification (recommended for production)
+STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='sk_test_your_secret_key_here')
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')  # Optional
+
 # Rewards System settings
 REWARD_THRESHOLDS = {
     1000: 100.00,
@@ -177,19 +189,19 @@ REWARD_BADGES = {
         'name': 'Bronze Shopper',
         'color': '#CD7F32',  # Rich bronze - clearly distinguishable
         'icon': 'award',
-        'description': 'Earned for a $1,000+ purchase'
+        'description': 'Earned when you reach $1,000 in total spending'
     },
     2500: {
         'name': 'Silver Shopper',
         'color': '#A8A8A8',  # Medium silver - more visible than pure silver
         'icon': 'award',
-        'description': 'Earned for a $2,500+ purchase'
+        'description': 'Earned when you reach $2,500 in total spending'
     },
     5000: {
         'name': 'Gold Shopper',
         'color': '#FFA500',  # Vibrant gold/orange - clearly distinguishable
         'icon': 'award',
-        'description': 'Earned for a $5,000+ purchase'
+        'description': 'Earned when you reach $5,000 in total spending'
     },
 }
 
@@ -197,6 +209,10 @@ REWARD_BADGES = {
 DYNAMIC_PRICING_ENABLED = True
 DYNAMIC_PRICING_LOW_STOCK_THRESHOLD = 10  # Units
 DYNAMIC_PRICING_DISCOUNT_PERCENTAGE = 15  # Percentage discount
+
+# Email configuration
+# For development: emails are printed to console
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Django Channels configuration
 ASGI_APPLICATION = "auroramartproject.asgi.application"

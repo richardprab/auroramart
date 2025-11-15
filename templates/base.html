@@ -62,8 +62,12 @@
                     <!-- Notifications -->
                     {% if user.is_authenticated %}
                     <div class="relative" id="notification-dropdown-container">
-                        <button type="button" id="notification-bell" class="relative p-2 text-gray-700 hover:text-blue-600 transition-colors">
-                            <i data-lucide="bell" class="w-6 h-6"></i>
+                        <button type="button" id="notification-bell" class="relative p-2 text-gray-700 hover:text-blue-600 transition-colors cursor-pointer focus:outline-none">
+                            <i data-lucide="bell" class="w-6 h-6" id="bell-icon"></i>
+                            <span id="notification-count"
+                                class="absolute -top-0 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center hidden">
+                                0
+                            </span>
                         </button>
                         
                         <!-- Notification Dropdown -->
@@ -71,9 +75,6 @@
                             <!-- Header -->
                             <div class="flex items-center justify-between p-4 border-b border-gray-200">
                                 <h3 class="font-semibold text-gray-900">Notifications</h3>
-                                <button type="button" id="mark-all-read-btn" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                    Mark all as read
-                                </button>
                             </div>
                             
                             <!-- Notifications List -->
@@ -86,14 +87,14 @@
                             
                             <!-- Footer -->
                             <div class="border-t border-gray-200 p-3">
-                                <a href="{% url 'notifications:notification_list' %}" class="block text-center text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                    View All Notifications
-                                </a>
+                                <button type="button" id="view-all-notifications-btn" class="block w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                    View All
+                                </button>
                             </div>
                         </div>
                     </div>
                     {% else %}
-                    <a href="{% url 'accounts:login' %}?next={% url 'notifications:notification_list' %}"
+                    <a href="{% url 'accounts:login' %}"
                         class="relative p-2 text-gray-700 hover:text-blue-600">
                         <i data-lucide="bell" class="w-6 h-6"></i>
                     </a>
@@ -210,7 +211,7 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-900 text-white mt-16">
+    <footer class="bg-gray-900 text-white">
         <div class="container mx-auto px-4 py-12">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 <!-- About -->
@@ -418,10 +419,7 @@
 
             <!-- Modal Content -->
             <div class="p-6" id="milestone-modal-content">
-                <div class="text-center py-8">
-                    <i data-lucide="loader" class="w-8 h-8 mx-auto mb-2 animate-spin text-gray-400"></i>
-                    <p class="text-sm text-gray-500">Loading milestone progress...</p>
-                </div>
+                {% include 'vouchers/milestone_modal_content.html' %}
             </div>
         </div>
     </div>

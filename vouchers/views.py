@@ -8,12 +8,49 @@ from .rewards import get_milestone_progress
 import math
 
 
+def get_voucher_status(voucher, user):
+    is_valid = voucher.is_valid()
+    
+    if not is_valid:
+        return 'expired'
+    
+    usage_count = VoucherUsage.objects.filter(
+        voucher=voucher,
+        user=user
+    ).count()
+    
+    if usage_count >= voucher.max_uses_per_user:
+        return 'used'
+    
+    can_use = voucher.can_be_used_by_user(user, usage_count=usage_count)
+    if not can_use:
+        return 'unavailable'
+    
+    return 'available'
+
+
 @login_required
 def my_vouchers(request):
     """
     Display all vouchers available to the current user.
     Shows both public vouchers and user-specific vouchers.
     """
+    from vouchers.rewards import check_and_grant_milestone_vouchers
+    from django.contrib import messages
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        newly_created = check_and_grant_milestone_vouchers(request.user)
+        if newly_created:
+            messages.success(
+                request, 
+                f"Congratulations! You've earned {len(newly_created)} new milestone voucher(s)!"
+            )
+    except Exception as e:
+        logger.error(f"Error checking milestone vouchers: {str(e)}", exc_info=True)
+    
     now = timezone.now()
     
     # Get user-specific vouchers
@@ -45,33 +82,9 @@ def my_vouchers(request):
         Q(end_date__lt=now) | Q(start_date__gt=now)
     ).order_by('-end_date')
     
-    # Check usage status for each voucher
-    def get_voucher_status(voucher):
-        is_valid = voucher.is_valid()
-        
-        if not is_valid:
-            return 'expired'
-        
-        # Check usage count once and reuse it
-        usage_count = VoucherUsage.objects.filter(
-            voucher=voucher,
-            user=request.user
-        ).count()
-        
-        if usage_count >= voucher.max_uses_per_user:
-            return 'used'
-        
-        # Check other restrictions (user-specific, first-time, etc.)
-        # Pass usage_count to avoid duplicate query
-        can_use = voucher.can_be_used_by_user(request.user, usage_count=usage_count)
-        if not can_use:
-            return 'unavailable'
-        
-        return 'available'
-    
     # Add status to each voucher
     def add_status_to_voucher(voucher):
-        voucher.status = get_voucher_status(voucher)
+        voucher.status = get_voucher_status(voucher, request.user)
         return voucher
     
     user_vouchers = [add_status_to_voucher(v) for v in user_vouchers]
@@ -134,6 +147,16 @@ def my_vouchers_json(request):
     AJAX endpoint to get all vouchers for the current user (for popup display).
     Returns available, used, and expired vouchers.
     """
+    from vouchers.rewards import check_and_grant_milestone_vouchers
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        check_and_grant_milestone_vouchers(request.user)
+    except Exception as e:
+        logger.error(f"Error checking milestone vouchers: {str(e)}", exc_info=True)
+    
     now = timezone.now()
     
     # Get user-specific vouchers
@@ -165,30 +188,6 @@ def my_vouchers_json(request):
         Q(end_date__lt=now) | Q(start_date__gt=now)
     ).order_by('-end_date')
     
-    # Check usage status for each voucher
-    def get_voucher_status(voucher):
-        is_valid = voucher.is_valid()
-        
-        if not is_valid:
-            return 'expired'
-        
-        # Check usage count once and reuse it
-        usage_count = VoucherUsage.objects.filter(
-            voucher=voucher,
-            user=request.user
-        ).count()
-        
-        if usage_count >= voucher.max_uses_per_user:
-            return 'used'
-        
-        # Check other restrictions (user-specific, first-time, etc.)
-        # Pass usage_count to avoid duplicate query
-        can_use = voucher.can_be_used_by_user(request.user, usage_count=usage_count)
-        if not can_use:
-            return 'unavailable'
-        
-        return 'available'
-    
     def voucher_to_dict(voucher):
         usage_count = VoucherUsage.objects.filter(
             voucher=voucher,
@@ -204,7 +203,7 @@ def my_vouchers_json(request):
             'discount_value': str(voucher.discount_value),
             'max_discount': str(voucher.max_discount) if voucher.max_discount else None,
             'end_date': voucher.end_date.strftime('%b %d, %Y'),
-            'status': get_voucher_status(voucher),
+            'status': get_voucher_status(voucher, request.user),
             'remaining_uses': max(0, voucher.max_uses_per_user - usage_count),
         }
     
@@ -231,7 +230,7 @@ def my_vouchers_json(request):
     expired_list = []
     
     for voucher in unique_vouchers:
-        status = get_voucher_status(voucher)
+        status = get_voucher_status(voucher, request.user)
         if status == 'available':
             available_list.append(voucher_to_dict(voucher))
         elif status == 'used':
@@ -317,13 +316,23 @@ def voucher_detail_json(request, voucher_id):
 @login_required
 def get_milestone_progress_api(request):
     """API endpoint for milestone progress (badge and progress bar)"""
+    from vouchers.rewards import check_and_grant_milestone_vouchers
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        check_and_grant_milestone_vouchers(request.user)
+    except Exception as e:
+        logger.error(f"Error checking milestone vouchers: {str(e)}", exc_info=True)
+    
     try:
         progress = get_milestone_progress(request.user)
         
         # Calculate circular progress offset for donut-style progress bar
         if progress.get('next_badge') and progress.get('progress_percentage') is not None:
-            # Full circle circumference: 2 * π * r (for radius 60)
-            circumference = 2 * math.pi * 60  # ≈ 376.99
+            # Full circle circumference: 2 * π * r (for radius 50)
+            circumference = 2 * math.pi * 50  # ≈ 314.16
             # Calculate offset: when progress is 0%, show nothing (offset = full circumference)
             # When progress is 100%, show full circle (offset = 0)
             progress['circular_offset'] = round(
@@ -331,7 +340,7 @@ def get_milestone_progress_api(request):
                 2
             )
         else:
-            progress['circular_offset'] = 376.99  # Full offset (no progress)
+            progress['circular_offset'] = 314.16  # Full offset (no progress)
         
         return JsonResponse({
             'success': True,
@@ -347,7 +356,7 @@ def get_milestone_progress_api(request):
                 'current_amount': 0,
                 'next_threshold': None,
                 'amount_needed': 0,
-                'circular_offset': 314.16
+                'circular_offset': 314.16  # For radius 50
             },
             'error': str(e)
         })

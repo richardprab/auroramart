@@ -277,11 +277,11 @@
             <div class="stat-value">{{ pending_orders }}</div>
         </a>
 
-        <a class="stat-card purple" href="{% url 'adminpanel:customer_support' %}">
+        <a class="stat-card purple" href="{% url 'adminpanel:customer_support' %}?status=pending">
             <div class="stat-icon-wrapper">
                 <i data-lucide="message-circle"></i>
             </div>
-            <div class="stat-label">Open Conversations</div>
+            <div class="stat-label">Pending Conversations</div>
             <div class="stat-value">{{ open_conversations }}</div>
         </a>
 

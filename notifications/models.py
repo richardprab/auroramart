@@ -41,7 +41,7 @@ class Notification(models.Model):
             self.save(update_fields=["is_read"])
 
     @classmethod
-    def create_notification(cls, user, message, notification_type="platform", link=None):
+    def create_notification(cls, user, message, notification_type="platform", link=None, send_websocket=True):
         """
         Helper method to create a notification and send it via WebSocket.
         
@@ -50,6 +50,7 @@ class Notification(models.Model):
             message: Notification message text
             notification_type: Type of notification (default: "platform")
             link: Optional link URL for the notification
+            send_websocket: Whether to send via WebSocket (default: True)
         
         Returns:
             Notification instance
@@ -61,12 +62,13 @@ class Notification(models.Model):
             link=link or ""
         )
         
-        # Send via WebSocket if available
-        try:
-            from .signals import send_notification_websocket
-            send_notification_websocket(notification)
-        except Exception:
-            # If WebSocket fails, notification is still created
-            pass
+        # Send via WebSocket if available and requested
+        if send_websocket:
+            try:
+                from .signals import send_notification_websocket
+                send_notification_websocket(notification)
+            except Exception:
+                # If WebSocket fails, notification is still created
+                pass
         
         return notification

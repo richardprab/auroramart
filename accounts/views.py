@@ -10,7 +10,7 @@ from django.db.models import Q
 from products.models import Product
 from .models import Wishlist, Address, Customer
 from .forms import CustomUserCreationForm, UserProfileForm, AddressForm
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 User = get_user_model()
 
@@ -18,10 +18,17 @@ User = get_user_model()
 def user_login(request):
     """
     User login - only allows Customer login via username or email.
-    Uses Django's standard authenticate() function which delegates to backends.
+    Staff users are explicitly rejected with a clear error message.
     """
+    # If user is already authenticated, check if they're a Customer
     if request.user.is_authenticated:
-        return redirect('home:index')
+        if isinstance(request.user, Customer):
+            return redirect('home:index')
+        else:
+            # Staff/Superuser logged in - log them out and show error
+            from django.contrib.auth import logout
+            logout(request)
+            messages.error(request, 'Staff accounts cannot access customer login. Please use the staff login page.')
     
     from django.contrib.auth.forms import AuthenticationForm
     form = AuthenticationForm()
@@ -30,17 +37,43 @@ def user_login(request):
         username_or_email = request.POST.get('username')
         password = request.POST.get('password')
         
+        # First, check if this username/email belongs to a Staff user
+        # If so, reject immediately with a clear message
+        from .models import Staff
+        try:
+            staff_user = Staff.objects.filter(
+                Q(username=username_or_email) | Q(email__iexact=username_or_email)
+            ).first()
+            if staff_user and staff_user.check_password(password):
+                messages.error(
+                    request, 
+                    'Staff accounts cannot login here. Please use the staff login page at /adminpanel/login/'
+                )
+                return render(request, 'accounts/login.html', {
+                    'form': form,
+                    'next': request.GET.get('next', '')
+                })
+        except Exception:
+            pass  # Continue with normal authentication
+        
         # Use Django's authenticate() - this will use our custom backend
         # which only checks the Customer table (staff/superuser will return None)
         user = authenticate(request, username=username_or_email, password=password)
         
         if user is not None:
+            # Double-check that the authenticated user is a Customer instance
+            if not isinstance(user, Customer):
+                messages.error(request, 'Invalid account type. Only customer accounts can login here.')
+                return render(request, 'accounts/login.html', {
+                    'form': form,
+                    'next': request.GET.get('next', '')
+                })
+            
             login(request, user)
             next_url = request.POST.get('next') or request.GET.get('next', 'home:index')
             return redirect(next_url)
         else:
             # Authentication failed - show error message
-            # This handles both invalid credentials and staff/superuser login attempts
             messages.error(request, 'Invalid credentials. Please try again.')
     
     return render(request, 'accounts/login.html', {
@@ -221,113 +254,167 @@ def profile(request):
 def update_demographics(request):
     """Update user demographics for ML recommendations"""
     if request.method == "POST":
-        user = request.user
+        try:
+            user = request.user
+            
+            # Get Customer profile
+            # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
+            if isinstance(user, Customer):
+                customer = user
+            else:
+                # Edge case: staff/superuser trying to update demographics
+                try:
+                    customer = Customer.objects.get(id=user.id)
+                except Customer.DoesNotExist:
+                    # User doesn't have Customer profile - staff/superusers can't update demographics
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({
+                            'success': False,
+                            'message': 'Customer profile not found. Please contact support.'
+                        }, status=400)
+                    messages.error(request, 'Customer profile not found. Please contact support.')
+                    return redirect('accounts:profile')
+            
+            # Update demographic fields with proper validation
+            age_value = request.POST.get('age', '').strip()
+            if age_value:
+                try:
+                    customer.age = int(age_value)
+                except (ValueError, TypeError):
+                    pass  # Invalid age, skip update
+            
+            gender_value = request.POST.get('gender', '').strip()
+            if gender_value:
+                customer.gender = gender_value
+            
+            employment_status_value = request.POST.get('employment_status', '').strip()
+            if employment_status_value:
+                customer.employment_status = employment_status_value
+            
+            occupation_value = request.POST.get('occupation', '').strip()
+            if occupation_value:
+                customer.occupation = occupation_value
+            
+            education_value = request.POST.get('education', '').strip()
+            if education_value:
+                customer.education = education_value
+            
+            household_size_value = request.POST.get('household_size', '').strip()
+            if household_size_value:
+                try:
+                    customer.household_size = int(household_size_value)
+                except (ValueError, TypeError):
+                    pass  # Invalid household_size, skip update
+            
+            has_children_value = request.POST.get('has_children')
+            if has_children_value is not None and has_children_value != '':
+                # Handle boolean field: 'true', '1', 'yes' -> True; 'false', '0', 'no', '' -> False
+                if has_children_value.lower() in ('true', '1', 'yes'):
+                    customer.has_children = True
+                elif has_children_value.lower() in ('false', '0', 'no'):
+                    customer.has_children = False
+                # If value is empty or invalid, leave it as None (don't update)
+            
+            monthly_income_value = request.POST.get('monthly_income_sgd', '').strip()
+            if monthly_income_value and monthly_income_value != '':
+                try:
+                    # Remove any currency symbols or commas
+                    cleaned_value = monthly_income_value.replace('$', '').replace(',', '').strip()
+                    if cleaned_value:
+                        customer.monthly_income_sgd = Decimal(cleaned_value)
+                except (ValueError, TypeError, InvalidOperation) as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Invalid monthly_income_sgd value: {monthly_income_value}, error: {str(e)}")
+                    pass  # Invalid income, skip update
+            
+            # Check profile completion before saving
+            was_complete = customer.get_profile_completion_percentage() == 100
+            
+            customer.save()
+            
+            # Check if profile is now complete and wasn't before
+            is_now_complete = customer.get_profile_completion_percentage() == 100
+            profile_just_completed = is_now_complete and not was_complete
+            
+            # Give profile completion voucher if profile was just completed
+            if profile_just_completed:
+                from vouchers.models import Voucher, VoucherUsage
+                from accounts.models import Superuser
+                from django.utils import timezone
+                from datetime import timedelta
+                
+                # Check if user already has the WELCOME voucher or has used it
+                welcome_voucher = Voucher.objects.filter(promo_code='WELCOME', is_active=True).first()
+                
+                if welcome_voucher:
+                    # Check if user has already used this voucher
+                    usage_count = VoucherUsage.objects.filter(
+                        voucher=welcome_voucher,
+                        user=customer
+                    ).count()
+                    
+                    if usage_count == 0:
+                        # User hasn't used it yet, they can use the existing public voucher
+                        pass  # Voucher already exists and is available
+                    else:
+                        # User already used it, no need to do anything
+                        pass
+                else:
+                    # Create the WELCOME voucher if it doesn't exist (should exist from populate_db, but just in case)
+                    superuser = Superuser.objects.filter(is_superuser=True).first()
+                    try:
+                        Voucher.objects.create(
+                            name='Welcome Discount',
+                            promo_code='WELCOME',
+                            description='Congratulations on completing your profile! You\'ve earned a 5% discount voucher as a reward. Use code WELCOME at checkout to apply this discount to your order.',
+                            discount_type='percent',
+                            discount_value=Decimal('5.00'),
+                            max_discount=Decimal('50.00'),
+                            min_purchase=Decimal('10.00'),
+                            first_time_only=False,
+                            max_uses=None,
+                            max_uses_per_user=1,
+                            start_date=timezone.now(),
+                            end_date=timezone.now() + timedelta(days=365),
+                            is_active=True,
+                            user=None,  # Public voucher
+                            created_by=superuser,
+                        )
+                    except Exception:
+                        pass  # Voucher might already exist, ignore error
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                message = 'Profile updated successfully! Your recommendations will be more personalized.'
+                if profile_just_completed:
+                    message = 'Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!'
+                return JsonResponse({
+                    'success': True,
+                    'message': message,
+                    'profile_completed': profile_just_completed
+                })
+            else:
+                if profile_just_completed:
+                    messages.success(request, 'Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!')
+                else:
+                    messages.success(request, 'Profile updated successfully!')
+                return redirect('accounts:profile')
         
-        # Get Customer profile
-        # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
-        if isinstance(user, Customer):
-            customer = user
-        else:
-            # Edge case: staff/superuser trying to update demographics
-            try:
-                customer = Customer.objects.get(id=user.id)
-            except Customer.DoesNotExist:
-                # User doesn't have Customer profile - staff/superusers can't update demographics
+        except Exception as e:
+            import logging
+            import traceback
+            logger = logging.getLogger(__name__)
+            error_trace = traceback.format_exc()
+            logger.error(f"Error updating demographics: {str(e)}\n{error_trace}")
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,
-                    'message': 'Customer profile not found. Please contact support.'
-                }, status=400)
-        
-        # Update demographic fields
-        if request.POST.get('age'):
-            customer.age = int(request.POST.get('age'))
-        if request.POST.get('gender'):
-            customer.gender = request.POST.get('gender')
-        if request.POST.get('employment_status'):
-            customer.employment_status = request.POST.get('employment_status')
-        if request.POST.get('occupation'):
-            customer.occupation = request.POST.get('occupation')
-        if request.POST.get('education'):
-            customer.education = request.POST.get('education')
-        if request.POST.get('household_size'):
-            customer.household_size = int(request.POST.get('household_size'))
-        if request.POST.get('has_children') is not None:
-            customer.has_children = request.POST.get('has_children') == 'true'
-        if request.POST.get('monthly_income_sgd'):
-            customer.monthly_income_sgd = Decimal(request.POST.get('monthly_income_sgd'))
-        
-        # Check profile completion before saving
-        was_complete = customer.calculate_profile_completion() == 100
-        
-        customer.save()
-        
-        # Check if profile is now complete and wasn't before
-        is_now_complete = customer.calculate_profile_completion() == 100
-        profile_just_completed = is_now_complete and not was_complete
-        
-        # Give profile completion voucher if profile was just completed
-        if profile_just_completed:
-            from vouchers.models import Voucher, VoucherUsage
-            from accounts.models import Superuser
-            from django.utils import timezone
-            from datetime import timedelta
-            from decimal import Decimal
-            
-            # Check if user already has the WELCOME voucher or has used it
-            welcome_voucher = Voucher.objects.filter(promo_code='WELCOME', is_active=True).first()
-            
-            if welcome_voucher:
-                # Check if user has already used this voucher
-                usage_count = VoucherUsage.objects.filter(
-                    voucher=welcome_voucher,
-                    user=customer
-                ).count()
-                
-                if usage_count == 0:
-                    # User hasn't used it yet, they can use the existing public voucher
-                    pass  # Voucher already exists and is available
-                else:
-                    # User already used it, no need to do anything
-                    pass
+                    'message': f'An error occurred while updating your profile: {str(e)}. Please try again.'
+                }, status=500)
             else:
-                # Create the WELCOME voucher if it doesn't exist (should exist from populate_db, but just in case)
-                superuser = Superuser.objects.filter(is_superuser=True).first()
-                try:
-                    Voucher.objects.create(
-                        name='Welcome Discount',
-                        promo_code='WELCOME',
-                        description='5% off your order as a thank you for completing your profile! Use code WELCOME at checkout.',
-                        discount_type='percent',
-                        discount_value=Decimal('5.00'),
-                        max_discount=Decimal('50.00'),
-                        min_purchase=Decimal('10.00'),
-                        first_time_only=False,
-                        max_uses=None,
-                        max_uses_per_user=1,
-                        start_date=timezone.now(),
-                        end_date=timezone.now() + timedelta(days=365),
-                        is_active=True,
-                        user=None,  # Public voucher
-                        created_by=superuser,
-                    )
-                except Exception:
-                    pass  # Voucher might already exist, ignore error
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            message = 'Profile updated successfully! Your recommendations will be more personalized.'
-            if profile_just_completed:
-                message = '🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!'
-            return JsonResponse({
-                'success': True,
-                'message': message,
-                'profile_completed': profile_just_completed
-            })
-        else:
-            if profile_just_completed:
-                messages.success(request, '🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!')
-            else:
-                messages.success(request, 'Profile updated successfully!')
-            return redirect('accounts:profile')
+                messages.error(request, 'An error occurred while updating your profile. Please try again.')
+                return redirect('accounts:profile')
     
     return redirect('accounts:profile')
 

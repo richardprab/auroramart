@@ -1,0 +1,86 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Send Test Notification | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; <a href="{% url 'admin:notifications_notification_changelist' %}">Notifications</a>
+    &rsaquo; Send Test Notification
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>Send Test Notification</h1>
+<p class="help">Use this page to send test notifications to users. Notifications will be delivered via WebSocket if available.</p>
+
+{% if messages %}
+    <ul class="messagelist">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<form method="post" id="test-notification-form">
+    {% csrf_token %}
+    
+    <fieldset class="module aligned">
+        <div class="form-row">
+            <div>
+                <label for="id_user">User:</label>
+                <select name="user" id="id_user" required style="width: 100%; max-width: 400px;">
+                    <option value="">-- Select a user --</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div>
+                <label for="id_message">Message:</label>
+                <textarea name="message" id="id_message" rows="3" required style="width: 100%; max-width: 600px;" placeholder="Enter notification message..."></textarea>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div>
+                <label for="id_notification_type">Notification Type:</label>
+                <select name="notification_type" id="id_notification_type" style="width: 100%; max-width: 400px;">
+                    {% for value, label in notification_types %}
+                        <option value="{{ value }}" {% if value == 'platform' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div>
+                <label for="id_link">Link (optional):</label>
+                <input type="text" name="link" id="id_link" style="width: 100%; max-width: 600px;" placeholder="/notifications/ or leave empty">
+            </div>
+        </div>
+    </fieldset>
+    
+    <div class="submit-row">
+        <input type="submit" value="Send Notification" class="default" name="_save">
+        <a href="{% url 'admin:notifications_notification_changelist' %}" class="button">Cancel</a>
+    </div>
+</form>
+
+<div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-left: 4px solid #007cba;">
+    <h3>Testing WebSocket Notifications</h3>
+    <ol>
+        <li>Open the user's browser window/tab (logged in as the selected user)</li>
+        <li>Make sure the notification bell is visible</li>
+        <li>Send a notification from this page</li>
+        <li>Watch the user's browser - notification should appear instantly if WebSocket is working</li>
+        <li>Check browser DevTools → Network → WS to see WebSocket connection</li>
+    </ol>
+    <p><strong>Note:</strong> If WebSocket is not available, notifications will be delivered via polling (up to 30 second delay).</p>
+</div>
+{% endblock %}
+

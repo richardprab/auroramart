@@ -1,0 +1,79 @@
+{% load static %}
+
+{% if staff_data %}
+    <div class="overflow-x-auto">
+        <table class="staff-table" style="background: transparent;">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Permissions</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in staff_data %}
+                    {% with staff=item.staff %}
+                        <tr>
+                            <td>
+                                <div class="staff-username">{{ staff.username }}</div>
+                            </td>
+                            <td>
+                                <div class="staff-name">{{ staff.get_full_name|default:"—" }}</div>
+                            </td>
+                            <td>
+                                <div class="staff-email">{{ staff.email|default:"—" }}</div>
+                            </td>
+                            <td>
+                                {% if staff.permissions == 'all' %}
+                                    <span class="permission-badge permission-all">All Permissions</span>
+                                {% elif 'products' in staff.permissions and 'orders' in staff.permissions and 'chat' in staff.permissions %}
+                                    <span class="permission-badge permission-multiple">Products, Orders & Chat</span>
+                                {% elif 'products' in staff.permissions and 'orders' in staff.permissions %}
+                                    <span class="permission-badge permission-multiple">Products & Orders</span>
+                                {% elif 'products' in staff.permissions and 'chat' in staff.permissions %}
+                                    <span class="permission-badge permission-multiple">Products & Chat</span>
+                                {% elif 'orders' in staff.permissions and 'chat' in staff.permissions %}
+                                    <span class="permission-badge permission-multiple">Orders & Chat</span>
+                                {% elif 'products' in staff.permissions %}
+                                    <span class="permission-badge permission-products">Products</span>
+                                {% elif 'orders' in staff.permissions %}
+                                    <span class="permission-badge permission-orders">Orders</span>
+                                {% elif 'chat' in staff.permissions %}
+                                    <span class="permission-badge permission-chat">Chat</span>
+                                {% elif 'analytics' in staff.permissions %}
+                                    <span class="permission-badge permission-analytics">Analytics</span>
+                                {% else %}
+                                    <span class="permission-badge permission-multiple">{{ staff.permissions }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if staff.is_active %}
+                                    <span class="permission-badge permission-all">Active</span>
+                                {% else %}
+                                    <span class="permission-badge" style="background: #fee2e2; color: #991b1b;">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'adminpanel:edit_staff' staff.id %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}" class="btn-edit">
+                                    <i data-lucide="edit" class="w-4 h-4 inline"></i> Edit
+                                </a>
+                            </td>
+                        </tr>
+                    {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="no-results">No staff found. Try a different search term.</div>
+{% endif %}
+
+<script>
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script>
+

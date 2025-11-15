@@ -8,7 +8,7 @@
     <div class="container mx-auto px-4">
         <!-- Cancel Order Confirmation Modal -->
         {% if order.status == 'pending' %}
-        <div id="cancelOrderModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div id="cancelOrderModal" class="no-print fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
             <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all scale-95 opacity-0" id="cancelModalContent">
                 <div class="p-6">
                     <div class="flex items-center justify-center w-16 h-16 mx-auto bg-red-100 rounded-full mb-4">
@@ -60,8 +60,144 @@
         </div>
         {% endif %}
 
+        <!-- Print Invoice (Hidden on screen, visible when printing) -->
+        <div class="invoice-container">
+            <!-- Invoice Header -->
+            <div style="border-bottom: 3px solid #2563eb; padding-bottom: 30px; margin-bottom: 40px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                    <div>
+                        <h1 style="font-size: 32px; font-weight: 700; color: #1e40af; margin: 0 0 8px 0; letter-spacing: -0.5px;">AuroraMart</h1>
+                        <p style="color: #6b7280; font-size: 14px; margin: 0;">Order Invoice</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="background: #f3f4f6; padding: 12px 20px; border-radius: 8px; display: inline-block;">
+                            <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.5px;">Order Number</p>
+                            <p style="color: #111827; font-size: 20px; font-weight: 700; margin: 0;">{{ order.order_number }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
+                    <div>
+                        <h3 style="font-size: 12px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin: 0 0 12px 0; font-weight: 600;">Billed To</h3>
+                        <p style="color: #111827; font-size: 14px; margin: 4px 0; font-weight: 500;">{{ order.user.get_full_name|default:order.user.username }}</p>
+                        <p style="color: #6b7280; font-size: 14px; margin: 4px 0;">{{ order.user.email }}</p>
+                        {% if order.contact_number %}
+                        <p style="color: #6b7280; font-size: 14px; margin: 4px 0;">{{ order.contact_number }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 style="font-size: 12px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin: 0 0 12px 0; font-weight: 600;">Order Details</h3>
+                        <p style="color: #111827; font-size: 14px; margin: 4px 0;"><strong>Date:</strong> {{ order.created_at|date:"F d, Y" }}</p>
+                        <p style="color: #111827; font-size: 14px; margin: 4px 0;"><strong>Time:</strong> {{ order.created_at|time:"g:i A" }}</p>
+                        <p style="color: #111827; font-size: 14px; margin: 4px 0;"><strong>Status:</strong> <span style="text-transform: capitalize;">{{ order.status }}</span></p>
+                        {% if order.paid_at %}
+                        <p style="color: #111827; font-size: 14px; margin: 4px 0;"><strong>Paid:</strong> {{ order.paid_at|date:"F d, Y g:i A" }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shipping Address -->
+            <div style="margin-bottom: 40px;">
+                <h3 style="font-size: 12px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin: 0 0 12px 0; font-weight: 600;">Shipping Address</h3>
+                <div style="background: #f9fafb; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <p style="color: #111827; font-size: 14px; margin: 4px 0; white-space: pre-wrap; line-height: 1.6;">{{ order.delivery_address }}</p>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div style="margin-bottom: 40px;">
+                <h3 style="font-size: 12px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin: 0 0 20px 0; font-weight: 600;">Order Items</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #e5e7eb;">
+                            <th style="text-align: left; padding: 12px 0; color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Item</th>
+                            <th style="text-align: center; padding: 12px 0; color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Qty</th>
+                            <th style="text-align: right; padding: 12px 0; color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Price</th>
+                            <th style="text-align: right; padding: 12px 0; color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item_data in items_with_reviews %}
+                        {% with item=item_data.item %}
+                        <tr style="border-bottom: 1px solid #f3f4f6;">
+                            <td style="padding: 16px 0;">
+                                <p style="color: #111827; font-size: 14px; font-weight: 600; margin: 0 0 4px 0;">{{ item.product.name }}</p>
+                                <p style="color: #6b7280; font-size: 12px; margin: 0;">{{ item.product.category.name }}</p>
+                                {% if item.product_variant %}
+                                    {% if item.product_variant.color or item.product_variant.size %}
+                                    <p style="color: #9ca3af; font-size: 12px; margin: 4px 0 0 0;">
+                                        {% if item.product_variant.color %}{{ item.product_variant.color }}{% endif %}{% if item.product_variant.color and item.product_variant.size %}, {% endif %}{% if item.product_variant.size %}Size: {{ item.product_variant.size }}{% endif %}
+                                    </p>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center; padding: 16px 0; color: #111827; font-size: 14px;">{{ item.quantity }}</td>
+                            <td style="text-align: right; padding: 16px 0; color: #111827; font-size: 14px;">${{ item.price|floatformat:2 }}</td>
+                            {% widthratio item.price 1 item.quantity as item_total %}
+                            <td style="text-align: right; padding: 16px 0; color: #111827; font-size: 14px; font-weight: 600;">${{ item_total|floatformat:2 }}</td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Price Summary -->
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 40px;">
+                <div style="width: 300px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; color: #6b7280; font-size: 14px; text-align: right; padding-right: 20px;">Subtotal</td>
+                            <td style="padding: 8px 0; color: #111827; font-size: 14px; text-align: right; font-weight: 500;">${{ order.subtotal|floatformat:2 }}</td>
+                        </tr>
+                        {% if order.discount_amount and order.discount_amount > 0 %}
+                        <tr>
+                            <td style="padding: 8px 0; color: #6b7280; font-size: 14px; text-align: right; padding-right: 20px;">Discount{% if order.voucher_code %} ({{ order.voucher_code }}){% endif %}</td>
+                            <td style="padding: 8px 0; color: #10b981; font-size: 14px; text-align: right; font-weight: 500;">-${{ order.discount_amount|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td style="padding: 8px 0; color: #6b7280; font-size: 14px; text-align: right; padding-right: 20px;">Tax (10%)</td>
+                            <td style="padding: 8px 0; color: #111827; font-size: 14px; text-align: right; font-weight: 500;">${{ order.tax|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #6b7280; font-size: 14px; text-align: right; padding-right: 20px;">Shipping</td>
+                            <td style="padding: 8px 0; color: #111827; font-size: 14px; text-align: right; font-weight: 500;">${{ order.shipping_cost|floatformat:2 }}</td>
+                        </tr>
+                        <tr style="border-top: 2px solid #e5e7eb; margin-top: 12px;">
+                            <td style="padding: 16px 0 8px 0; color: #111827; font-size: 18px; font-weight: 700; text-align: right; padding-right: 20px;">Total</td>
+                            <td style="padding: 16px 0 8px 0; color: #2563eb; font-size: 20px; font-weight: 700; text-align: right;">${{ order.total|floatformat:2 }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Payment Information -->
+            <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 40px;">
+                <h3 style="font-size: 12px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin: 0 0 16px 0; font-weight: 600;">Payment Information</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Payment Method</p>
+                        <p style="color: #111827; font-size: 14px; font-weight: 500; margin: 0; text-transform: capitalize;">{{ order.payment_method|title }}</p>
+                    </div>
+                    <div>
+                        <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Payment Status</p>
+                        <p style="color: #111827; font-size: 14px; font-weight: 500; margin: 0; text-transform: capitalize;">{{ order.payment_status|title }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="border-top: 1px solid #e5e7eb; padding-top: 30px; text-align: center;">
+                <p style="color: #6b7280; font-size: 12px; margin: 0 0 8px 0;">Thank you for your order!</p>
+                <p style="color: #9ca3af; font-size: 11px; margin: 0;">This is an automated invoice. For questions, please contact our support team.</p>
+            </div>
+        </div>
+
         <!-- Back Button -->
-        <div class="mb-6">
+        <div class="mb-6 no-print">
             <a href="{% url 'orders:order_list' %}" 
                class="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition">
                 <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i>
@@ -70,7 +206,7 @@
         </div>
 
         <!-- Order Status Progress -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
+        <div class="no-print bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
             <div class="flex items-center justify-between max-w-4xl mx-auto">
                 <!-- Pending -->
                 <div class="flex flex-col items-center flex-1">
@@ -163,7 +299,7 @@
         </div>
 
         <!-- Order Header Card -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="no-print bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900 mb-2">
@@ -223,7 +359,7 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="no-print grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Left Column - Order Items (2 columns) -->
             <div class="lg:col-span-2 space-y-6">
                 
@@ -420,33 +556,6 @@
             </div>
         </div>
 
-        <!-- ML-Powered Recommendations: People Also Bought -->
-        <div class="mt-12 hidden" id="order-recommendations-section">
-            <div class="flex items-center gap-2 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">People Also Bought</h2>
-            </div>
-            
-            <!-- Loading State -->
-            <div id="order-recommendations-loading" class="flex items-center justify-center py-12 bg-white rounded-xl border border-gray-200">
-                <div class="text-center">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                    <p class="text-gray-600">Finding perfect recommendations for you...</p>
-                </div>
-            </div>
-            
-            <!-- Content State -->
-            <div id="order-recommendations-content" class="hidden">
-                <div id="order-recommendations-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6"></div>
-            </div>
-            
-            <!-- Empty State -->
-            <div id="order-recommendations-empty" class="hidden text-center py-12 bg-white rounded-xl border border-gray-200">
-                <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i data-lucide="inbox" class="w-10 h-10 text-gray-400"></i>
-                </div>
-                <p class="text-gray-600">No recommendations available at the moment</p>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -527,227 +636,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // ML-Powered Order Recommendations
-    // Fetch order-based recommendations
-    console.log('=== FETCHING ORDER RECOMMENDATIONS ===');
-    console.log('Order ID: {{ order.id }}');
-    console.log('URL: /api/recommendations/order-recommendations/{{ order.id }}/');
-    
-    fetch('/api/recommendations/order-recommendations/{{ order.id }}/', {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/json',
-        },
-        credentials: 'include'  // Changed from 'same-origin' to 'include' to ensure cookies are sent
-    })
-    .then(response => {
-        console.log('Response received. Status:', response.status, response.statusText);
-        console.log('Response headers:', response.headers);
-        
-        if (!response.ok) {
-            // Try to get error message from response
-            return response.json().then(err => {
-                console.error('API Error Response:', err);
-                throw new Error(`HTTP ${response.status}: ${err.error || err.detail || response.statusText}`);
-            }).catch(() => {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Order recommendations response:', data);
-        console.log('Number of recommendations:', data.recommendations ? data.recommendations.length : 0);
-        
-        const loadingState = document.getElementById('order-recommendations-loading');
-        const contentState = document.getElementById('order-recommendations-content');
-        const emptyState = document.getElementById('order-recommendations-empty');
-        
-        if (loadingState) loadingState.classList.add('hidden');
-        
-        if (data.recommendations && data.recommendations.length > 0) {
-            console.log('Showing recommendations');
-            document.getElementById('order-recommendations-section').classList.remove('hidden');
-            if (contentState) contentState.classList.remove('hidden');
-            const grid = document.getElementById('order-recommendations-grid');
-            
-            if (grid) {
-                grid.innerHTML = ''; // Clear existing content
-                data.recommendations.forEach(product => {
-                    grid.innerHTML += createOrderRecommendationCard(product);
-                });
-                
-                // Reinitialize Lucide icons
-                if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
-                }
-            }
-        } else {
-            console.log('No recommendations found, hiding section');
-            document.getElementById('order-recommendations-section').classList.add('hidden');
-        }
-    })
-    .catch(error => {
-        console.error('=== ERROR LOADING RECOMMENDATIONS ===');
-        console.error('Error details:', error);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        
-        const loadingState = document.getElementById('order-recommendations-loading');
-        if (loadingState) loadingState.classList.add('hidden');
-        document.getElementById('order-recommendations-section').classList.add('hidden');
-    });
-
-    function createOrderRecommendationCard(product) {
-        const lowestVariant = product.lowest_variant || {};
-        const primaryImage = product.primary_image;
-        // Handle primary_image as object with url property or as string
-        const imageUrl = primaryImage && typeof primaryImage === 'object' ? primaryImage.url : primaryImage;
-        const price = lowestVariant.price || '0.00';
-        const comparePrice = lowestVariant.compare_price;
-        const hasDiscount = comparePrice && parseFloat(comparePrice) > parseFloat(price);
-        const discountPercent = hasDiscount ? Math.round(((parseFloat(comparePrice) - parseFloat(price)) / parseFloat(comparePrice)) * 100) : 0;
-        const stock = lowestVariant.stock || 0;
-        const variantId = lowestVariant.id;
-
-        return `
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition duration-300 flex flex-col group">
-                <div class="relative overflow-hidden">
-                    ${imageUrl ? 
-                        `<img src="${imageUrl}" alt="${product.name}" class="w-full h-48 object-cover group-hover:scale-110 transition duration-500">` :
-                        `<div class="w-full h-48 bg-gray-100 flex items-center justify-center">
-                            <i data-lucide="image" class="w-16 h-16 text-gray-400"></i>
-                        </div>`
-                    }
-                    ${hasDiscount ? `
-                        <div class="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                            -${discountPercent}%
-                        </div>
-                    ` : ''}
-                    ${stock > 0 && stock < 10 ? `
-                        <div class="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                            Only ${stock} left
-                        </div>
-                    ` : stock === 0 ? `
-                        <div class="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                            Out of Stock
-                        </div>
-                    ` : ''}
-                </div>
-                
-                <div class="p-4 flex-1 flex flex-col">
-                    <a href="/products/${product.sku}/" class="hover:text-blue-600 transition">
-                        <h3 class="font-semibold text-sm mb-2 line-clamp-2 min-h-[2.5rem]">${product.name}</h3>
-                    </a>
-                    
-                    ${product.brand ? `<p class="text-xs text-gray-500 mb-2">${product.brand}</p>` : ''}
-                    
-                    <div class="flex items-center mb-3">
-                        <div class="flex text-yellow-400 text-xs">
-                            ${'★'.repeat(Math.floor(product.rating || 0))}${'☆'.repeat(5 - Math.floor(product.rating || 0))}
-                        </div>
-                        <span class="text-xs text-gray-600 ml-1">(${product.review_count || 0})</span>
-                    </div>
-                    
-                    <div class="mt-auto">
-                        <div class="flex items-baseline gap-2 mb-3">
-                            <span class="text-lg font-bold text-blue-600">$${parseFloat(price).toFixed(2)}</span>
-                            ${hasDiscount ? 
-                                `<span class="text-xs text-gray-400 line-through">$${parseFloat(comparePrice).toFixed(2)}</span>` : ''
-                            }
-                        </div>
-                        
-                        ${stock > 0 && variantId ? `
-                            <button onclick="quickAddToCartFromOrder(${product.id}, ${variantId}, '${product.name.replace(/'/g, "\\'")}')" 
-                                    class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
-                                <i data-lucide="plus" class="w-4 h-4"></i>
-                                Add to Cart
-                            </button>
-                        ` : `
-                            <button disabled class="w-full bg-gray-300 text-gray-500 px-4 py-2 rounded-lg font-semibold cursor-not-allowed text-sm">
-                                Out of Stock
-                            </button>
-                        `}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // Quick Add to Cart function for order recommendations
-    window.quickAddToCartFromOrder = function(productId, variantId, productName) {
-        const formData = new FormData();
-        formData.append('variant_id', variantId);
-        formData.append('quantity', 1);
-
-        fetch(`/cart/add/${productId}/`, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showOrderToast(`${productName} added to cart!`, 'success');
-                
-                // Update cart count if CartModule exists
-                if (typeof CartModule !== 'undefined') {
-                    CartModule.updateCartCount();
-                }
-            } else {
-                showOrderToast(data.message || 'Unable to add to cart', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showOrderToast('An error occurred. Please try again.', 'error');
-        });
-    };
-
-    // Toast notification helper
-    function showOrderToast(message, type = 'success') {
-        const toast = document.createElement('div');
-        const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
-        const icon = type === 'success' ? 'check-circle' : 'x-circle';
-        
-        toast.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white z-50 flex items-center gap-3 ${bgColor} animate-slide-in`;
-        toast.innerHTML = `
-            <i data-lucide="${icon}" class="w-5 h-5"></i>
-            <span>${message}</span>
-        `;
-        document.body.appendChild(toast);
-        
-        // Initialize icon
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-        
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(100%)';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
 });
 
 </script>
 
 <style>
-@keyframes slide-in {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
 @keyframes modalSlideIn {
     from {
         transform: scale(0.95) translateY(-20px);
@@ -759,11 +652,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
-.animate-slide-in {
-    animation: slide-in 0.3s ease-out;
-    transition: all 0.3s ease-out;
-}
-
 #cancelModalContent {
     transition: all 0.3s ease-out;
 }
@@ -772,9 +660,55 @@ document.addEventListener('DOMContentLoaded', function() {
     animation: modalSlideIn 0.3s ease-out forwards;
 }
 
+/* Print Invoice Styles */
 @media print {
-    .no-print, button, a {
+    /* Hide everything except invoice */
+    body * {
+        visibility: hidden;
+    }
+    
+    .invoice-container, .invoice-container * {
+        visibility: visible;
+    }
+    
+    .invoice-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .no-print, button, a, nav, footer {
         display: none !important;
+    }
+    
+    /* Reset page margins */
+    @page {
+        margin: 1cm;
+    }
+}
+
+/* Invoice Container (hidden on screen, visible when printing) */
+.invoice-container {
+    display: none !important;
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+}
+
+@media print {
+    .invoice-container {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        padding: 40px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
 }
 </style>

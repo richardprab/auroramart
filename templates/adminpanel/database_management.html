@@ -3,117 +3,523 @@
 
 {% block admin_title %}Database Management{% endblock %}
 
+{% block admin_extra_css %}
+<style>
+    .admin-card {
+        background: white;
+        border-radius: 1.25rem;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .admin-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+        opacity: 0.8;
+    }
+    
+    .admin-card.danger::before {
+        background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+    
+    .admin-card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .admin-card-title i {
+        width: 24px;
+        height: 24px;
+        color: #8b5cf6;
+    }
+    
+    .admin-card-subtitle {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-bottom: 1.5rem;
+    }
+    
+    .action-section {
+        margin-bottom: 2rem;
+    }
+    
+    .action-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .section-title i {
+        width: 16px;
+        height: 16px;
+        color: #8b5cf6;
+    }
+    
+    .action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem;
+        background: white;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #475569;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        text-align: center;
+    }
+    
+    .action-btn:hover {
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+        border-color: rgba(139, 92, 246, 0.4);
+        color: #6d28d9;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    }
+    
+    .action-btn:active {
+        transform: translateY(0);
+    }
+    
+    .action-btn i {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+    }
+    
+    .action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-primary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.875rem 1.5rem;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        border: none;
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+    }
+    
+    .btn-primary:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .btn-primary i {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .btn-danger {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.875rem 1.5rem;
+        background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+        color: white;
+        border: none;
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+    }
+    
+    .btn-danger:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
+    }
+    
+    .btn-danger:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    
+    .btn-danger:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .btn-danger i {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-input,
+    .form-select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        color: #1a202c;
+        background: white;
+        transition: all 0.2s ease;
+    }
+    
+    .form-input:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+    
+    .form-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .form-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(226, 232, 240, 0.8);
+        border-radius: 0.375rem;
+        cursor: pointer;
+        accent-color: #8b5cf6;
+    }
+    
+    .form-checkbox label {
+        font-size: 0.875rem;
+        color: #475569;
+        cursor: pointer;
+    }
+    
+    .info-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 0.75rem;
+        margin-top: 1rem;
+        font-size: 0.8125rem;
+        color: #0369a1;
+    }
+    
+    .info-note i {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+    
+    .output-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        backdrop-filter: blur(4px);
+    }
+    
+    .output-modal.hidden {
+        display: none;
+    }
+    
+    .output-modal-content {
+        background: white;
+        border-radius: 1.25rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 56rem;
+        width: 100%;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .output-modal-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    }
+    
+    .output-modal-header h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #5b21b6;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .output-modal-header h3 i {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .output-modal-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 0.5rem;
+        border: none;
+        background: rgba(139, 92, 246, 0.1);
+        color: #8b5cf6;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    
+    .output-modal-close:hover {
+        background: rgba(139, 92, 246, 0.2);
+    }
+    
+    .output-modal-close i {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .output-modal-body {
+        flex: 1;
+        overflow: auto;
+        padding: 1.5rem 2rem;
+    }
+    
+    .output-content {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.8125rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        background: #f8fafc;
+        padding: 1.25rem;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        color: #1a202c;
+    }
+    
+    .output-content.success {
+        border-color: rgba(34, 197, 94, 0.3);
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        color: #166534;
+    }
+    
+    .output-content.error {
+        border-color: rgba(239, 68, 68, 0.3);
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        color: #991b1b;
+    }
+    
+    .output-modal-footer {
+        padding: 1.5rem 2rem;
+        border-top: 1px solid rgba(226, 232, 240, 0.8);
+    }
+</style>
+{% endblock %}
+
 {% block admin_content %}
-<div class="admin-page-header">
-    <div>
-        <h1 class="admin-page-title">Database Management</h1>
-        <p class="admin-page-subtitle">Populate and manage database using populate_db.py functions</p>
-    </div>
+<div class="admin-content-header">
+    <h2>Database Management</h2>
+    <p>Populate and manage database using populate_db.py functions</p>
 </div>
 
-<div class="admin-card">
-    <h2 class="admin-card-title">Seed Database from CSV</h2>
-    <p class="text-gray-600 mb-4">Import products and data from a CSV file</p>
-    
-    <form id="seed-form" class="space-y-4">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="seed_from_csv">
+<div class="admin-content-body">
+    <div class="admin-card mb-6">
+        <h3 class="admin-card-title">
+            <i data-lucide="zap"></i>
+            Quick Actions
+        </h3>
+        <p class="admin-card-subtitle">Run individual populate_db functions</p>
         
-        <div>
-            <label for="csv_file" class="block text-sm font-medium text-gray-700 mb-2">CSV File</label>
-            <select name="csv_file" id="csv_file" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                {% for csv_file in csv_files %}
-                <option value="{{ csv_file }}" {% if csv_file == 'b2c_products_500.csv' %}selected{% endif %}>{{ csv_file }}</option>
-                {% empty %}
-                <option value="">No CSV files found in data/ directory</option>
-                {% endfor %}
-            </select>
+        <div class="space-y-6">
+            <div class="action-section">
+                <div class="section-title">
+                    <i data-lucide="users"></i>
+                    Users & Staff
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button type="button" class="action-btn" data-action="create_staff_user">
+                        <i data-lucide="user-plus"></i>
+                        <span>Create Staff User</span>
+                    </button>
+                    
+                    <button type="button" class="action-btn" data-action="create_sample_users">
+                        <i data-lucide="users"></i>
+                        <span>Create Sample Users</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="action-section">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="section-title">
+                            <i data-lucide="package"></i>
+                            Products
+                        </div>
+                        <div class="grid grid-cols-1 gap-4">
+                            <button type="button" class="action-btn" data-action="create_nus_computing_tshirt">
+                                <i data-lucide="shirt"></i>
+                                <span>Create NUS Computing T-Shirt</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="section-title">
+                            <i data-lucide="gift"></i>
+                            Vouchers
+                        </div>
+                        <div class="grid grid-cols-1 gap-4">
+                            <button type="button" class="action-btn" data-action="assign_profile_completion_vouchers">
+                                <i data-lucide="gift"></i>
+                                <span>Assign Profile Completion Vouchers</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-section">
+                <div class="section-title">
+                    <i data-lucide="bar-chart"></i>
+                    Orders & Analytics
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button type="button" class="action-btn" data-action="create_sample_orders_and_reviews">
+                        <i data-lucide="shopping-cart"></i>
+                        <span>Create Orders & Reviews</span>
+                    </button>
+                    
+                    <button type="button" class="action-btn" data-action="create_adminpanel_analytics_data">
+                        <i data-lucide="bar-chart"></i>
+                        <span>Create Analytics Data</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="admin-card">
+            <h3 class="admin-card-title">
+                <i data-lucide="database"></i>
+                Create Everything
+            </h3>
+            <p class="admin-card-subtitle">Run complete database seeding including: users, staff, NUS Computing t-shirt, products from CSV, orders, reviews, vouchers, and analytics data</p>
+            
+            <form id="create-everything-form" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_everything">
+                
+                <div class="form-group">
+                    <div class="form-checkbox">
+                        <input type="checkbox" name="reset" value="true" id="reset-checkbox" checked>
+                        <label for="reset-checkbox">Reset database before seeding (delete all existing data)</label>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary w-full">
+                    <i data-lucide="database"></i>
+                    Create Everything
+                </button>
+            </form>
         </div>
         
-        <div>
-            <label class="flex items-center space-x-2">
-                <input type="checkbox" name="reset" value="true" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                <span class="text-sm text-gray-700">Reset database before seeding (delete all existing data)</span>
-            </label>
-        </div>
-        
-        <button type="submit" class="btn-primary w-full">
-            <i data-lucide="upload" class="w-4 h-4"></i>
-            Seed from CSV
-        </button>
-    </form>
-</div>
-
-<div class="admin-card">
-    <h2 class="admin-card-title">Quick Actions</h2>
-    <p class="text-gray-600 mb-4">Run individual populate_db functions</p>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button type="button" class="action-btn" data-action="create_staff_user">
-            <i data-lucide="user-plus" class="w-5 h-5"></i>
-            <span>Create Staff User</span>
-        </button>
-        
-        <button type="button" class="action-btn" data-action="create_sample_users">
-            <i data-lucide="users" class="w-5 h-5"></i>
-            <span>Create Sample Users</span>
-        </button>
-        
-        <button type="button" class="action-btn" data-action="create_sample_vouchers">
-            <i data-lucide="ticket" class="w-5 h-5"></i>
-            <span>Create Sample Vouchers</span>
-        </button>
-        
-        <button type="button" class="action-btn" data-action="create_sample_orders_and_reviews">
-            <i data-lucide="shopping-cart" class="w-5 h-5"></i>
-            <span>Create Orders & Reviews</span>
-        </button>
-    </div>
-</div>
-
-<div class="admin-card">
-    <h2 class="admin-card-title text-red-600">Danger Zone</h2>
-    <p class="text-gray-600 mb-4">Irreversible actions - use with caution</p>
-    
-    <button type="button" class="btn-danger w-full" id="delete-data-btn">
-        <i data-lucide="trash-2" class="w-4 h-4"></i>
-        Delete All Data
-    </button>
-</div>
-
-<!-- Output Modal -->
-<div id="output-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col">
-        <div class="flex items-center justify-between p-6 border-b">
-            <h3 class="text-xl font-bold text-gray-900">Operation Output</h3>
-            <button type="button" id="close-modal" class="text-gray-400 hover:text-gray-600">
-                <i data-lucide="x" class="w-6 h-6"></i>
+        <div class="admin-card danger">
+            <h3 class="admin-card-title">
+                <i data-lucide="trash-2"></i>
+                Danger Zone
+            </h3>
+            <p class="admin-card-subtitle">Irreversible actions - use with caution</p>
+            
+            <button type="button" class="btn-danger w-full" id="delete-data-btn">
+                <i data-lucide="trash-2"></i>
+                Delete All Data
             </button>
         </div>
-        <div class="flex-1 overflow-auto p-6">
-            <pre id="output-content" class="text-sm font-mono text-gray-800 whitespace-pre-wrap bg-gray-50 p-4 rounded border"></pre>
+    </div>
+</div>
+
+<div id="output-modal" class="output-modal hidden">
+    <div class="output-modal-content">
+        <div class="output-modal-header">
+            <h3>
+                <i data-lucide="terminal"></i>
+                Operation Output
+            </h3>
+            <button type="button" id="close-modal" class="output-modal-close">
+                <i data-lucide="x"></i>
+            </button>
         </div>
-        <div class="p-6 border-t">
+        <div class="output-modal-body">
+            <pre id="output-content" class="output-content"></pre>
+        </div>
+        <div class="output-modal-footer">
             <button type="button" id="close-modal-btn" class="btn-primary w-full">
                 Close
             </button>
         </div>
     </div>
 </div>
-
-<style>
-.action-btn {
-    @apply flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-colors font-medium text-gray-700;
-}
-
-.btn-primary {
-    @apply flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium;
-}
-
-.btn-danger {
-    @apply flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium;
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -124,10 +530,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function showOutput(success, message, output) {
         outputContent.textContent = output || message;
-        outputContent.className = `text-sm font-mono whitespace-pre-wrap bg-gray-50 p-4 rounded border ${
-            success ? 'text-green-800 border-green-300' : 'text-red-800 border-red-300'
-        }`;
+        outputContent.className = 'output-content ' + (success ? 'success' : 'error');
         outputModal.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
     }
     
     function closeOutputModal() {
@@ -137,8 +544,13 @@ document.addEventListener('DOMContentLoaded', function() {
     closeModal.addEventListener('click', closeOutputModal);
     closeModalBtn.addEventListener('click', closeOutputModal);
     
-    // Seed from CSV form
-    document.getElementById('seed-form').addEventListener('submit', async function(e) {
+    outputModal.addEventListener('click', function(e) {
+        if (e.target === outputModal) {
+            closeOutputModal();
+        }
+    });
+    
+    document.getElementById('create-everything-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
         formData.append('reset', this.querySelector('[name="reset"]').checked);
@@ -146,6 +558,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const btn = this.querySelector('button[type="submit"]');
         btn.disabled = true;
         btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Processing...';
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
         
         try {
             const response = await fetch('{% url "adminpanel:run_populate_db" %}', {
@@ -162,17 +577,22 @@ document.addEventListener('DOMContentLoaded', function() {
             showOutput(false, 'Error', error.message);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> Seed from CSV';
+            btn.innerHTML = '<i data-lucide="database"></i> Create Everything';
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         }
     });
     
-    // Quick action buttons
     document.querySelectorAll('.action-btn').forEach(btn => {
         btn.addEventListener('click', async function() {
             const action = this.dataset.action;
             const originalHTML = this.innerHTML;
             this.disabled = true;
             this.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Processing...';
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
             
             const formData = new FormData();
             formData.append('action', action);
@@ -191,11 +611,13 @@ document.addEventListener('DOMContentLoaded', function() {
             } finally {
                 this.disabled = false;
                 this.innerHTML = originalHTML;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
             }
         });
     });
     
-    // Delete all data button
     document.getElementById('delete-data-btn').addEventListener('click', function() {
         if (!confirm('Are you sure you want to delete ALL data? This action cannot be undone!')) {
             return;
@@ -204,6 +626,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const originalHTML = this.innerHTML;
         this.disabled = true;
         this.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Deleting...';
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
         
         const formData = new FormData();
         formData.append('action', 'delete_all_data');
@@ -223,14 +648,15 @@ document.addEventListener('DOMContentLoaded', function() {
         .finally(() => {
             this.disabled = false;
             this.innerHTML = originalHTML;
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         });
     });
     
-    // Initialize Lucide icons
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
 });
 </script>
 {% endblock %}
-

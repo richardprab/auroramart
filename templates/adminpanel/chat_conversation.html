@@ -399,8 +399,10 @@
         <div class="conversation-info">
             <div class="info-item">
                 <i data-lucide="user" class="w-4 h-4"></i>
-                <span>Customer ID: {{ conversation.user.username|upper }}</span>
-                <a href="{% url 'adminpanel:order_management' %}?search={{ conversation.user.username }}" 
+                <span>
+                    Customer: {{ conversation.user.get_full_name|default:conversation.user.username }}
+                </span>
+                <a href="{% url 'adminpanel:order_management' %}?query={{ conversation.user.username }}" 
                    class="search-link" title="Search Customer Orders">
                     <i data-lucide="search" class="w-4 h-4"></i>
                 </a>

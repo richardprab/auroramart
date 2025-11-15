@@ -1,6 +1,14 @@
+from datetime import timedelta
+import logging
+
 from django.shortcuts import render
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.utils import timezone
+
 from products.models import Product, Category
+from orders.models import OrderItem
+
+logger = logging.getLogger(__name__)
 
 
 def index(request):
@@ -37,31 +45,77 @@ def index(request):
             .count()
         )
     
+    # Trending products (top purchases last 30 days)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    trending_stats = (
+        OrderItem.objects.filter(
+            order__created_at__gte=thirty_days_ago,
+            product__isnull=False,
+        )
+        .values("product")
+        .annotate(total_quantity=Sum("quantity"))
+        .order_by("-total_quantity")[:6]
+    )
+
+    trending_products = []
+    if trending_stats:
+        product_ids = [item["product"] for item in trending_stats]
+        products_map = {
+            product.id: product
+            for product in Product.objects.filter(
+                id__in=product_ids, is_active=True
+            )
+            .select_related("category")
+            .prefetch_related("images", "variants")
+        }
+
+        for stat in trending_stats:
+            product = products_map.get(stat["product"])
+            if not product:
+                continue
+            product.trending_quantity = stat["total_quantity"]
+            product.lowest_variant = product.get_lowest_priced_variant()
+            product.primary_image_obj = product.get_primary_image()
+            trending_products.append(product)
+
     # Get user's wishlist items if authenticated
     user_wishlist_ids = []
     profile_completion_percentage = None
     recently_viewed = []
     if request.user.is_authenticated:
-        from accounts.models import Wishlist, BrowsingHistory, Customer
-        user_wishlist_ids = list(
-            Wishlist.objects.filter(user=request.user)
-            .values_list('product_id', flat=True)
-        )
-        # Calculate profile completion percentage (only for customers)
-        # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
-        try:
-            if isinstance(request.user, Customer):
+        from accounts.models import Wishlist, BrowsingHistory, Customer, Staff
+        from django.contrib.auth import logout
+        from django.contrib import messages
+        
+        # If a Staff user is logged in, log them out and redirect to staff login
+        if isinstance(request.user, Staff) or (hasattr(request.user, 'is_staff') and request.user.is_staff):
+            logout(request)
+            messages.info(request, 'Staff accounts cannot access customer pages. Please use the staff login.')
+            from django.shortcuts import redirect
+            return redirect('/adminpanel/login/')
+        
+        # Only proceed if user is a Customer
+        if isinstance(request.user, Customer):
+            user_wishlist_ids = list(
+                Wishlist.objects.filter(user=request.user)
+                .values_list('product_id', flat=True)
+            )
+            # Calculate profile completion percentage
+            try:
                 profile_completion_percentage = request.user.get_profile_completion_percentage()
-            else:
-                # Edge case: staff/superuser viewing home page
+            except (AttributeError, TypeError):
                 profile_completion_percentage = None
-        except (AttributeError, TypeError):
-            # User is not a customer (staff/superuser) or error accessing customer
-            profile_completion_percentage = None
-        # Get recently viewed products (last 8)
-        recently_viewed = BrowsingHistory.objects.filter(
-            user=request.user
-        ).select_related('product').prefetch_related('product__images', 'product__variants').order_by('-viewed_at')[:8]
+            # Get recently viewed products (last 8)
+            try:
+                recently_viewed = list(
+                    BrowsingHistory.objects.filter(
+                        user=request.user
+                    ).select_related('product').prefetch_related('product__images', 'product__variants').order_by('-viewed_at')[:8]
+                )
+            except Exception as e:
+                # If database error occurs, set to empty list
+                logger.error(f"Error fetching recently viewed products: {str(e)}")
+                recently_viewed = []
 
     return render(
         request,
@@ -69,6 +123,7 @@ def index(request):
         {
             "categories": cats,
             "featured_products": featured_products,
+            "trending_products": trending_products,
             "user_wishlist_ids": user_wishlist_ids,
             "profile_completion_percentage": profile_completion_percentage,
             "recently_viewed": recently_viewed,

@@ -192,6 +192,27 @@ BRANDS = {
 COLORS = ["Black", "White", "Blue", "Red", "Gray", "Navy", "Green"]
 SIZES = ["XS", "S", "M", "L", "XL", "XXL"]
 
+# Distribution used to seed more realistic fulfillment states for analytics
+ORDER_STATUS_DISTRIBUTION = [
+    ("delivered", 0.55),
+    ("shipped", 0.15),
+    ("processing", 0.10),
+    ("confirmed", 0.08),
+    ("pending", 0.07),
+    ("cancelled", 0.03),
+    ("refunded", 0.02),
+]
+
+ORDER_LOCATION_MAP = {
+    "pending": "warehouse",
+    "confirmed": "warehouse",
+    "processing": "at_dc",
+    "shipped": "out_delivery",
+    "delivered": "delivered",
+    "cancelled": "warehouse",
+    "refunded": "warehouse",
+}
+
 # User demographic data options
 AGE_RANGES = ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"]
 GENDERS = ["Male", "Female", "Other"]
@@ -420,10 +441,10 @@ def create_staff_user():
             is_staff=True,
             is_superuser=False,
         )
-        print(f"✅ Created staff user: {username} (email: {email})")
+        print(f"Created staff user: {username} (email: {email})")
         return staff_user
     except Exception as e:
-        print(f"❌ Error creating staff user: {e}")
+        print(f"Error creating staff user: {e}")
         return None
 
 
@@ -479,7 +500,7 @@ def create_nus_computing_tshirt():
             reorder_quantity=10,
             is_active=True,
         )
-        print(f"✅ Created product: {product_name} (SKU: {product_sku})")
+        print(f"Created product: {product_name} (SKU: {product_sku})")
     
     # Add product image (using a t-shirt image)
     if product.images.count() == 0:
@@ -492,7 +513,7 @@ def create_nus_computing_tshirt():
         )
         filename = f"{product_slug}-main.jpg"
         img.image.save(filename, download_image(image_url, filename), save=True)
-        print(f"  → Added product image")
+        print("  Added product image")
     
     # Delete existing variants to recreate them
     ProductVariant.objects.filter(product=product).delete()
@@ -572,9 +593,9 @@ def create_nus_computing_tshirt():
         created_variants += 1
         
         sale_text = f" (was ${compare_price})" if compare_price else ""
-        print(f"  → Created variant: {color} / {size} - ${price}{sale_text} (Stock: {stock}, SKU: {variant_sku})")
+        print(f"  Created variant: {color} / {size} - ${price}{sale_text} (Stock: {stock}, SKU: {variant_sku})")
     
-    print(f"✅ Created {created_variants} variants for {product_name}")
+    print(f"Created {created_variants} variants for {product_name}")
     return product
 
 
@@ -673,7 +694,7 @@ def seed_from_csv(csv_path, reset=True):
         # Note: We keep users to avoid FK constraint issues
         # create_sample_users() uses get_or_create(), so it will handle existing users
         
-        print("✅ Database reset complete!\n")
+        print("Database reset complete!\n")
     
     create_sample_users()
     
@@ -682,9 +703,6 @@ def seed_from_csv(csv_path, reset=True):
     
     # Create NUS Computing t-shirt
     create_nus_computing_tshirt()
-    
-    # Create sample vouchers
-    create_sample_vouchers()
     
     with transaction.atomic():
         # Cache for categories
@@ -795,7 +813,7 @@ def seed_from_csv(csv_path, reset=True):
                     is_active=True,
                     is_default=True,
                 )
-                print(f"  → Created variant: {color} / {size} - ${price} (SKU: {variant_sku})")
+                print(f"  Created variant: {color} / {size} - ${price} (SKU: {variant_sku})")
             else:
                 # For non-fashion items, create default variant without color/size
                 # Use the same SKU as the product (no variant suffix needed)
@@ -810,7 +828,7 @@ def seed_from_csv(csv_path, reset=True):
                     is_active=True,
                     is_default=True,
                 )
-                print(f"  → Created default variant - ${price} (SKU: {sku})")
+                print(f"  Created default variant - ${price} (SKU: {sku})")
 
     print(
         f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
@@ -821,6 +839,12 @@ def seed_from_csv(csv_path, reset=True):
     
     # Assign 5% profile completion voucher to all users
     assign_profile_completion_vouchers()
+    
+    # Note: Milestone vouchers are now granted on-demand when users view vouchers/milestones
+    # No need to assign them manually here
+
+    # Seed browsing/chat data so analytics dashboard has activity
+    create_adminpanel_analytics_data()
 
 
 def create_sample_vouchers():
@@ -958,21 +982,21 @@ def create_sample_vouchers():
                 created_by=superuser,
             )
             vouchers_created += 1
-            print(f"  ✅ Created voucher: {voucher.promo_code}")
+            print(f"  Created voucher: {voucher.promo_code}")
         except Exception as e:
-            print(f"  ❌ Error creating voucher {v_data['promo_code']}: {e}")
+            print(f"  Error creating voucher {v_data['promo_code']}: {e}")
     
-    print(f"✅ Created {vouchers_created} vouchers")
+    print(f"Created {vouchers_created} vouchers")
     print()
 
 
 def assign_profile_completion_vouchers():
     """
-    Create a shared 5% voucher (code: WELCOME) that all users can use once.
-    This is a public voucher with per-user usage limit of 1.
+    Create individual 5% vouchers for customers who have completed their profile.
+    Each customer gets their own user-specific voucher.
     """
     print("\n" + "=" * 60)
-    print("CREATING PROFILE COMPLETION VOUCHER (5% OFF - CODE: WELCOME)")
+    print("ASSIGNING PROFILE COMPLETION VOUCHERS (5% OFF)")
     print("=" * 60)
     
     Voucher = apps.get_model("vouchers", "Voucher")
@@ -983,43 +1007,284 @@ def assign_profile_completion_vouchers():
     if not superuser:
         superuser = None
     
-    now = timezone.now()
-    promo_code = "WELCOME"
+    # Get all customers who have completed their profile (100% completion)
+    customers_with_complete_profile = []
+    for customer in Customer.objects.all():
+        if customer.get_profile_completion_percentage() == 100:
+            customers_with_complete_profile.append(customer)
     
-    # Check if voucher already exists
-    existing_voucher = Voucher.objects.filter(promo_code=promo_code).first()
-    
-    if existing_voucher:
-        print(f"  ℹ️  Voucher '{promo_code}' already exists. Skipping creation.")
+    if not customers_with_complete_profile:
+        print("  No customers with completed profiles found. Skipping voucher assignment.")
         print()
         return
     
-    try:
-        voucher = Voucher.objects.create(
-            name='Welcome Discount',
-            promo_code=promo_code,
-            description='5% off your order as a thank you for completing your profile! Use code WELCOME at checkout.',
-            discount_type='percent',
-            discount_value=Decimal('5.00'),
-            max_discount=Decimal('50.00'),  # Max $50 discount
-            min_purchase=Decimal('10.00'),  # Minimum $10 purchase
-            first_time_only=False,
-            max_uses=None,  # Unlimited total uses (but each user can only use once)
-            max_uses_per_user=1,  # Each user can only use this once
-            start_date=now,
-            end_date=now + timedelta(days=365),  # Valid for 1 year
-            is_active=True,
-            user=None,  # Public voucher - available to all users
-            created_by=superuser,
-        )
-        print(f"  ✅ Created voucher: {voucher.promo_code}")
-        print(f"     - 5% discount (max $50)")
-        print(f"     - Minimum purchase: $10")
-        print(f"     - Each user can use once")
-        print(f"     - Valid until: {voucher.end_date.strftime('%Y-%m-%d')}")
-    except Exception as e:
-        print(f"  ❌ Error creating voucher: {e}")
+    now = timezone.now()
+    vouchers_created = 0
+    vouchers_skipped = 0
     
+    for customer in customers_with_complete_profile:
+        # Create unique promo code for each customer
+        promo_code = f"WELCOME-{customer.id}"
+        
+        # Check if voucher already exists for this customer
+        if Voucher.objects.filter(user=customer, promo_code=promo_code).exists():
+            vouchers_skipped += 1
+            continue
+        
+        try:
+            voucher = Voucher.objects.create(
+                name='Welcome Discount',
+                promo_code=promo_code,
+                description='Congratulations on completing your profile! You\'ve earned a 5% discount voucher as a reward. Use this voucher at checkout to apply the discount to your order.',
+                discount_type='percent',
+                discount_value=Decimal('5.00'),
+                max_discount=Decimal('50.00'),  # Max $50 discount
+                min_purchase=Decimal('10.00'),  # Minimum $10 purchase
+                first_time_only=False,
+                max_uses=1,  # Can only be used once
+                max_uses_per_user=1,
+                start_date=now,
+                end_date=now + timedelta(days=365),  # Valid for 1 year
+                is_active=True,
+                user=customer,  # User-specific voucher
+                created_by=superuser,
+            )
+            vouchers_created += 1
+            if vouchers_created % 10 == 0:
+                print(f"  Created {vouchers_created} vouchers...")
+        except Exception as e:
+            print(f"  ❌ Error creating voucher for {customer.username}: {e}")
+    
+    print(f"  ✅ Created {vouchers_created} profile completion vouchers")
+    if vouchers_skipped > 0:
+        print(f"  ℹ️  Skipped {vouchers_skipped} customers (vouchers already exist)")
+    print()
+
+
+def assign_milestone_vouchers():
+    """
+    Assign milestone reward vouchers to customers based on their cumulative spending.
+    Uses the milestone system from settings (REWARD_THRESHOLDS and REWARD_BADGES).
+    """
+    print("\n" + "=" * 60)
+    print("ASSIGNING MILESTONE REWARD VOUCHERS")
+    print("=" * 60)
+    
+    from django.conf import settings
+    from vouchers.rewards import get_cumulative_spending, get_earned_milestones, create_reward_voucher
+    
+    Voucher = apps.get_model("vouchers", "Voucher")
+    Order = apps.get_model("orders", "Order")
+    User = apps.get_model("accounts", "Superuser")
+    
+    # Get or create a superuser for created_by
+    superuser = User.objects.filter(is_superuser=True).first()
+    if not superuser:
+        superuser = None
+    
+    # Get reward thresholds and badges from settings
+    reward_thresholds = getattr(settings, 'REWARD_THRESHOLDS', {})
+    reward_badges = getattr(settings, 'REWARD_BADGES', {})
+    
+    if not reward_thresholds or not reward_badges:
+        print("  ℹ️  No reward thresholds configured. Skipping milestone vouchers.")
+        print()
+        return
+    
+    vouchers_created = 0
+    vouchers_skipped = 0
+    
+    # Process each customer
+    for customer in Customer.objects.all():
+        # Calculate cumulative spending
+        cumulative_spending = get_cumulative_spending(customer)
+        
+        if cumulative_spending == 0:
+            continue  # Skip customers with no orders
+        
+        # Get milestones already earned (have vouchers)
+        earned_milestones = get_earned_milestones(customer)
+        
+        # Check each threshold to see if customer qualifies
+        for threshold_amount in sorted(reward_thresholds.keys()):
+            # Check if customer has reached this threshold
+            if cumulative_spending >= Decimal(str(threshold_amount)):
+                # Check if customer already has a voucher for this milestone
+                if threshold_amount in earned_milestones:
+                    continue  # Already has voucher for this milestone
+                
+                # Get voucher amount for this threshold
+                voucher_amount = Decimal(str(reward_thresholds[threshold_amount]))
+                
+                # Get badge info and add threshold
+                badge_info = reward_badges.get(threshold_amount)
+                if badge_info:
+                    # Create a copy and add threshold (required by create_reward_voucher)
+                    badge_info = badge_info.copy()
+                    badge_info['threshold'] = threshold_amount
+                
+                # Check if voucher already exists (double-check)
+                existing_vouchers = Voucher.objects.filter(
+                    user=customer,
+                    promo_code__startswith=f"REWARD-{customer.id}-",
+                    discount_value=voucher_amount
+                )
+                
+                if existing_vouchers.exists():
+                    vouchers_skipped += 1
+                    continue
+                
+                # Find the order that helped them reach this milestone
+                # Use the most recent delivered/confirmed order
+                milestone_order = Order.objects.filter(
+                    user=customer,
+                    status__in=['delivered', 'confirmed']
+                ).exclude(status__in=['cancelled', 'refunded']).order_by('-created_at').first()
+                
+                if not milestone_order:
+                    continue  # No valid order found
+                
+                # Create the reward voucher
+                try:
+                    voucher = create_reward_voucher(
+                        user=customer,
+                        amount=voucher_amount,
+                        order=milestone_order,
+                        badge_info=badge_info
+                    )
+                    
+                    if voucher:
+                        vouchers_created += 1
+                        if vouchers_created % 10 == 0:
+                            print(f"  Created {vouchers_created} milestone vouchers...")
+                except Exception as e:
+                    print(f"  ❌ Error creating milestone voucher for {customer.username} (${threshold_amount}): {e}")
+    
+    print(f"  ✅ Created {vouchers_created} milestone reward vouchers")
+    if vouchers_skipped > 0:
+        print(f"  ℹ️  Skipped {vouchers_skipped} milestones (vouchers already exist)")
+    print()
+
+
+def create_adminpanel_analytics_data():
+    """
+    Seed browsing history and chat activity so the admin analytics dashboard
+    shows meaningful conversion, repeat visit, and response-time metrics.
+    """
+    print("\n" + "=" * 60)
+    print("CREATING ANALYTICS SUPPORT DATA")
+    print("=" * 60)
+
+    BrowsingHistory = apps.get_model("accounts", "BrowsingHistory")
+    ChatConversation = apps.get_model("chat", "ChatConversation")
+    ChatMessage = apps.get_model("chat", "ChatMessage")
+    Product = apps.get_model("products", "Product")
+
+    customers = list(Customer.objects.all()[:40])
+    products = list(Product.objects.filter(is_active=True)[:60])
+    staff_user = Staff.objects.filter(is_active=True).first()
+
+    if not customers or not products:
+        print("  ⚠️  Missing customers or products. Skipping analytics seed.")
+        print()
+        return
+
+    # Browsing activity to drive conversion rate denominator
+    history_targets = min(len(customers) * 4, 160)
+    history_created = 0
+    for _ in range(history_targets):
+        user = RNG.choice(customers)
+        product = RNG.choice(products)
+        timestamp = timezone.now() - timedelta(
+            days=RNG.randint(0, 45),
+            hours=RNG.randint(0, 23),
+            minutes=RNG.randint(0, 59),
+        )
+        view_count = RNG.randint(1, 12)
+        history_obj, created = BrowsingHistory.objects.get_or_create(
+            user=user,
+            product=product,
+            defaults={"view_count": view_count},
+        )
+        BrowsingHistory.objects.filter(id=history_obj.id).update(
+            view_count=view_count,
+            viewed_at=timestamp,
+        )
+        if created:
+            history_created += 1
+
+    print(f"  ✅ Seeded {history_created} browsing history entries")
+
+    if not staff_user:
+        print("  ⚠️  No staff users available for chat analytics.")
+        print()
+        return
+
+    # Chat conversations to produce response-time metrics
+    conversation_subjects = [
+        "Question about shipping",
+        "Product sizing help",
+        "Voucher not applying",
+        "Bulk order inquiry",
+        "Need delivery update",
+    ]
+    conversations_to_create = min(6, len(customers))
+    conversations_created = 0
+
+    for idx in range(conversations_to_create):
+        customer = customers[idx]
+        product = RNG.choice(products)
+        is_pending = idx % 3 == 0  # ensure a mix of pending vs replied
+        status = 'pending' if is_pending else 'replied'
+
+        conv = ChatConversation.objects.create(
+            user=customer,
+            product=product,
+            admin=staff_user,
+            subject=RNG.choice(conversation_subjects),
+            message_type=RNG.choice(['contact_us', 'product_chat']),
+            status=status,
+            user_has_unread=not is_pending,
+            admin_has_unread=is_pending,
+        )
+        created_at = timezone.now() - timedelta(
+            days=RNG.randint(1, 25),
+            hours=RNG.randint(0, 10),
+            minutes=RNG.randint(0, 59),
+        )
+        ChatConversation.objects.filter(id=conv.id).update(
+            created_at=created_at,
+            updated_at=created_at,
+        )
+        conv.refresh_from_db()
+
+        # Customer message
+        customer_msg_time = created_at + timedelta(minutes=RNG.randint(0, 20))
+        cust_msg = ChatMessage.objects.create(
+            conversation=conv,
+            sender=customer,
+            content=f"Hi, I need help with {product.name}.",
+        )
+        ChatMessage.objects.filter(id=cust_msg.id).update(created_at=customer_msg_time)
+
+        if not is_pending:
+            reply_delay = RNG.randint(5, 240)  # minutes
+            staff_msg_time = customer_msg_time + timedelta(minutes=reply_delay)
+            reply = ChatMessage.objects.create(
+                conversation=conv,
+                staff_sender=staff_user,
+                content="Thanks for reaching out! Here's what I can do to help.",
+            )
+            ChatMessage.objects.filter(id=reply.id).update(created_at=staff_msg_time)
+            ChatConversation.objects.filter(id=conv.id).update(
+                updated_at=staff_msg_time,
+                user_has_unread=True,
+                admin_has_unread=False,
+            )
+
+        conversations_created += 1
+
+    print(f"  ✅ Created {conversations_created} chat conversations for analytics")
     print()
 
 
@@ -1027,243 +1292,284 @@ def create_sample_orders_and_reviews():
     """
     Create sample orders and reviews for testing.
     Customers need to have ordered items to review them.
+    
+    Note: Disables the order reward signal during seeding to prevent duplicate
+    voucher creation. Milestone vouchers are now granted on-demand when users
+    view their vouchers or milestone progress.
     """
     print("\n" + "=" * 60)
     print("CREATING SAMPLE ORDERS AND REVIEWS")
     print("=" * 60)
     
-    Order = apps.get_model("orders", "Order")
-    OrderItem = apps.get_model("orders", "OrderItem")
-    Address = apps.get_model("accounts", "Address")
-    Review = apps.get_model("reviews", "Review")
-    Voucher = apps.get_model("vouchers", "Voucher")
-    VoucherUsage = apps.get_model("vouchers", "VoucherUsage")
-    
-    # Get customers and products
-    customers = list(Customer.objects.all()[:20])  # Use first 20 customers
-    products = list(Product.objects.filter(is_active=True, variants__is_active=True).distinct()[:50])  # Use first 50 products
-    
-    if not customers:
-        print("⚠️  No customers found. Skipping orders and reviews.")
-        return
-    
-    if not products:
-        print("⚠️  No products found. Skipping orders and reviews.")
-        return
-    
-    orders_created = 0
-    reviews_created = 0
-    
-    # Create orders for customers
-    for customer in customers:
-        # Create an address for the customer if they don't have one
-        address, _ = Address.objects.get_or_create(
-            user=customer,
-            address_type='shipping',
-            defaults={
-                'full_name': f"{customer.first_name} {customer.last_name}",
-                'address_line1': f"{RNG.randint(1, 999)} Main Street",
-                'address_line2': f"Unit {RNG.randint(1, 50)}",
-                'city': 'Singapore',
-                'state': 'Singapore',
-                'postal_code': f"{RNG.randint(100000, 999999)}",
-                'zip_code': f"{RNG.randint(100000, 999999)}",
-                'country': 'Singapore',
-                'is_default': True,
-            }
-        )
+    try:
+        Order = apps.get_model("orders", "Order")
+        OrderItem = apps.get_model("orders", "OrderItem")
+        Address = apps.get_model("accounts", "Address")
+        Review = apps.get_model("reviews", "Review")
+        Voucher = apps.get_model("vouchers", "Voucher")
+        VoucherUsage = apps.get_model("vouchers", "VoucherUsage")
         
-        # Create 1-3 orders per customer
-        num_orders = RNG.randint(1, 3)
-        for order_num in range(num_orders):
-            # Select 1-4 random products for this order
-            order_products = RNG.sample(products, min(RNG.randint(1, 4), len(products)))
-            
-            if not order_products:
-                continue
-            
-            # Calculate order totals
-            subtotal = Decimal('0.00')
-            order_items_data = []
-            
-            for product in order_products:
-                # Get a variant for this product
-                variant = product.variants.filter(is_active=True).first()
-                if not variant:
-                    continue
-                
-                quantity = RNG.randint(1, 3)
-                item_price = variant.price
-                item_subtotal = item_price * quantity
-                subtotal += item_subtotal
-                
-                order_items_data.append({
-                    'product': product,
-                    'product_variant': variant,
-                    'quantity': quantity,
-                    'price': item_price,
-                })
-            
-            if not order_items_data:
-                continue
-            
-            # Calculate tax and shipping
-            tax_rate = Decimal('0.10')  # 10% tax
-            shipping_cost = Decimal('10.00') if subtotal < Decimal('100.00') else Decimal('0.00')
-            
-            # Apply voucher 30% of the time
-            voucher = None
-            voucher_code = ''
-            discount_amount = Decimal('0.00')
-            
-            if RNG.random() < 0.3:  # 30% chance to use voucher
-                # Get valid vouchers for this customer
-                # Get valid vouchers (simpler check without F() expression)
-                valid_vouchers = []
-                all_vouchers = Voucher.objects.filter(
-                    is_active=True,
-                    start_date__lte=timezone.now(),
-                    end_date__gte=timezone.now()
-                )
-                for v in all_vouchers:
-                    if v.max_uses is None or v.current_uses < v.max_uses:
-                        valid_vouchers.append(v)
-                
-                # Filter vouchers that can be used by this customer
-                applicable_vouchers = []
-                for v in valid_vouchers:
-                    if v.can_be_used_by_user(customer) and subtotal >= v.min_purchase:
-                        applicable_vouchers.append(v)
-                
-                if applicable_vouchers:
-                    voucher = RNG.choice(applicable_vouchers)
-                    voucher_code = voucher.promo_code
-                    
-                    # Calculate discount
-                    from vouchers.utils import calculate_voucher_discount
-                    discount_amount = calculate_voucher_discount(voucher, subtotal, shipping_cost)
-                    
-                    # Adjust subtotal or shipping based on voucher type
-                    if voucher.discount_type == 'free_shipping':
-                        shipping_cost = max(Decimal('0.00'), shipping_cost - discount_amount)
-                    else:
-                        subtotal = max(Decimal('0.00'), subtotal - discount_amount)
-            
-            # Calculate tax on adjusted subtotal
-            tax = subtotal * tax_rate
-            total = subtotal + tax + shipping_cost
-            
-            # Create order with delivered status (so customers can review)
-            order_date = timezone.now() - timedelta(days=RNG.randint(1, 90))  # Orders from 1-90 days ago
-            delivered_date = order_date + timedelta(days=RNG.randint(3, 7))  # Delivered 3-7 days after order
-            
-            # Generate unique order number
-            import uuid
-            order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
-            
-            order = Order.objects.create(
+        # Get customers and products
+        customers = list(Customer.objects.all()[:20])  # Use first 20 customers
+        products = list(Product.objects.filter(is_active=True, variants__is_active=True).distinct()[:50])  # Use first 50 products
+        
+        if not customers:
+            print("⚠️  No customers found. Skipping orders and reviews.")
+            return
+        
+        if not products:
+            print("⚠️  No products found. Skipping orders and reviews.")
+            return
+        
+        orders_created = 0
+        reviews_created = 0
+        
+        status_options, status_weights = zip(*ORDER_STATUS_DISTRIBUTION)
+
+        # Create orders for customers
+        for customer in customers:
+            # Create an address for the customer if they don't have one
+            address, _ = Address.objects.get_or_create(
                 user=customer,
-                address=address,
-                delivery_address=f"{address.address_line1}, {address.address_line2}, {address.city} {address.postal_code}, {address.country}",
-                order_number=order_number,
-                subtotal=subtotal,
-                tax=tax,
-                shipping_cost=shipping_cost,
-                voucher_code=voucher_code,
-                discount_amount=discount_amount,
-                total=total,
-                status='delivered',  # Delivered so customers can review
-                payment_status='paid',
-                payment_method=RNG.choice(['Credit Card', 'PayPal', 'Bank Transfer']),
-                current_location='delivered',
-                contact_number=customer.phone or f"+65{RNG.randint(8000, 9999)}{RNG.randint(1000, 9999)}",
-                tracking_number=f"TRK{RNG.randint(100000000, 999999999)}",
-                expected_delivery_date=delivered_date.date(),
-                delivered_at=delivered_date,
+                address_type='shipping',
+                defaults={
+                    'full_name': f"{customer.first_name} {customer.last_name}",
+                    'address_line1': f"{RNG.randint(1, 999)} Main Street",
+                    'address_line2': f"Unit {RNG.randint(1, 50)}",
+                    'city': 'Singapore',
+                    'state': 'Singapore',
+                    'postal_code': f"{RNG.randint(100000, 999999)}",
+                    'zip_code': f"{RNG.randint(100000, 999999)}",
+                    'country': 'Singapore',
+                    'is_default': True,
+                }
             )
             
-            # Track voucher usage if voucher was applied
-            if voucher and discount_amount > 0:
-                try:
-                    VoucherUsage.objects.create(
-                        voucher=voucher,
-                        user=customer,
-                        order=order,
-                        discount_amount=discount_amount
-                    )
-                    # Update voucher usage count
-                    voucher.current_uses += 1
-                    voucher.save()
-                except Exception as e:
-                    print(f"  ⚠️  Error tracking voucher usage: {e}")
-            # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
-            Order.objects.filter(id=order.id).update(created_at=order_date)
-            
-            # Create order items
-            for item_data in order_items_data:
-                OrderItem.objects.create(
-                    order=order,
-                    product=item_data['product'],
-                    product_variant=item_data['product_variant'],
-                    quantity=item_data['quantity'],
-                    price=item_data['price'],
-                )
-            
-            orders_created += 1
-            
-            # Create reviews for some products in this order (50% chance per product)
-            for item_data in order_items_data:
-                if RNG.random() < 0.5:  # 50% chance to review
-                    product = item_data['product']
-                    
-                    # Check if customer already reviewed this product
-                    if Review.objects.filter(user=customer, product=product).exists():
+            # Create 1-3 orders per customer
+            num_orders = RNG.randint(1, 3)
+            for order_num in range(num_orders):
+                # Select 1-4 random products for this order
+                order_products = RNG.sample(products, min(RNG.randint(1, 4), len(products)))
+                
+                if not order_products:
+                    continue
+                
+                # Calculate order totals
+                subtotal = Decimal('0.00')
+                order_items_data = []
+                
+                for product in order_products:
+                    # Get a variant for this product
+                    variant = product.variants.filter(is_active=True).first()
+                    if not variant:
                         continue
                     
-                    # Create review
-                    rating = RNG.randint(3, 5)  # Mostly positive reviews (3-5 stars)
-                    review_titles = [
-                        "Great product!",
-                        "Very satisfied",
-                        "Good quality",
-                        "Would recommend",
-                        "Excellent purchase",
-                        "Love it!",
-                        "As described",
-                        "Fast delivery",
-                    ]
-                    review_comments = [
-                        "Really happy with this purchase. Quality is great and delivery was fast.",
-                        "Product met my expectations. Would buy again.",
-                        "Good value for money. Highly recommend.",
-                        "Excellent quality and fast shipping. Very satisfied!",
-                        "Great product, exactly as described. Very happy with my purchase.",
-                        "Love this product! Quality is excellent and it arrived quickly.",
-                        "Good product, good service. Would recommend to others.",
-                        "Satisfied with the purchase. Product is as described.",
-                    ]
+                    quantity = RNG.randint(1, 3)
+                    item_price = variant.price
+                    item_subtotal = item_price * quantity
+                    subtotal += item_subtotal
                     
-                    review = Review.objects.create(
-                        user=customer,
-                        product=product,
-                        rating=rating,
-                        title=RNG.choice(review_titles),
-                        comment=RNG.choice(review_comments),
-                        is_verified_purchase=True,  # All reviews are from verified purchases
+                    order_items_data.append({
+                        'product': product,
+                        'product_variant': variant,
+                        'quantity': quantity,
+                        'price': item_price,
+                    })
+                
+                if not order_items_data:
+                    continue
+                
+                # Calculate tax and shipping
+                tax_rate = Decimal('0.10')  # 10% tax
+                shipping_cost = Decimal('10.00') if subtotal < Decimal('100.00') else Decimal('0.00')
+                
+                # Apply voucher 30% of the time
+                voucher = None
+                voucher_code = ''
+                discount_amount = Decimal('0.00')
+                
+                if RNG.random() < 0.3:  # 30% chance to use voucher
+                    # Get valid vouchers for this customer
+                    # Get valid vouchers (simpler check without F() expression)
+                    valid_vouchers = []
+                    all_vouchers = Voucher.objects.filter(
+                        is_active=True,
+                        start_date__lte=timezone.now(),
+                        end_date__gte=timezone.now()
                     )
-                    # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
-                    Review.objects.filter(id=review.id).update(
-                        created_at=delivered_date + timedelta(days=RNG.randint(1, 7))
-                    )
-                    reviews_created += 1
+                    for v in all_vouchers:
+                        if v.max_uses is None or v.current_uses < v.max_uses:
+                            valid_vouchers.append(v)
                     
-                    # Update product rating based on all reviews
-                    from products.utils import update_product_rating
-                    update_product_rating(product)
-    
-    print(f"✅ Created {orders_created} orders")
-    print(f"✅ Created {reviews_created} reviews")
-    print()
+                    # Filter vouchers that can be used by this customer
+                    applicable_vouchers = []
+                    for v in valid_vouchers:
+                        if v.can_be_used_by_user(customer) and subtotal >= v.min_purchase:
+                            applicable_vouchers.append(v)
+                    
+                    if applicable_vouchers:
+                        voucher = RNG.choice(applicable_vouchers)
+                        voucher_code = voucher.promo_code
+                        
+                        # Calculate discount
+                        from vouchers.utils import calculate_voucher_discount
+                        discount_amount = calculate_voucher_discount(voucher, subtotal, shipping_cost)
+                        
+                        # Adjust subtotal or shipping based on voucher type
+                        if voucher.discount_type == 'free_shipping':
+                            shipping_cost = max(Decimal('0.00'), shipping_cost - discount_amount)
+                        else:
+                            subtotal = max(Decimal('0.00'), subtotal - discount_amount)
+                
+                # Calculate tax on adjusted subtotal
+                tax = subtotal * tax_rate
+                total = subtotal + tax + shipping_cost
+                
+                # Spread orders across last ~2 months to populate analytics graphs
+                days_ago = RNG.randint(0, 60)
+                order_date = timezone.now() - timedelta(days=days_ago, hours=RNG.randint(0, 23), minutes=RNG.randint(0, 59))
+                
+                # Ensure each customer has at least one delivered order for reviews
+                if order_num == 0:
+                    status = 'delivered'
+                else:
+                    status = RNG.choices(status_options, weights=status_weights, k=1)[0]
+
+                delivered_date = None
+                shipped_date = None
+                expected_delivery_date = order_date.date() + timedelta(days=RNG.randint(3, 7))
+                
+                if status in ['processing', 'shipped', 'delivered']:
+                    shipped_date = order_date + timedelta(days=RNG.randint(1, 3))
+                if status == 'delivered':
+                    delivered_date = order_date + timedelta(days=RNG.randint(3, 7))
+                    expected_delivery_date = delivered_date.date()
+                elif status in ['pending', 'confirmed']:
+                    expected_delivery_date = (timezone.now() + timedelta(days=7)).date()
+
+                payment_status = 'paid' if status in ['confirmed', 'processing', 'shipped', 'delivered'] else 'pending'
+                if status == 'cancelled':
+                    payment_status = 'cancelled'
+                elif status == 'refunded':
+                    payment_status = 'refunded'
+
+                current_location = ORDER_LOCATION_MAP.get(status, 'warehouse')
+                
+                # Generate unique order number
+                import uuid
+                order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
+                
+                order = Order.objects.create(
+                    user=customer,
+                    address=address,
+                    delivery_address=f"{address.address_line1}, {address.address_line2}, {address.city} {address.postal_code}, {address.country}",
+                    order_number=order_number,
+                    subtotal=subtotal,
+                    tax=tax,
+                    shipping_cost=shipping_cost,
+                    voucher_code=voucher_code,
+                    discount_amount=discount_amount,
+                    total=total,
+                    status=status,
+                    payment_status=payment_status,
+                    payment_method=RNG.choice(['Credit Card', 'PayPal', 'Bank Transfer']),
+                    current_location=current_location,
+                    contact_number=customer.phone or f"+65{RNG.randint(8000, 9999)}{RNG.randint(1000, 9999)}",
+                    tracking_number=f"TRK{RNG.randint(100000000, 999999999)}",
+                    expected_delivery_date=expected_delivery_date,
+                    paid_at=order_date if payment_status == 'paid' else None,
+                    shipped_at=shipped_date,
+                    delivered_at=delivered_date,
+                )
+                
+                # Track voucher usage if voucher was applied
+                if voucher and discount_amount > 0:
+                    try:
+                        VoucherUsage.objects.create(
+                            voucher=voucher,
+                            user=customer,
+                            order=order,
+                            discount_amount=discount_amount
+                        )
+                        # Update voucher usage count
+                        voucher.current_uses += 1
+                        voucher.save()
+                    except Exception as e:
+                        print(f"  Warning: Error tracking voucher usage: {e}")
+                
+                # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
+                Order.objects.filter(id=order.id).update(created_at=order_date)
+                
+                # Create order items
+                for item_data in order_items_data:
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item_data['product'],
+                        product_variant=item_data['product_variant'],
+                        quantity=item_data['quantity'],
+                        price=item_data['price'],
+                    )
+                
+                orders_created += 1
+                
+                # Create reviews only for fulfilled orders
+                if status == 'delivered':
+                    for item_data in order_items_data:
+                        if RNG.random() < 0.5:  # 50% chance to review
+                            product = item_data['product']
+                            
+                            # Check if customer already reviewed this product
+                            if Review.objects.filter(user=customer, product=product).exists():
+                                continue
+                            
+                            # Create review
+                            rating = RNG.randint(3, 5)  # Mostly positive reviews (3-5 stars)
+                            review_titles = [
+                                "Great product!",
+                                "Very satisfied",
+                                "Good quality",
+                                "Would recommend",
+                                "Excellent purchase",
+                                "Love it!",
+                                "As described",
+                                "Fast delivery",
+                            ]
+                            review_comments = [
+                                "Really happy with this purchase. Quality is great and delivery was fast.",
+                                "Product met my expectations. Would buy again.",
+                                "Good value for money. Highly recommend.",
+                                "Excellent quality and fast shipping. Very satisfied!",
+                                "Great product, exactly as described. Very happy with my purchase.",
+                                "Love this product! Quality is excellent and it arrived quickly.",
+                                "Good product, good service. Would recommend to others.",
+                                "Satisfied with the purchase. Product is as described.",
+                            ]
+                            
+                            review = Review.objects.create(
+                                user=customer,
+                                product=product,
+                                rating=rating,
+                                title=RNG.choice(review_titles),
+                                comment=RNG.choice(review_comments),
+                                is_verified_purchase=True,  # All reviews are from verified purchases
+                            )
+                            # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
+                            Review.objects.filter(id=review.id).update(
+                                created_at=delivered_date + timedelta(days=RNG.randint(1, 7))
+                            )
+                            reviews_created += 1
+                            
+                            # Update product rating based on all reviews
+                            from products.utils import update_product_rating
+                            update_product_rating(product)
+        
+        print(f"Created {orders_created} orders")
+        print(f"Created {reviews_created} reviews")
+        print()
+    except Exception as e:
+        print(f"Error creating orders and reviews: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def delete_all_data():
@@ -1362,7 +1668,7 @@ def delete_all_data():
         # Note: We keep users to avoid FK constraint issues
         # create_sample_users() uses get_or_create(), so it will handle existing users
         
-        print("\n✅ All data deleted successfully!")
+        print("\nAll data deleted successfully!")
     print(f"Remaining superusers: {Superuser.objects.count()}")
     print("=" * 60)
 
@@ -1385,7 +1691,7 @@ def delete_database_file():
     
     response = input("Are you sure? Type 'yes' to continue: ")
     if response.lower() != 'yes':
-        print("❌ Aborted.")
+        print("Aborted.")
         sys.exit(0)
     
     db_path = Path(__file__).resolve().parent / "db.sqlite3"
@@ -1393,16 +1699,16 @@ def delete_database_file():
     if db_path.exists():
         try:
             os.remove(db_path)
-            print(f"\n✅ Database file deleted: {db_path}")
+            print(f"\nDatabase file deleted: {db_path}")
             print("\nNext steps:")
             print("  1. python manage.py migrate")
             print("  2. python manage.py createsuperuser")
             print("  3. python populate_db.py --csv data/b2c_products_500.csv")
         except Exception as e:
-            print(f"❌ Error deleting database: {e}")
+            print(f"Error deleting database: {e}")
             sys.exit(1)
     else:
-        print(f"⚠️  Database file not found: {db_path}")
+        print(f"Warning: Database file not found: {db_path}")
 
 
 def main():

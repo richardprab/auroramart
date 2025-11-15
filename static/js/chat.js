@@ -2,11 +2,17 @@ const ChatWidget = {
     currentSession: null,
     sessions: [],
     isOpen: false,
-    pollInterval: null,
     sessionListOpen: true,
     sessionToDelete: null,
-
-    // Get CSRF token for session authentication
+    websocket: null,
+    reconnectAttempts: 0,
+    maxReconnectAttempts: 5,
+    reconnectDelay: 3000,
+    reconnectTimeout: null,
+    useWebSocket: true,
+    fallbackPolling: false,
+    pollInterval: null,
+    checkInterval: 5000, 
     getCSRFToken() {
         const cookieValue = document.cookie
             .split('; ')
@@ -23,7 +29,6 @@ const ChatWidget = {
     },
 
     init() {
-        // Get current user ID from chat window data attribute
         const chatWindow = document.getElementById('chat-window');
         if (chatWindow) {
             const userId = chatWindow.getAttribute('data-user-id');
@@ -32,8 +37,142 @@ const ChatWidget = {
         
         this.attachEventListeners();
         this.attachProductChatListeners();
-        this.loadSessions();
-        this.startPolling();
+        
+        // Connect WebSocket for real-time chat
+        if (this.useWebSocket) {
+            this.connectWebSocket();
+        }
+    },
+    
+    connectWebSocket() {
+        // Determine WebSocket URL based on current page
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/ws/chat/`;
+        
+        try {
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onopen = () => {
+                this.reconnectAttempts = 0;
+                this.fallbackPolling = false;
+                this.stopPolling();
+            };
+            
+            this.websocket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    this.handleWebSocketMessage(data);
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+            
+            this.websocket.onerror = (error) => {
+                // Silently handle WebSocket errors
+            };
+            
+            this.websocket.onclose = () => {
+                this.websocket = null;
+                
+                // Attempt to reconnect silently
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    this.reconnectTimeout = setTimeout(() => {
+                        this.connectWebSocket();
+                    }, this.reconnectDelay);
+                } else {
+                    // Fallback to polling after max reconnection attempts
+                    this.fallbackPolling = true;
+                    this.startPolling();
+                }
+            };
+        } catch (error) {
+            // Silently fallback to polling if WebSocket connection fails
+            this.fallbackPolling = true;
+            this.startPolling();
+        }
+    },
+    
+    handleWebSocketMessage(data) {
+        if (data.type === 'chat_message') {
+            // New chat message received
+            const message = data.message;
+            const conversationId = data.conversation_id;
+            
+            // If this message is for the current conversation, display it
+            if (this.currentSession && this.currentSession.id === conversationId) {
+                // Clear welcome message if it exists
+                const container = document.getElementById('chat-messages');
+                if (container) {
+                    const welcomeMsg = container.querySelector('.text-center');
+                    if (welcomeMsg) {
+                        welcomeMsg.remove();
+                    }
+                }
+                
+                this.appendMessage(message);
+                this.scrollToBottom();
+                
+                // Mark as read if chat is open
+                if (this.isOpen) {
+                    this.markAsRead();
+                }
+            } else {
+                // Message for a different conversation - update unread status
+                const session = this.sessions.find(s => s.id === conversationId);
+                if (session) {
+                    session.user_has_unread = true;
+                    this.updateSessionSelector();
+                }
+            }
+        } else if (data.type === 'unread_count') {
+            // Unread count update
+            this.updateUnreadCountFromSessions();
+        }
+    },
+    
+    startPolling() {
+        // Only start polling if WebSocket is not available
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            return;
+        }
+        
+        if (this.pollInterval) {
+            return;
+        }
+        
+        // Poll for new messages if chat is open
+        this.pollInterval = setInterval(() => {
+            if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                this.stopPolling();
+                return;
+            }
+            
+            // Only poll if chat is open and we have a current session
+            if (this.isOpen && this.currentSession) {
+                this.loadMessages();
+            }
+        }, this.checkInterval);
+    },
+    
+    stopPolling() {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
+    },
+    
+    disconnectWebSocket() {
+        if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
+        }
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+        this.stopPolling();
     },
 
     attachProductChatListeners() {
@@ -148,12 +287,10 @@ const ChatWidget = {
         const chatWindow = document.getElementById('chat-window');
         chatWindow.classList.remove('hidden');
         
-        // Initialize Lucide icons
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
 
-        // Ensure session list is visible when opening chat
         const sessionList = document.getElementById('session-list');
         const chevron = document.getElementById('session-chevron');
         if (sessionList && this.sessionListOpen) {
@@ -161,23 +298,27 @@ const ChatWidget = {
             if (chevron) chevron.style.transform = 'rotate(0deg)';
         }
 
-        // Load sessions if not loaded
-        if (this.sessions.length === 0) {
-            await this.loadSessions();
-        }
+        this.updateSessionSelector();
 
-        // Load messages if we have a current session
         if (this.currentSession) {
             await this.loadMessages();
+        }
+        
+        // Start polling if WebSocket is not available
+        if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+            this.startPolling();
         }
     },
 
     closeChat() {
         this.isOpen = false;
         document.getElementById('chat-window').classList.add('hidden');
+        // Stop polling when chat is closed
+        this.stopPolling();
     },
 
     async loadSessions() {
+        console.log('[ChatWidget] loadSessions() called - this should only happen when user expands session list');
         try {
             const response = await fetch('/chat/ajax/conversations/', {
                 method: 'GET',
@@ -452,13 +593,13 @@ const ChatWidget = {
         
         if (!sessionList) return;
         
-        sessionList.innerHTML = '';
-        
         if (this.sessions.length === 0) {
-            sessionList.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">No conversations yet</div>';
+            sessionList.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">No conversations yet. Click "New Chat" to start.</div>';
             if (indicator) indicator.textContent = '';
             return;
         }
+        
+        sessionList.innerHTML = '';
         
         // Update indicator
         if (indicator) {
@@ -525,8 +666,15 @@ const ChatWidget = {
         if (session) {
             this.currentSession = session;
             await this.loadMessages();
-            // Update UI to reflect the active session
             this.updateSessionSelector();
+        } else if (this.sessions.length === 0) {
+            await this.loadSessions();
+            const foundSession = this.sessions.find(s => s.id === parseInt(sessionId));
+            if (foundSession) {
+                this.currentSession = foundSession;
+                await this.loadMessages();
+                this.updateSessionSelector();
+            }
         }
     },
 
@@ -603,6 +751,7 @@ const ChatWidget = {
 
                 // Update UI
                 this.updateSessionSelector();
+                this.updateUnreadCountFromSessions();
 
                 if (window.AuroraMart && window.AuroraMart.toast) {
                     window.AuroraMart.toast('Chat session deleted', 'success');
@@ -621,7 +770,7 @@ const ChatWidget = {
         }
     },
 
-    toggleSessionList() {
+    async toggleSessionList() {
         const sessionList = document.getElementById('session-list');
         const chevron = document.getElementById('session-chevron');
         
@@ -632,18 +781,16 @@ const ChatWidget = {
         if (this.sessionListOpen) {
             sessionList.style.display = 'block';
             chevron.style.transform = 'rotate(0deg)';
+            
+            if (this.sessions.length === 0) {
+                await this.loadSessions();
+            }
         } else {
             sessionList.style.display = 'none';
             chevron.style.transform = 'rotate(-90deg)';
         }
     },
 
-    startPolling() {
-        // Poll for new messages every 5 seconds
-        this.pollInterval = setInterval(async () => {
-            await this.loadSessions();
-        }, 5000);
-    },
 
     scrollToBottom() {
         const container = document.getElementById('chat-messages');
@@ -654,6 +801,14 @@ const ChatWidget = {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    },
+    
+    updateUnreadCountFromSessions() {
+        // Update unread count based on sessions
+        // This is called when unread count changes via WebSocket
+        const unreadCount = this.sessions.filter(s => s.user_has_unread).length;
+        // Update UI if there's an unread count indicator
+        // This method can be extended to update a badge or indicator
     }
 };
 
@@ -665,3 +820,8 @@ if (document.readyState === 'loading') {
     ChatWidget.init();
     }
 }
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    ChatWidget.disconnectWebSocket();
+});

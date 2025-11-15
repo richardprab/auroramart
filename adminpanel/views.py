@@ -1,5 +1,4 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponse, JsonResponse
 from django.db import transaction
 from django.db.models import (
@@ -15,6 +14,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, TruncDate
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
+from django.core.paginator import Paginator
 from urllib.parse import quote
 from functools import wraps
 from django.urls import reverse
@@ -22,7 +22,6 @@ from django.conf import settings
 from django.contrib import messages
 from pathlib import Path
 import os
-import sys
 import io
 from contextlib import redirect_stdout
 import requests
@@ -30,13 +29,18 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 import csv
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 from products.models import Product, ProductVariant, ProductImage, Category
-from accounts.models import User, Staff, BrowsingHistory
+from accounts.models import User, Staff, Customer, BrowsingHistory
 from chat.models import ChatConversation, ChatMessage
 from orders.models import Order, OrderItem
 from vouchers.models import Voucher
-from .forms import ProductSearchForm, OrderSearchForm, VoucherForm
+from notifications.models import Notification
+from .forms import ProductSearchForm, OrderSearchForm, VoucherForm, StaffSearchForm, StaffPermissionForm, CustomerSearchForm
 from django.views.decorators.http import require_POST
 
 
@@ -46,30 +50,121 @@ REVENUE_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'
 FULFILLMENT_EXCLUDED_STATUSES = ['cancelled', 'refunded']
 
 
+def _paginate_request_collection(request, collection, per_page=10, page_param='page'):
+    """
+    Returns a Django Page object for the provided collection using request GET params.
+    """
+    paginator = Paginator(collection, per_page)
+    page_number = request.GET.get(page_param)
+    return paginator.get_page(page_number)
+
+
+def _build_pagination_querystring(request, page_param='page'):
+    """
+    Builds an encoded querystring (prefixed with &) that preserves current filters sans page.
+    """
+    query_params = request.GET.copy()
+    if page_param in query_params:
+        query_params.pop(page_param)
+    encoded = query_params.urlencode()
+    return f'&{encoded}' if encoded else ''
+
+
+def _get_required_permission(path):
+    """
+    Map URL paths to required permissions.
+    Returns the permission string needed for the given path, or None if no specific permission is required.
+    """
+    if '/products/' in path:
+        return 'products'
+    elif '/orders/' in path:
+        return 'orders'
+    elif '/customer-support/' in path or '/chat/' in path:
+        return 'chat'
+    elif '/analytics/' in path:
+        return 'analytics'
+    elif '/staff/' in path:
+        # Staff management requires superuser, handled separately
+        return None
+    # Dashboard, vouchers, database management don't require specific permissions
+    # (but still require staff access)
+    return None
+
+
 def staff_login_required(view_func):
     """
-    Custom decorator that requires staff authentication.
+    Custom decorator that requires staff authentication and checks permissions.
     Redirects to staff login page if not authenticated or not staff.
+    Automatically logs out Customer users and redirects them to customer login.
+    Checks permissions for Staff users (superusers always have access).
     """
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
             login_url = reverse('adminpanel:staff_login')
             return redirect(f'{login_url}?next={request.path}')
-        if not request.user.is_staff:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden('You do not have permission to access this page.')
+        
+        # Check if user is a Customer - if so, log them out and redirect
+        from accounts.models import Customer
+        if isinstance(request.user, Customer):
+            from django.contrib.auth import logout
+            from django.contrib import messages
+            logout(request)
+            messages.info(request, 'Customer accounts cannot access admin panel. Please use the customer login page.')
+            return redirect('/accounts/login/')
+        
+        if not request.user.is_staff and not request.user.is_superuser:
+            from django.contrib import messages
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('adminpanel:dashboard')
+        
+        # Superusers always have access
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+        
+        # For Staff users, check permissions
+        from accounts.models import Staff
+        if isinstance(request.user, Staff):
+            required_permission = _get_required_permission(request.path)
+            
+            # If a specific permission is required, check if staff has it
+            if required_permission:
+                if not request.user.has_permission(required_permission):
+                    # Map permission names to friendly names
+                    permission_names = {
+                        'products': 'Product Management',
+                        'orders': 'Order Management',
+                        'chat': 'Customer Support/Chat',
+                        'analytics': 'Analytics',
+                    }
+                    friendly_name = permission_names.get(required_permission, required_permission)
+                    
+                    # Render permission denied page
+                    return render(request, 'adminpanel/permission_denied.html', {
+                        'feature_name': friendly_name,
+                    })
+        
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
 
 def staff_login(request):
     """
-    Staff login - allows Staff users to login and access admin panel.
-    Only Staff users can login through this endpoint.
+    Staff login - allows Staff users and Superusers to login and access admin panel.
+    Only Staff users and Superusers can login through this endpoint.
+    Customer users are automatically logged out if they try to access this page.
     """
-    if request.user.is_authenticated and request.user.is_staff:
-        return redirect('/adminpanel/')
+    # If a Customer user is logged in, log them out and redirect
+    from accounts.models import Customer, Superuser
+    if request.user.is_authenticated:
+        if isinstance(request.user, Customer):
+            from django.contrib.auth import logout
+            from django.contrib import messages
+            logout(request)
+            messages.info(request, 'Customer accounts cannot access admin panel. Please use the customer login page.')
+            return redirect('/accounts/login/')
+        elif request.user.is_staff or request.user.is_superuser:
+            return redirect('/adminpanel/')
     
     from django.contrib.auth import login
     from django.contrib import messages
@@ -83,46 +178,68 @@ def staff_login(request):
             messages.error(request, 'Please provide both username and password.')
             return render(request, 'adminpanel/staff_login.html')
         
-        # Try to find Staff user by username
+        user = None
+        is_superuser = False
+        
+        # Try to find Superuser first (since they should have priority)
         try:
-            staff_user = Staff.objects.get(username=username)
-        except Staff.DoesNotExist:
-            # Also try to find by email in case user entered email
+            user = Superuser.objects.get(username=username)
+            is_superuser = True
+        except Superuser.DoesNotExist:
             try:
-                staff_user = Staff.objects.get(email=username)
-            except Staff.DoesNotExist:
-                messages.error(request, 'Invalid credentials. Staff access only.')
-                return render(request, 'adminpanel/staff_login.html')
+                user = Superuser.objects.get(email=username)
+                is_superuser = True
+            except Superuser.DoesNotExist:
+                # Try to find Staff user by username
+                try:
+                    user = Staff.objects.get(username=username)
+                except Staff.DoesNotExist:
+                    # Also try to find by email in case user entered email
+                    try:
+                        user = Staff.objects.get(email=username)
+                    except Staff.DoesNotExist:
+                        messages.error(request, 'Invalid credentials. Staff/Superuser access only.')
+                        return render(request, 'adminpanel/staff_login.html')
         
         # Verify password
-        password_valid = staff_user.check_password(password)
+        password_valid = user.check_password(password)
         if not password_valid:
             messages.error(request, 'Invalid credentials. Please check your username and password.')
             return render(request, 'adminpanel/staff_login.html')
         
-        if not staff_user.is_active:
+        if not user.is_active:
             messages.error(request, 'Your account is inactive. Please contact an administrator.')
             return render(request, 'adminpanel/staff_login.html')
         
-        # Ensure is_staff is True
-        if not staff_user.is_staff:
-            staff_user.is_staff = True
-            staff_user.save()
+        # Ensure is_staff and is_superuser are set correctly
+        if is_superuser:
+            if not user.is_superuser:
+                user.is_superuser = True
+            if not user.is_staff:
+                user.is_staff = True
+            user.save()
+        else:
+            # For Staff users, ensure is_staff is True
+            if not user.is_staff:
+                user.is_staff = True
+                user.save()
         
-        # Use the custom StaffModelBackend for Staff users
-        # This ensures the user can be retrieved correctly from the session
-        backend = 'accounts.backends.StaffModelBackend'
+        # Use the appropriate custom backend
+        if is_superuser:
+            # For Superusers, use the SuperuserModelBackend
+            backend = 'accounts.backends.SuperuserModelBackend'
+        else:
+            # For Staff users, use the StaffModelBackend
+            backend = 'accounts.backends.StaffModelBackend'
         
         # Refresh the user from database to ensure we have the latest state
-        staff_user.refresh_from_db()
+        user.refresh_from_db()
         
-        # Log in the user using the Staff backend
-        # This will store the user ID and backend in the session
-        login(request, staff_user, backend=backend)
+        # Log in the user
+        login(request, user, backend=backend)
         
         # Verify login was successful
-        # request.user should now be the Staff user
-        if request.user.is_authenticated and request.user.is_staff:
+        if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
             # Always redirect to admin panel root (/adminpanel/)
             return redirect('/adminpanel/')
         else:
@@ -176,10 +293,23 @@ def dashboard(request):
     # Get stats
     total_products = Product.objects.count()
     pending_orders = Order.objects.filter(status__in=['pending', 'confirmed', 'processing']).count()
-    my_open_conversations = ChatConversation.objects.filter(
-        admin=request.user,
-        status='pending'
-    ).count()
+    
+    # For superusers, show all pending conversations. For staff, show only their assigned ones.
+    if request.user.is_superuser:
+        my_open_conversations = ChatConversation.objects.filter(
+            status='pending'
+        ).count()
+    else:
+        # For Staff users, filter by admin
+        from accounts.models import Staff
+        if isinstance(request.user, Staff):
+            my_open_conversations = ChatConversation.objects.filter(
+                admin=request.user,
+                status='pending'
+            ).count()
+        else:
+            my_open_conversations = 0
+    
     low_stock_count = Product.objects.annotate(
         total_stock=Coalesce(Sum('variants__stock'), 0, output_field=IntegerField())
     ).filter(total_stock__lt=LOW_STOCK_THRESHOLD).count()
@@ -206,10 +336,19 @@ def customer_support(request):
     # Get filter parameter
     filter_status = request.GET.get('status', 'all')
     
-    # Base queryset - only messages assigned to this staff
-    conversations = ChatConversation.objects.filter(
-        admin=request.user
-    ).select_related('user', 'product', 'admin').prefetch_related('messages')
+    # For superusers, show all conversations. For staff, show only their assigned ones.
+    if request.user.is_superuser:
+        # Superusers can see all conversations
+        conversations = ChatConversation.objects.all().select_related('user', 'product', 'admin').prefetch_related('messages')
+    else:
+        # For Staff users, filter by admin
+        from accounts.models import Staff
+        if isinstance(request.user, Staff):
+            conversations = ChatConversation.objects.filter(
+                admin=request.user
+            ).select_related('user', 'product', 'admin').prefetch_related('messages')
+        else:
+            conversations = ChatConversation.objects.none()
     
     # Apply status filter
     if filter_status == 'pending':
@@ -235,11 +374,24 @@ def customer_support(request):
 def chat_conversation(request, conversation_id):
     """View and reply to a specific customer message"""
     
-    conversation = get_object_or_404(
-        ChatConversation.objects.select_related('user', 'product', 'admin'),
-        id=conversation_id,
-        admin=request.user  # Ensure staff can only access their assigned messages
-    )
+    # For superusers, allow access to all conversations. For staff, only their assigned ones.
+    if request.user.is_superuser:
+        conversation = get_object_or_404(
+            ChatConversation.objects.select_related('user', 'product', 'admin'),
+            id=conversation_id
+        )
+    else:
+        # For Staff users, only allow access to their assigned conversations
+        from accounts.models import Staff
+        if isinstance(request.user, Staff):
+            conversation = get_object_or_404(
+                ChatConversation.objects.select_related('user', 'product', 'admin'),
+                id=conversation_id,
+                admin=request.user
+            )
+        else:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden('You do not have permission to access this conversation.')
     
     # Get all messages in this conversation
     messages_list = conversation.messages.select_related('sender', 'staff_sender').order_by('created_at')
@@ -251,7 +403,7 @@ def chat_conversation(request, conversation_id):
     if request.method == 'POST':
         content = request.POST.get('message')
         if content:
-            # Create new message (staff sending reply)
+            # Create new message (staff/superuser sending reply)
             from accounts.models import Staff
             if isinstance(request.user, Staff):
                 ChatMessage.objects.create(
@@ -259,10 +411,16 @@ def chat_conversation(request, conversation_id):
                     staff_sender=request.user,
                     content=content
                 )
-            else:
-                # Superuser or other types - skip for now
-                # Superusers should ideally be handled separately if needed
-                pass
+            elif request.user.is_superuser:
+                # For superusers, we can't use staff_sender (requires Staff) or sender (requires Customer)
+                # So we'll create the message with both fields as None - the content will still be saved
+                # The message will be attributed to the conversation admin or shown as system message
+                ChatMessage.objects.create(
+                    conversation=conversation,
+                    content=content,
+                    sender=None,
+                    staff_sender=None
+                )
             
             # Update conversation status to 'replied'
             conversation.status = 'replied'
@@ -377,6 +535,9 @@ def product_management(request):
         except Exception:
             continue
     
+    products_page_obj = _paginate_request_collection(request, products_data, per_page=10)
+    products_extra_query = _build_pagination_querystring(request)
+
     low_stock_queryset = Product.objects.annotate(
         total_stock=Coalesce(Sum('variants__stock'), 0, output_field=IntegerField())
     ).filter(total_stock__lt=LOW_STOCK_THRESHOLD).select_related('category').prefetch_related('images').order_by('total_stock', 'name')
@@ -396,7 +557,8 @@ def product_management(request):
     context = {
         'form': form,
         'search_query': initial_query,
-        'products_data': products_data,
+        'products_page_obj': products_page_obj,
+        'products_extra_query': products_extra_query,
         'low_stock_products': low_stock_products,
         'low_stock_threshold': LOW_STOCK_THRESHOLD,
     }
@@ -572,16 +734,19 @@ def search_product(request):
                 })
             except Exception as e:
                 # Skip products that cause errors
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.error(f"Error processing product {product.id}: {str(e)}")
                 continue
+        
+        products_page_obj = _paginate_request_collection(request, products_data, per_page=10)
+        extra_query = _build_pagination_querystring(request)
         
         # Render table HTML using Django template
         table_html = render_to_string(
             'adminpanel/includes/product_table.html',
             {
-                'products': products_data,
+                'products': products_page_obj,
+                'page_obj': products_page_obj,
+                'extra_query': extra_query,
                 'search_query': query,
             },
             request=request
@@ -591,12 +756,9 @@ def search_product(request):
         return HttpResponse(table_html)
     
     except Exception as e:
-        import logging
-        import traceback
-        logger = logging.getLogger(__name__)
         logger.error(f"Error in search_product: {str(e)}\n{traceback.format_exc()}")
         return HttpResponse(
-            '<div class="error-message">❌ An error occurred while searching products. Please try again.</div>',
+            '<div class="error-message">An error occurred while searching products. Please try again.</div>',
             status=500
         )
 
@@ -698,7 +860,7 @@ def update_product(request):
                         img = ProductImage.objects.create(product=product, is_primary=True)
                         img.image.save(file_name, ContentFile(response.content), save=True)
             except Exception as e:
-                print(f"Error downloading product image: {e}")
+                logger.error(f"Error downloading product image: {e}")
         
         # Update variants
         variant_ids = request.POST.getlist('variant_id[]')
@@ -721,7 +883,7 @@ def update_product(request):
             except ProductVariant.DoesNotExist:
                 continue
             except Exception as e:
-                print(f"Error updating variant {variant_id}: {e}")
+                logger.error(f"Error updating variant {variant_id}: {e}")
                 continue
         
         # Add success message and redirect back to edit page with search query
@@ -744,11 +906,7 @@ def update_product(request):
             return redirect('adminpanel:edit_product', product_id=product_id)
         
     except Exception as e:
-        print(f"Error in update_product: {e}")
-        import traceback
-        traceback.print_exc()
-        # Redirect to edit page with error message
-        from django.contrib import messages
+        logger.error(f"Error updating product: {str(e)}\n{traceback.format_exc()}")
         messages.error(request, f'Error updating product: {str(e)}')
         return redirect('adminpanel:edit_product', product_id=product_id)
 
@@ -768,7 +926,7 @@ def order_management(request):
         query_upper = initial_query.upper()
         
         # Determine if query looks like an order number
-        is_likely_order_number = query_upper.startswith('ORD') or any(char.isdigit() for char in initial_query)
+        is_likely_order_number = query_upper.startswith('ORD')
         
         if is_likely_order_number:
             # Search by order number
@@ -829,7 +987,7 @@ def order_management(request):
             })
     
     pending_orders_queryset = Order.objects.filter(
-        status__in=PENDING_ORDER_STATUSES
+        status='pending'
     ).select_related('user').order_by('created_at')
 
     pending_orders_alert = []
@@ -846,10 +1004,14 @@ def order_management(request):
             'created_at': order.created_at,
         })
 
+    orders_page_obj = _paginate_request_collection(request, orders_data, per_page=10)
+    orders_extra_query = _build_pagination_querystring(request)
+
     context = {
         'form': form,
         'search_query': initial_query,
-        'orders_data': orders_data,
+        'orders_page_obj': orders_page_obj,
+        'orders_extra_query': orders_extra_query,
         'pending_orders_alert': pending_orders_alert,
         'pending_orders_count': pending_orders_queryset.count(),
         'pending_statuses': PENDING_ORDER_STATUSES,
@@ -866,7 +1028,11 @@ def search_order(request):
         
         if not query:
             # If empty query, return recent orders (limit to 50)
-            orders = Order.objects.select_related('user').prefetch_related('items__product_variant__product').order_by('-created_at')[:50]
+            orders = (
+                Order.objects.select_related('user')
+                .prefetch_related('items__product_variant__product')
+                .order_by('-created_at')[:50]
+            )
             for order in orders:
                 orders_data.append({
                     'order': order,
@@ -874,9 +1040,8 @@ def search_order(request):
                 })
         else:
             query_upper = query.upper()
-            
-            # Determine if query looks like an order number (starts with ORD or is alphanumeric)
-            is_likely_order_number = query_upper.startswith('ORD') or any(char.isdigit() for char in query)
+            # Determine if query looks like an order number (starts with ORD)
+            is_likely_order_number = query_upper.startswith('ORD')
             
             if is_likely_order_number:
                 # Search by order number with fuzzy matching
@@ -947,11 +1112,16 @@ def search_order(request):
                 orders_data.sort(key=lambda x: x['order'].created_at, reverse=True)
                 orders_data = orders_data[:50]  # Limit to 50 results
         
+        orders_page_obj = _paginate_request_collection(request, orders_data, per_page=10)
+        extra_query = _build_pagination_querystring(request)
+        
         # Render table HTML using Django template
         table_html = render_to_string(
             'adminpanel/includes/order_table.html',
             {
-                'orders': orders_data,
+                'orders': orders_page_obj,
+                'page_obj': orders_page_obj,
+                'extra_query': extra_query,
                 'search_query': query,
             },
             request=request
@@ -961,12 +1131,9 @@ def search_order(request):
         return HttpResponse(table_html)
     
     except Exception as e:
-        import logging
-        import traceback
-        logger = logging.getLogger(__name__)
         logger.error(f"Error in search_order: {str(e)}\n{traceback.format_exc()}")
         return HttpResponse(
-            '<div class="error-message">❌ An error occurred while searching orders. Please try again.</div>',
+            '<div class="error-message">An error occurred while searching orders. Please try again.</div>',
             status=500
         )
 
@@ -1066,11 +1233,7 @@ def update_order(request, order_id):
             return redirect('adminpanel:edit_order', order_id=order_id)
         
     except Exception as e:
-        print(f"Error in update_order: {e}")
-        import traceback
-        traceback.print_exc()
-        # Redirect to edit page with error message
-        from django.contrib import messages
+        logger.error(f"Error in update_order: {str(e)}\n{traceback.format_exc()}")
         messages.error(request, f'Error updating order: {str(e)}')
         return redirect('adminpanel:edit_order', order_id=order_id)
 
@@ -1373,8 +1536,12 @@ def voucher_management(request):
     """Voucher management page - list all vouchers"""
     vouchers = Voucher.objects.all().order_by('-created_at')
     
+    vouchers_page_obj = _paginate_request_collection(request, vouchers, per_page=10)
+    vouchers_extra_query = _build_pagination_querystring(request)
+    
     context = {
-        'vouchers': vouchers,
+        'vouchers_page_obj': vouchers_page_obj,
+        'vouchers_extra_query': vouchers_extra_query,
     }
     return render(request, 'adminpanel/voucher_management.html', context)
 
@@ -1445,10 +1612,49 @@ def delete_voucher(request, voucher_id):
     return render(request, 'adminpanel/delete_voucher.html', context)
 
 
-@staff_login_required
+# ==================== STAFF MANAGEMENT ====================
+
+def superuser_required(view_func):
+    """
+    Decorator that requires superuser authentication.
+    Only superusers can access staff management pages.
+    """
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            login_url = reverse('adminpanel:staff_login')
+            return redirect(f'{login_url}?next={request.path}')
+        
+        # Check if user is a Customer - if so, log them out and redirect
+        from accounts.models import Customer
+        if isinstance(request.user, Customer):
+            from django.contrib.auth import logout
+            from django.contrib import messages
+            logout(request)
+            messages.info(request, 'Customer accounts cannot access admin panel. Please use the customer login page.')
+            return redirect('/accounts/login/')
+        
+        if not request.user.is_superuser:
+            feature_name_map = {
+                'database_management': 'Database Management',
+                'run_populate_db': 'Database Management',
+                'staff_management': 'Staff Management',
+                'search_staff': 'Staff Management',
+                'edit_staff': 'Staff Management',
+                'update_staff': 'Staff Management',
+            }
+            feature_name = feature_name_map.get(view_func.__name__, 'This Feature')
+            return render(request, 'adminpanel/permission_denied.html', {
+                'feature_name': feature_name,
+            })
+        
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+
+@superuser_required
 def database_management(request):
     """Database management page for populating and managing database"""
-    # Get project root directory
     project_root = Path(settings.BASE_DIR)
     csv_files = []
     data_dir = project_root / 'data'
@@ -1462,7 +1668,326 @@ def database_management(request):
     return render(request, 'adminpanel/database_management.html', context)
 
 
+@superuser_required
+def staff_management(request):
+    """Staff search and management page - only accessible to superusers"""
+    # Initialize form with query from GET parameters if present
+    initial_query = request.GET.get('query', request.GET.get('q', ''))
+    form = StaffSearchForm(initial={'query': initial_query})
+    
+    # Load initial staff if query is provided, otherwise show all
+    staff_data = []
+    if initial_query:
+        # Search by username or email
+        search_q = (
+            Q(username__icontains=initial_query) | 
+            Q(email__icontains=initial_query) |
+            Q(first_name__icontains=initial_query) |
+            Q(last_name__icontains=initial_query)
+        )
+        staff_list = Staff.objects.filter(search_q).order_by('username')[:50]
+    else:
+        staff_list = Staff.objects.all().order_by('username')[:50]
+    
+    # Prepare staff data for template
+    for staff in staff_list:
+        # Get permission display name
+        permissions_display = staff.permissions
+        for choice_value, choice_label in Staff.PERMISSION_CHOICES:
+            if choice_value == staff.permissions:
+                permissions_display = choice_label
+                break
+        
+        staff_data.append({
+            'staff': staff,
+            'permissions_display': permissions_display,
+        })
+    
+    context = {
+        'form': form,
+        'search_query': initial_query,
+        'staff_data': staff_data,
+        'permission_choices': Staff.PERMISSION_CHOICES,
+    }
+    return render(request, 'adminpanel/staff_management.html', context)
+
+
+@superuser_required
+def search_staff(request):
+    """AJAX endpoint to search for staff and return HTML table rendered server-side"""
+    query = request.GET.get('query', '').strip()
+    
+    try:
+        # If empty query, return all staff
+        if not query:
+            staff_list = Staff.objects.all().order_by('username')[:50]
+        else:
+            # Search by username or email
+            search_q = (
+                Q(username__icontains=query) | 
+                Q(email__icontains=query) |
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query)
+            )
+            staff_list = Staff.objects.filter(search_q).order_by('username')[:50]
+        
+        # Prepare staff data for template
+        staff_data = []
+        for staff in staff_list:
+            # Get permission display name
+            permissions_display = staff.permissions
+            for choice_value, choice_label in Staff.PERMISSION_CHOICES:
+                if choice_value == staff.permissions:
+                    permissions_display = choice_label
+                    break
+            
+            staff_data.append({
+                'staff': staff,
+                'permissions_display': permissions_display,
+            })
+        
+        # Render table HTML using Django template
+        table_html = render_to_string(
+            'adminpanel/includes/staff_table.html',
+            {
+                'staff_data': staff_data,
+                'search_query': query,
+                'permission_choices': Staff.PERMISSION_CHOICES,
+            },
+            request=request
+        )
+        
+        # Return HTML response
+        return HttpResponse(table_html)
+    
+    except Exception as e:
+        logger.error(f"Error in search_staff: {str(e)}\n{traceback.format_exc()}")
+        return HttpResponse(
+            '<div class="error-message">An error occurred while searching staff. Please try again.</div>',
+            status=500
+        )
+
+
+@superuser_required
+def edit_staff(request, staff_id):
+    """Display staff edit form for permissions"""
+    staff = get_object_or_404(Staff, id=staff_id)
+    
+    # Get search query from request if coming from search page
+    search_query = request.GET.get('q', request.GET.get('query', ''))
+    
+    # Initialize form with current permissions
+    initial_data = {}
+    if staff.permissions == 'all':
+        initial_data['all_permissions'] = True
+    else:
+        permission_list = [p.strip() for p in staff.permissions.split(',')]
+        for perm in permission_list:
+            if perm in ['products', 'orders', 'chat', 'analytics']:
+                initial_data[perm] = True
+    
+    form = StaffPermissionForm(initial=initial_data)
+    
+    context = {
+        'staff': staff,
+        'form': form,
+        'search_query': search_query,
+        'permission_choices': Staff.PERMISSION_CHOICES,
+    }
+    
+    return render(request, 'adminpanel/edit_staff.html', context)
+
+
+@superuser_required
+@require_POST
+def update_staff(request, staff_id):
+    """Update staff permissions and redirect back to edit page"""
+    staff = get_object_or_404(Staff, id=staff_id)
+    
+    # Get search query to preserve it in redirect
+    search_query = request.POST.get('search_query', '')
+    
+    form = StaffPermissionForm(request.POST)
+    
+    if form.is_valid():
+        staff.permissions = form.cleaned_data['permissions']
+        staff.save()
+        from django.contrib import messages
+        from django.urls import reverse
+        messages.success(request, f'Staff permissions for {staff.username} updated successfully!')
+        
+        # Redirect back to staff management page with search query if provided
+        if search_query:
+            return redirect(f'{reverse("adminpanel:staff_management")}?q={quote(search_query)}')
+        else:
+            return redirect('adminpanel:staff_management')
+    else:
+        from django.contrib import messages
+        messages.error(request, 'Error updating staff permissions. Please try again.')
+        return redirect('adminpanel:edit_staff', staff_id=staff_id)
+
+
 @staff_login_required
+def customer_management(request):
+    """Customer search and management page"""
+    # Initialize form with query from GET parameters if present
+    initial_query = request.GET.get('query', request.GET.get('q', ''))
+    form = CustomerSearchForm(initial={'query': initial_query})
+    
+    # Load initial customers if query is provided, otherwise show recent customers
+    customers_data = []
+    if initial_query:
+        # Search by username, email, first_name, or last_name
+        search_q = (
+            Q(username__icontains=initial_query) | 
+            Q(email__icontains=initial_query) |
+            Q(first_name__icontains=initial_query) |
+            Q(last_name__icontains=initial_query)
+        )
+        customers = Customer.objects.filter(search_q).order_by('-date_joined')[:50]
+    else:
+        customers = Customer.objects.all().order_by('-date_joined')[:50]
+    
+    # Prepare customer data for template
+    for customer in customers:
+        # Get order count
+        order_count = Order.objects.filter(user=customer).count()
+        
+        # Get total spent
+        total_spent = Order.objects.filter(
+            user=customer,
+            status__in=['delivered', 'shipped']
+        ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        
+        customers_data.append({
+            'customer': customer,
+            'order_count': order_count,
+            'total_spent': total_spent,
+        })
+    
+    customers_page_obj = _paginate_request_collection(request, customers_data, per_page=10)
+    customers_extra_query = _build_pagination_querystring(request)
+    
+    context = {
+        'form': form,
+        'search_query': initial_query,
+        'customers_page_obj': customers_page_obj,
+        'customers_extra_query': customers_extra_query,
+    }
+    return render(request, 'adminpanel/customer_management.html', context)
+
+
+@staff_login_required
+def search_customer(request):
+    """AJAX endpoint to search for customers and return HTML table rendered server-side"""
+    query = request.GET.get('query', '').strip()
+    
+    try:
+        # If empty query, return recent customers
+        if not query:
+            customers = Customer.objects.all().order_by('-date_joined')[:50]
+        else:
+            # Search by username, email, first_name, or last_name
+            search_q = (
+                Q(username__icontains=query) | 
+                Q(email__icontains=query) |
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query)
+            )
+            customers = Customer.objects.filter(search_q).order_by('-date_joined')[:50]
+        
+        # Prepare customer data for template
+        customers_data = []
+        for customer in customers:
+            # Get order count
+            order_count = Order.objects.filter(user=customer).count()
+            
+            # Get total spent
+            total_spent = Order.objects.filter(
+                user=customer,
+                status__in=['delivered', 'shipped']
+            ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+            
+            customers_data.append({
+                'customer': customer,
+                'order_count': order_count,
+                'total_spent': total_spent,
+            })
+        
+        # Render table HTML using Django template
+        table_html = render_to_string(
+            'adminpanel/includes/customer_table.html',
+            {
+                'customers': customers_data,
+                'search_query': query,
+            },
+            request=request
+        )
+        
+        # Return HTML response
+        return HttpResponse(table_html)
+    
+    except Exception as e:
+        logger.error(f"Error in search_customer: {str(e)}\n{traceback.format_exc()}")
+        return HttpResponse(
+            '<div class="error-message">An error occurred while searching customers. Please try again.</div>',
+            status=500
+        )
+
+
+@staff_login_required
+def view_customer(request, customer_id):
+    """View customer profile details"""
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    # Get customer orders
+    orders = Order.objects.filter(user=customer).order_by('-created_at')[:10]
+    
+    # Get order statistics
+    total_orders = Order.objects.filter(user=customer).count()
+    total_spent = Order.objects.filter(
+        user=customer,
+        status__in=['delivered', 'shipped']
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    
+    # Get search query from request if coming from search page
+    search_query = request.GET.get('q', request.GET.get('query', ''))
+    
+    context = {
+        'customer': customer,
+        'orders': orders,
+        'total_orders': total_orders,
+        'total_spent': total_spent,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'adminpanel/view_customer.html', context)
+
+
+@staff_login_required
+@require_POST
+def suspend_customer(request, customer_id):
+    """Suspend or unsuspend a customer account"""
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    # Get search query to preserve it in redirect
+    search_query = request.POST.get('search_query', '')
+    
+    # Toggle is_active status
+    customer.is_active = not customer.is_active
+    customer.save()
+    
+    action = 'suspended' if not customer.is_active else 'unsuspended'
+    messages.success(request, f'Customer {customer.username} has been {action} successfully!')
+    
+    # Redirect back to customer management page with search query if provided
+    if search_query:
+        return redirect(f'{reverse("adminpanel:customer_management")}?q={quote(search_query)}')
+    else:
+        return redirect('adminpanel:customer_management')
+
+
+@superuser_required
 def run_populate_db(request):
     """Execute populate_db functions via AJAX"""
     if request.method != 'POST':
@@ -1519,11 +2044,31 @@ def run_populate_db(request):
             elif action == 'create_sample_users':
                 populate_db.create_sample_users()
                 
-            elif action == 'create_sample_vouchers':
-                populate_db.create_sample_vouchers()
-                
             elif action == 'create_sample_orders_and_reviews':
                 populate_db.create_sample_orders_and_reviews()
+                
+            elif action == 'create_nus_computing_tshirt':
+                populate_db.create_nus_computing_tshirt()
+                
+            elif action == 'assign_profile_completion_vouchers':
+                populate_db.assign_profile_completion_vouchers()
+                
+            elif action == 'create_adminpanel_analytics_data':
+                populate_db.create_adminpanel_analytics_data()
+                
+            elif action == 'create_everything':
+                reset = request.POST.get('reset', 'true').lower() == 'true'
+                csv_path = project_root / 'data' / 'b2c_products_500.csv'
+                
+                if not csv_path.exists():
+                    return JsonResponse({'error': f'CSV file not found: {csv_path}'}, status=404)
+                
+                original_cwd = os.getcwd()
+                try:
+                    os.chdir(project_root)
+                    populate_db.seed_from_csv(str(csv_path), reset=reset)
+                finally:
+                    os.chdir(original_cwd)
                 
             else:
                 return JsonResponse({'error': f'Unknown action: {action}'}, status=400)
@@ -1545,5 +2090,77 @@ def run_populate_db(request):
             'traceback': error_trace,
             'output': output.getvalue()
         }, status=500)
+
+
+@staff_login_required
+def send_notification(request):
+    """Send notifications to customers from admin panel. Only accessible by staff or managers."""
+    # Additional permission check - ensure user is staff or superuser
+    if not request.user.is_staff and not request.user.is_superuser:
+        messages.error(request, 'You do not have permission to send notifications.')
+        return redirect('adminpanel:dashboard')
+    
+    # Check if Staff user has permission (superusers always have access)
+    if isinstance(request.user, Staff) and not request.user.is_superuser:
+        # Staff users can send notifications (no specific permission required for notifications)
+        pass
+    
+    if request.method == 'POST':
+        recipient_type = request.POST.get('recipient_type', 'selected')
+        selected_users = request.POST.getlist('selected_users')
+        message = request.POST.get('message', '').strip()
+        notification_type = request.POST.get('notification_type', 'platform')
+        
+        if not message:
+            messages.error(request, 'Please enter a notification message.')
+        else:
+            try:
+                users_to_notify = []
+                
+                if recipient_type == 'all':
+                    # Send to all customers (not staff/superusers)
+                    users_to_notify = Customer.objects.all()
+                elif recipient_type == 'selected' and selected_users:
+                    # Send to selected customers
+                    users_to_notify = Customer.objects.filter(pk__in=selected_users)
+                else:
+                    messages.error(request, 'Please select at least one user or choose "All Users".')
+                    return redirect('adminpanel:send_notification')
+                
+                # Create notifications one by one to ensure WebSocket is sent correctly
+                # Using create_notification with send_websocket=True ensures proper WebSocket delivery
+                count = 0
+                for user in users_to_notify:
+                    Notification.create_notification(
+                        user=user,
+                        message=message,
+                        notification_type=notification_type,
+                        link=None,
+                        send_websocket=True
+                    )
+                    count += 1
+                
+                messages.success(request, f'Notification sent to {count} customer(s)!')
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Notification sent to {count} customer(s)'
+                    })
+            except Exception as e:
+                messages.error(request, f'Error sending notification: {str(e)}')
+        
+        return redirect('adminpanel:send_notification')
+    
+    # Get all customers for selection (not staff/superusers)
+    users = Customer.objects.all().order_by('username')
+    total_users = users.count()
+    
+    context = {
+        'users': users,
+        'total_users': total_users,
+        'notification_types': Notification.NOTIFICATION_TYPES,
+    }
+    return render(request, 'adminpanel/send_notification.html', context)
 
 

@@ -21,7 +21,11 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "auroramartproject.settings")
 django_asgi_app = get_asgi_application()
 
 # Import WebSocket routing after Django is initialized
-from notifications.routing import websocket_urlpatterns
+from notifications.routing import websocket_urlpatterns as notification_urlpatterns
+from chat.routing import websocket_urlpatterns as chat_urlpatterns
+
+# Combine all WebSocket URL patterns
+all_websocket_urlpatterns = notification_urlpatterns + chat_urlpatterns
 
 application = ProtocolTypeRouter({
     # Django's ASGI application to handle traditional HTTP requests
@@ -30,7 +34,7 @@ application = ProtocolTypeRouter({
     # WebSocket handler with authentication
     "websocket": AllowedHostsOriginValidator(
         AuthMiddlewareStack(
-            URLRouter(websocket_urlpatterns)
+            URLRouter(all_websocket_urlpatterns)
         )
     ),
 })

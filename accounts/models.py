@@ -211,7 +211,6 @@ class Customer(User):
         ])
         return int((completed_fields / total_fields) * 100)
 
-
 class Staff(User):
     """
     Staff model extending User with staff-specific permissions.

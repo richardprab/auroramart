@@ -1,14 +1,4 @@
-/**
- * Star Rating Module
- * Renders star ratings with half-star support
- * Used across product cards, product detail pages, and home page
- */
-
 const StarRating = {
-    /**
-     * Render star ratings for all elements with class 'product-rating-stars'
-     * @param {HTMLElement|Document} container - Container to search within (defaults to document)
-     */
     render(container = document) {
         const ratingContainers = container.querySelectorAll ? 
             container.querySelectorAll('.product-rating-stars') : 
@@ -44,9 +34,6 @@ const StarRating = {
         });
     },
 
-    /**
-     * Initialize star ratings on page load
-     */
     init() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.render());

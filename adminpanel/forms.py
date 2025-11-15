@@ -1,5 +1,6 @@
 from django import forms
 from vouchers.models import Voucher
+from accounts.models import Staff
 
 
 class ProductSearchForm(forms.Form):
@@ -84,4 +85,93 @@ class VoucherForm(forms.ModelForm):
         # Make user field optional
         self.fields['user'].required = False
         self.fields['user'].queryset = self.fields['user'].queryset.order_by('username')
+
+
+class StaffSearchForm(forms.Form):
+    """Form for searching staff by username or email"""
+    
+    query = forms.CharField(
+        required=False,
+        max_length=200,
+        widget=forms.TextInput(
+            attrs={
+                'class': 'search-input',
+                'placeholder': 'Search by username or email...',
+                'autocomplete': 'off',
+                'id': 'searchInput',
+            }
+        ),
+        label='',
+        help_text='',
+    )
+    
+    def clean_query(self):
+        """Clean and normalize the search query"""
+        query = self.cleaned_data.get('query', '').strip()
+        return query
+
+
+class StaffPermissionForm(forms.Form):
+    """Form for editing staff permissions with checkboxes"""
+    
+    PERMISSION_OPTIONS = [
+        ('products', 'Product Management'),
+        ('orders', 'Order Management'),
+        ('chat', 'Customer Support/Chat'),
+        ('analytics', 'Analytics'),
+    ]
+    
+    all_permissions = forms.BooleanField(
+        required=False,
+        label='All Permissions',
+        help_text='Grant all permissions (overrides individual selections)'
+    )
+    
+    products = forms.BooleanField(required=False, label='Product Management')
+    orders = forms.BooleanField(required=False, label='Order Management')
+    chat = forms.BooleanField(required=False, label='Customer Support/Chat')
+    analytics = forms.BooleanField(required=False, label='Analytics')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        all_permissions = cleaned_data.get('all_permissions')
+        
+        if all_permissions:
+            cleaned_data['permissions'] = 'all'
+        else:
+            selected = []
+            for perm_key, perm_label in self.PERMISSION_OPTIONS:
+                if cleaned_data.get(perm_key):
+                    selected.append(perm_key)
+            
+            if not selected:
+                raise forms.ValidationError('Please select at least one permission or "All Permissions".')
+            
+            cleaned_data['permissions'] = ','.join(selected)
+        
+        return cleaned_data
+
+
+class CustomerSearchForm(forms.Form):
+    """Form for searching customers by username, email, or name"""
+    
+    query = forms.CharField(
+        required=False,
+        max_length=200,
+        widget=forms.TextInput(
+            attrs={
+                'class': 'search-input',
+                'placeholder': 'Search by username, email, or name (e.g., john, john@example.com)...',
+                'autocomplete': 'off',
+                'id': 'searchInput',
+            }
+        ),
+        label='',
+        help_text='',
+    )
+    
+    def clean_query(self):
+        """Clean and normalize the search query"""
+        query = self.cleaned_data.get('query', '').strip()
+        return query
 

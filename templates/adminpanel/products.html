@@ -113,6 +113,43 @@
         border-bottom: none;
     }
 
+    .table-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .table-pagination .page-button {
+        padding: 0.5rem 1.25rem;
+        border-radius: 999px;
+        border: 1px solid rgba(124, 58, 237, 0.4);
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #6d28d9;
+        background: #fff;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .table-pagination .page-button:hover {
+        background: #ede9fe;
+        border-color: rgba(124, 58, 237, 0.6);
+    }
+
+    .table-pagination .page-button.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+
+    .table-pagination .page-info {
+        font-size: 0.85rem;
+        color: #4c1d95;
+        font-weight: 500;
+    }
+
     .product-image {
         width: 60px;
         height: 60px;
@@ -546,10 +583,12 @@
             Loading products...
         </div>
         <div id="productsTableContent">
-            {% if products_data %}
+            {% if products_page_obj and products_page_obj.paginator.count %}
                 <div class="products-table-wrapper">
-                    {% include 'adminpanel/includes/product_table.html' with products=products_data search_query=search_query %}
+                    {% include 'adminpanel/includes/product_table.html' with products=products_page_obj page_obj=products_page_obj extra_query=products_extra_query search_query=search_query %}
                 </div>
+            {% else %}
+                <div class="no-results">No products found. Try a different search term.</div>
             {% endif %}
         </div>
     </div>
@@ -664,7 +703,7 @@ function performSearch(query) {
                 productsTableLoading.style.display = 'none';
             }
             if (productsTableContent) {
-                productsTableContent.innerHTML = '<div class="no-results text-red-600">❌ Error searching products. Please try again.</div>';
+                productsTableContent.innerHTML = '<div class="no-results text-red-600">Error searching products. Please try again.</div>';
             }
             console.error('Error:', error);
         });

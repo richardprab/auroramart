@@ -359,9 +359,14 @@
                 <span>Dashboard</span>
             </a>
 
-            <a href="{% url 'adminpanel:customer_support' %}" class="admin-nav-item {% if 'customer' in request.resolver_match.url_name or 'chat' in request.resolver_match.url_name %}active{% endif %}">
+            <a href="{% url 'adminpanel:customer_support' %}" class="admin-nav-item {% if 'customer_support' in request.resolver_match.url_name or 'chat' in request.resolver_match.url_name %}active{% endif %}">
                 <i data-lucide="message-circle"></i>
                 <span>Customer Assistance</span>
+            </a>
+
+            <a href="{% url 'adminpanel:customer_management' %}" class="admin-nav-item {% if 'customer_management' in request.resolver_match.url_name or 'view_customer' in request.resolver_match.url_name or 'suspend_customer' in request.resolver_match.url_name %}active{% endif %}">
+                <i data-lucide="users"></i>
+                <span>Customer Management</span>
             </a>
 
             <a href="{% url 'adminpanel:products' %}" class="admin-nav-item {% if 'product' in request.resolver_match.url_name %}active{% endif %}">
@@ -374,6 +379,7 @@
                 <span>Order Management</span>
             </a>
 
+
             <a href="{% url 'adminpanel:analytics' %}" class="admin-nav-item {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
                 <i data-lucide="trending-up"></i>
                 <span>Metrics Analysis</span>
@@ -384,10 +390,22 @@
                 <span>Voucher Management</span>
             </a>
 
+            <a href="{% url 'adminpanel:send_notification' %}" class="admin-nav-item {% if 'notification' in request.resolver_match.url_name %}active{% endif %}">
+                <i data-lucide="bell"></i>
+                <span>Send Notifications</span>
+            </a>
+
             <a href="{% url 'adminpanel:database_management' %}" class="admin-nav-item {% if 'database' in request.resolver_match.url_name %}active{% endif %}">
                 <i data-lucide="database"></i>
                 <span>Database Management</span>
             </a>
+
+            {% if request.user.is_superuser %}
+            <a href="{% url 'adminpanel:staff_management' %}" class="admin-nav-item {% if 'staff' in request.resolver_match.url_name %}active{% endif %}">
+                <i data-lucide="users"></i>
+                <span>Staff Management</span>
+            </a>
+            {% endif %}
         </nav>
 
         <a href="{% url 'accounts:logout' %}" class="admin-logout-btn">

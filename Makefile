@@ -8,7 +8,8 @@ help:
 	@echo "make migrations    - Create new migrations"
 	@echo "make migrate       - Apply migrations to database"
 	@echo "make superuser     - Create a superuser"
-	@echo "make run           - Run development server"
+	@echo "make run           - Run development server (WSGI - no WebSocket)"
+	@echo "make run-asgi      - Run development server with ASGI (WebSocket enabled)"
 	@echo "make test          - Run tests"
 	@echo "make shell         - Open Django shell"
 	@echo "make clean         - Remove Python cache files"
@@ -46,14 +47,22 @@ migrate:
 
 # Create superuser
 superuser:
-	@echo "Creating superuser..."
+	@echo "Creating superuser in 'superusers' table..."
 	python manage.py createsuperuser
 
-# Run development server
+# Run development server (WSGI - no WebSocket support)
 run:
-	@echo "Starting development server..."
+	@echo "Starting development server (WSGI)..."
 	@echo "Server will be available at: http://127.0.0.1:8000"
+	@echo "Note: WebSocket will not work with this command. Use 'make run-asgi' for WebSocket support."
 	python manage.py runserver
+
+# Run development server with ASGI (WebSocket support)
+run-asgi:
+	@echo "Starting development server with ASGI (WebSocket enabled)..."
+	@echo "Server will be available at: http://127.0.0.1:8000"
+	@echo "WebSocket endpoint: ws://127.0.0.1:8000/ws/notifications/"
+	uvicorn auroramartproject.asgi:application --reload --host 127.0.0.1 --port 8000
 
 # Run tests
 test:
@@ -116,9 +125,8 @@ resetdb:
 endif
 
 # Full setup for new developers
-setup: install migrations migrate
+setup: install migrations migrate superuser
 	@echo "Setup complete!"
-	@echo "Run 'make superuser' to create an admin user"
 	@echo "Run 'make run' to start the development server"
 
 # Quick reset and run (for development)

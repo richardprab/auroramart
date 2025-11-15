@@ -403,6 +403,7 @@
 
     input[type="number"] {
         -moz-appearance: textfield;
+        appearance: textfield;
     }
 
     /* Badge Card Styles */
@@ -449,8 +450,8 @@
     /* Badge with Circular Progress - Matches Codebase Design */
     .badge-with-circular-progress {
         position: relative;
-        width: 140px;
-        height: 140px;
+        width: 120px;
+        height: 120px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -460,8 +461,8 @@
         position: absolute;
         top: 0;
         left: 0;
-        width: 140px;
-        height: 140px;
+        width: 120px;
+        height: 120px;
         z-index: 1;
     }
 
@@ -492,16 +493,14 @@
     }
 
     .badge-icon-large-profile {
-        width: 100px;
-        height: 100px;
+        width: 5rem;
+        height: 5rem;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        /* Background will be set by JavaScript */
-        border: 3px solid #e5e7eb;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.08);
-        /* Transition removed - JavaScript will handle all styling */
+        flex-shrink: 0;
+        /* Background and box-shadow will be set by JavaScript - matches modal badge design */
         position: relative;
         z-index: 10;
     }
@@ -566,7 +565,7 @@
                         class="relative group cursor-pointer">
                         <div class="badge-with-circular-progress">
                             <!-- Circular Progress Ring -->
-                            <svg class="circular-progress-ring" width="140" height="140" viewBox="0 0 140 140">
+                            <svg class="circular-progress-ring" width="120" height="120" viewBox="0 0 120 120">
                                 <!-- Gradient definition for progress fill -->
                                 <defs>
                                     <linearGradient id="gradient-fill" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -575,19 +574,19 @@
                                     </linearGradient>
                                 </defs>
                                 <!-- Background circle (unfilled portion) -->
-                                <circle class="progress-ring-bg" cx="70" cy="70" r="60" 
+                                <circle class="progress-ring-bg" cx="60" cy="60" r="50" 
                                         fill="none" stroke-width="10" 
                                         stroke-linecap="round"/>
                                 <!-- Progress circle (filled portion) -->
-                                <circle class="progress-ring-fill" cx="70" cy="70" r="60" 
+                                <circle class="progress-ring-fill" cx="60" cy="60" r="50" 
                                         fill="none" 
                                         stroke-width="10" 
                                         stroke-linecap="round"
-                                        stroke-dasharray="376.99" 
-                                        stroke-dashoffset="376.99"
-                                        transform="rotate(-90 70 70)"/>
+                                        stroke-dasharray="314.16" 
+                                        stroke-dashoffset="314.16"
+                                        transform="rotate(-90 60 60)"/>
                                 <!-- Indicator dot at end of progress -->
-                                <circle class="progress-indicator" cx="70" cy="10" r="6" 
+                                <circle class="progress-indicator" cx="60" cy="10" r="6" 
                                         fill="#ffffff" 
                                         style="opacity: 0;"/>
                             </svg>
@@ -1856,7 +1855,7 @@
                         const inputEl = document.getElementById(`id_${field}`);
                         
                         if (errorEl && errors.length > 0) {
-                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.textContent = errors[0];
                             errorEl.style.display = 'flex';
                         }
                         
@@ -2009,7 +2008,7 @@
                         const inputEl = document.getElementById(`id_${field}`);
                         
                         if (errorEl && errors.length > 0) {
-                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.textContent = errors[0];
                             errorEl.style.display = 'flex';
                         }
                         
@@ -2098,7 +2097,7 @@
                         const inputEl = document.getElementById(field);
                         
                         if (errorEl && errors.length > 0) {
-                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.textContent = errors[0];
                             errorEl.style.display = 'flex';
                         }
                         
@@ -2152,18 +2151,20 @@
     // Store previous percentage to detect when reaching 100%
     let previousCompletionPercentage = null;
     
-    function calculateProfileCompletion() {
-        // Check each field - for boolean fields, check if not null (answered, whether true or false)
-        const mlFields = {
-            age: {{ user.age|yesno:"true,false" }},
-            gender: {{ user.gender|yesno:"true,false" }},
-            employment_status: {{ user.employment_status|yesno:"true,false" }},
-            occupation: {{ user.occupation|yesno:"true,false" }},
-            education: {{ user.education|yesno:"true,false" }},
-            household_size: {{ user.household_size|yesno:"true,false" }},
-            has_children: {{ user.has_children|yesno:"true,true,false" }},  // Count as complete if True OR False (not None)
-            monthly_income_sgd: {{ user.monthly_income_sgd|yesno:"true,false" }}
+    // Profile completion data (rendered server-side)
+    const profileCompletionData = {
+        age: {% if user.age %}true{% else %}false{% endif %},
+        gender: {% if user.gender %}true{% else %}false{% endif %},
+        employment_status: {% if user.employment_status %}true{% else %}false{% endif %},
+        occupation: {% if user.occupation %}true{% else %}false{% endif %},
+        education: {% if user.education %}true{% else %}false{% endif %},
+        household_size: {% if user.household_size %}true{% else %}false{% endif %},
+        has_children: {% if user.has_children is not None %}true{% else %}false{% endif %},
+        monthly_income_sgd: {% if user.monthly_income_sgd %}true{% else %}false{% endif %}
         };
+    
+    function calculateProfileCompletion() {
+        const mlFields = profileCompletionData;
         
         const totalFields = Object.keys(mlFields).length;
         const completedFields = Object.values(mlFields).filter(v => v === true).length;
@@ -2190,9 +2191,9 @@
                 if (justReached100) {
                     // Show success message briefly before hiding
                     if (window.toast) {
-                        window.toast.success('🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
+                        window.toast.success('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
                     } else if (window.AuroraMart && window.AuroraMart.toast) {
-                        window.AuroraMart.toast('🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
+                        window.AuroraMart.toast('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
                     }
                     
                     // Show success message in banner for 2 seconds before hiding
@@ -2385,8 +2386,11 @@
             html += `</div>`;
         } else if (question.type === 'select') {
             html += `
-                <select onchange="window.questionnaireState.selectDropdownAnswer('${question.id}', this.value)"
-                        class="form-control text-base md:text-lg p-3 md:p-4 w-full">
+                <select name="${question.id}"
+                        id="${question.id}-input"
+                        onchange="window.questionnaireState.selectDropdownAnswer('${question.id}', this.value)"
+                        class="form-control text-base md:text-lg p-3 md:p-4 w-full"
+                        autocomplete="off">
             `;
             question.options.forEach(opt => {
                 const isSelected = window.questionnaireState.userAnswers[question.id] === opt.value;
@@ -2395,14 +2399,21 @@
             html += `</select>`;
         } else if (question.type === 'number') {
             const currentValue = window.questionnaireState.userAnswers[question.id] || '';
+            const autocompleteMap = {
+                'age': 'bday-year',
+                'household_size': 'off',
+                'monthly_income_sgd': 'transaction-amount'
+            };
             html += `
                 <input type="number" 
+                       name="${question.id}"
                        id="${question.id}-input"
                        value="${currentValue}"
                        placeholder="${question.placeholder || ''}"
                        min="${question.min || ''}"
                        max="${question.max || ''}"
                        step="${question.step || '1'}"
+                       autocomplete="${autocompleteMap[question.id] || 'off'}"
                        onchange="window.questionnaireState.selectNumberAnswer('${question.id}', this.value)"
                        onblur="window.questionnaireState.selectNumberAnswer('${question.id}', this.value)"
                        class="form-control text-base md:text-lg p-3 md:p-4 w-full">
@@ -2414,6 +2425,19 @@
 
         // Reinitialize Lucide icons
         if (typeof lucide !== 'undefined') lucide.createIcons();
+        
+        // Ensure form controls are properly initialized for browser extensions
+        setTimeout(() => {
+            const inputs = container.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                if (!input.name) {
+                    input.setAttribute('name', input.id || '');
+                }
+                if (!input.hasAttribute('autocomplete')) {
+                    input.setAttribute('autocomplete', 'off');
+                }
+            });
+        }, 100);
     };
 
     window.questionnaireState.selectTileAnswer = function(field, value) {
@@ -2458,7 +2482,18 @@
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 // Update progress
@@ -2479,15 +2514,29 @@
                 if (data.profile_completed) {
                     setTimeout(() => {
                         if (window.toast) {
-                            window.toast.success('🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
+                            window.toast.success('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
                         } else if (window.AuroraMart && window.AuroraMart.toast) {
-                            window.AuroraMart.toast('🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
+                            window.AuroraMart.toast('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
                         }
                     }, 500);
                 }
+            } else {
+                // Show error message
+                if (window.toast) {
+                    window.toast.error(data.message || 'Failed to save. Please try again.');
+                } else if (window.AuroraMart && window.AuroraMart.toast) {
+                    window.AuroraMart.toast(data.message || 'Failed to save. Please try again.', 'error');
+                }
             }
         })
-        .catch(error => console.error('Save error:', error));
+        .catch(error => {
+            console.error('Save error:', error);
+            if (window.toast) {
+                window.toast.error('An error occurred while saving. Please try again.');
+            } else if (window.AuroraMart && window.AuroraMart.toast) {
+                window.AuroraMart.toast('An error occurred while saving. Please try again.', 'error');
+            }
+        });
     }
 
     window.questionnaireState.nextQuestion = function() {
