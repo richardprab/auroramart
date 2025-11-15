@@ -86,6 +86,27 @@
             </tbody>
         </table>
     </div>
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    {% with query_string=extra_query|default:'' %}
+    <div class="table-pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{{ query_string }}" class="page-button" aria-label="Previous page">&lt;</a>
+        {% else %}
+        <span class="page-button disabled" aria-disabled="true">&lt;</span>
+        {% endif %}
+
+        <span class="page-info">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} total
+        </span>
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{{ query_string }}" class="page-button" aria-label="Next page">&gt;</a>
+        {% else %}
+        <span class="page-button disabled" aria-disabled="true">&gt;</span>
+        {% endif %}
+    </div>
+    {% endwith %}
+    {% endif %}
 {% else %}
     <div class="no-results">No products found. Try a different search term.</div>
 {% endif %}

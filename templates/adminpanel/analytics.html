@@ -58,12 +58,12 @@
         opacity: 1;
     }
     .metric-card.alert {
-        border-color: rgba(251, 146, 60, 0.8);
-        box-shadow: 0 4px 25px rgba(251, 146, 60, 0.25);
+        border-color: rgba(251, 146, 60, 0.9);
+        box-shadow: 0 4px 25px rgba(251, 146, 60, 0.18);
     }
     .metric-card.alert::before {
-        background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(255, 247, 237, 0.8));
-        opacity: 1;
+        background: none;
+        opacity: 0;
     }
     .metric-label {
         font-size: 0.85rem;
@@ -213,9 +213,6 @@
                 <option value="90">Last 90 days</option>
             </select>
         </label>
-        <button type="button" id="exportAnalytics">
-            ⬇️ Export CSV
-        </button>
         <span class="pill">
             Updated <span id="analyticsTimestamp">—</span>
         </span>
@@ -320,14 +317,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 const ANALYTICS_ENDPOINT = "{% url 'adminpanel:analytics_data' %}";
-const ANALYTICS_EXPORT_URL = "{% url 'adminpanel:analytics_export' %}";
 const metricCards = document.querySelectorAll('[data-metric-key]');
 const highlightsContainer = document.getElementById('trendHighlightsList');
 const statusMixContainer = document.getElementById('statusMixList');
 const productInsightsContainer = document.getElementById('productInsightsList');
 const timestampEl = document.getElementById('analyticsTimestamp');
 const rangeSelector = document.getElementById('rangeSelector');
-const exportBtn = document.getElementById('exportAnalytics');
 let revenueChart;
 let chartGradient;
 let warningGradient;
@@ -519,10 +514,6 @@ function scheduleRefresh() {
 rangeSelector.addEventListener('change', () => {
     selectedRange = parseInt(rangeSelector.value, 10);
     fetchAnalytics();
-});
-
-exportBtn.addEventListener('click', () => {
-    window.open(`${ANALYTICS_EXPORT_URL}?days=${selectedRange}`, '_blank');
 });
 
 fetchAnalytics();

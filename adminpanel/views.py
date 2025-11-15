@@ -15,6 +15,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, TruncDate
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
+from django.core.paginator import Paginator
 from urllib.parse import quote
 from functools import wraps
 from django.urls import reverse
@@ -44,6 +45,26 @@ LOW_STOCK_THRESHOLD = 5
 PENDING_ORDER_STATUSES = ['pending', 'confirmed', 'processing']
 REVENUE_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
 FULFILLMENT_EXCLUDED_STATUSES = ['cancelled', 'refunded']
+
+
+def _paginate_request_collection(request, collection, per_page=10, page_param='page'):
+    """
+    Returns a Django Page object for the provided collection using request GET params.
+    """
+    paginator = Paginator(collection, per_page)
+    page_number = request.GET.get(page_param)
+    return paginator.get_page(page_number)
+
+
+def _build_pagination_querystring(request, page_param='page'):
+    """
+    Builds an encoded querystring (prefixed with &) that preserves current filters sans page.
+    """
+    query_params = request.GET.copy()
+    if page_param in query_params:
+        query_params.pop(page_param)
+    encoded = query_params.urlencode()
+    return f'&{encoded}' if encoded else ''
 
 
 def staff_login_required(view_func):
@@ -398,6 +419,9 @@ def product_management(request):
         except Exception:
             continue
     
+    products_page_obj = _paginate_request_collection(request, products_data, per_page=10)
+    products_extra_query = _build_pagination_querystring(request)
+
     low_stock_queryset = Product.objects.annotate(
         total_stock=Coalesce(Sum('variants__stock'), 0, output_field=IntegerField())
     ).filter(total_stock__lt=LOW_STOCK_THRESHOLD).select_related('category').prefetch_related('images').order_by('total_stock', 'name')
@@ -417,7 +441,8 @@ def product_management(request):
     context = {
         'form': form,
         'search_query': initial_query,
-        'products_data': products_data,
+        'products_page_obj': products_page_obj,
+        'products_extra_query': products_extra_query,
         'low_stock_products': low_stock_products,
         'low_stock_threshold': LOW_STOCK_THRESHOLD,
     }
@@ -598,11 +623,16 @@ def search_product(request):
                 logger.error(f"Error processing product {product.id}: {str(e)}")
                 continue
         
+        products_page_obj = _paginate_request_collection(request, products_data, per_page=10)
+        extra_query = _build_pagination_querystring(request)
+        
         # Render table HTML using Django template
         table_html = render_to_string(
             'adminpanel/includes/product_table.html',
             {
-                'products': products_data,
+                'products': products_page_obj,
+                'page_obj': products_page_obj,
+                'extra_query': extra_query,
                 'search_query': query,
             },
             request=request
@@ -789,7 +819,7 @@ def order_management(request):
         query_upper = initial_query.upper()
         
         # Determine if query looks like an order number
-        is_likely_order_number = query_upper.startswith('ORD') or any(char.isdigit() for char in initial_query)
+        is_likely_order_number = query_upper.startswith('ORD')
         
         if is_likely_order_number:
             # Search by order number
@@ -850,7 +880,7 @@ def order_management(request):
             })
     
     pending_orders_queryset = Order.objects.filter(
-        status__in=PENDING_ORDER_STATUSES
+        status='pending'
     ).select_related('user').order_by('created_at')
 
     pending_orders_alert = []
@@ -867,10 +897,14 @@ def order_management(request):
             'created_at': order.created_at,
         })
 
+    orders_page_obj = _paginate_request_collection(request, orders_data, per_page=10)
+    orders_extra_query = _build_pagination_querystring(request)
+
     context = {
         'form': form,
         'search_query': initial_query,
-        'orders_data': orders_data,
+        'orders_page_obj': orders_page_obj,
+        'orders_extra_query': orders_extra_query,
         'pending_orders_alert': pending_orders_alert,
         'pending_orders_count': pending_orders_queryset.count(),
         'pending_statuses': PENDING_ORDER_STATUSES,
@@ -887,7 +921,11 @@ def search_order(request):
         
         if not query:
             # If empty query, return recent orders (limit to 50)
-            orders = Order.objects.select_related('user').prefetch_related('items__product_variant__product').order_by('-created_at')[:50]
+            orders = (
+                Order.objects.select_related('user')
+                .prefetch_related('items__product_variant__product')
+                .order_by('-created_at')[:50]
+            )
             for order in orders:
                 orders_data.append({
                     'order': order,
@@ -895,9 +933,8 @@ def search_order(request):
                 })
         else:
             query_upper = query.upper()
-            
-            # Determine if query looks like an order number (starts with ORD or is alphanumeric)
-            is_likely_order_number = query_upper.startswith('ORD') or any(char.isdigit() for char in query)
+            # Determine if query looks like an order number (starts with ORD)
+            is_likely_order_number = query_upper.startswith('ORD')
             
             if is_likely_order_number:
                 # Search by order number with fuzzy matching
@@ -968,11 +1005,16 @@ def search_order(request):
                 orders_data.sort(key=lambda x: x['order'].created_at, reverse=True)
                 orders_data = orders_data[:50]  # Limit to 50 results
         
+        orders_page_obj = _paginate_request_collection(request, orders_data, per_page=10)
+        extra_query = _build_pagination_querystring(request)
+        
         # Render table HTML using Django template
         table_html = render_to_string(
             'adminpanel/includes/order_table.html',
             {
-                'orders': orders_data,
+                'orders': orders_page_obj,
+                'page_obj': orders_page_obj,
+                'extra_query': extra_query,
                 'search_query': query,
             },
             request=request
@@ -1394,8 +1436,12 @@ def voucher_management(request):
     """Voucher management page - list all vouchers"""
     vouchers = Voucher.objects.all().order_by('-created_at')
     
+    vouchers_page_obj = _paginate_request_collection(request, vouchers, per_page=10)
+    vouchers_extra_query = _build_pagination_querystring(request)
+    
     context = {
-        'vouchers': vouchers,
+        'vouchers_page_obj': vouchers_page_obj,
+        'vouchers_extra_query': vouchers_extra_query,
     }
     return render(request, 'adminpanel/voucher_management.html', context)
 
