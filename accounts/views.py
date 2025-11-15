@@ -159,8 +159,12 @@ def profile(request):
         if form.is_valid():
             form.save()
             # Get phone from Customer if user is a Customer
+            # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
             phone = ''
-            if isinstance(request.user, Customer) or hasattr(request.user, 'customer'):
+            if isinstance(request.user, Customer):
+                phone = request.user.phone or ''
+            else:
+                # Edge case: staff/superuser - try to get phone if available
                 try:
                     customer = Customer.objects.get(id=request.user.id)
                     phone = customer.phone or ''
@@ -220,17 +224,15 @@ def update_demographics(request):
         user = request.user
         
         # Get Customer profile
-        # With multi-table inheritance, check if user is a Customer instance
-        # or if there's a Customer record with the same ID
+        # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
         if isinstance(user, Customer):
             customer = user
         else:
-            # Try to get the Customer instance
+            # Edge case: staff/superuser trying to update demographics
             try:
                 customer = Customer.objects.get(id=user.id)
             except Customer.DoesNotExist:
-                # User doesn't have Customer profile - this shouldn't happen for regular users
-                # but could happen for staff/superusers
+                # User doesn't have Customer profile - staff/superusers can't update demographics
                 return JsonResponse({
                     'success': False,
                     'message': 'Customer profile not found. Please contact support.'
@@ -254,15 +256,77 @@ def update_demographics(request):
         if request.POST.get('monthly_income_sgd'):
             customer.monthly_income_sgd = Decimal(request.POST.get('monthly_income_sgd'))
         
+        # Check profile completion before saving
+        was_complete = customer.calculate_profile_completion() == 100
+        
         customer.save()
         
+        # Check if profile is now complete and wasn't before
+        is_now_complete = customer.calculate_profile_completion() == 100
+        profile_just_completed = is_now_complete and not was_complete
+        
+        # Give profile completion voucher if profile was just completed
+        if profile_just_completed:
+            from vouchers.models import Voucher, VoucherUsage
+            from accounts.models import Superuser
+            from django.utils import timezone
+            from datetime import timedelta
+            from decimal import Decimal
+            
+            # Check if user already has the WELCOME voucher or has used it
+            welcome_voucher = Voucher.objects.filter(promo_code='WELCOME', is_active=True).first()
+            
+            if welcome_voucher:
+                # Check if user has already used this voucher
+                usage_count = VoucherUsage.objects.filter(
+                    voucher=welcome_voucher,
+                    user=customer
+                ).count()
+                
+                if usage_count == 0:
+                    # User hasn't used it yet, they can use the existing public voucher
+                    pass  # Voucher already exists and is available
+                else:
+                    # User already used it, no need to do anything
+                    pass
+            else:
+                # Create the WELCOME voucher if it doesn't exist (should exist from populate_db, but just in case)
+                superuser = Superuser.objects.filter(is_superuser=True).first()
+                try:
+                    Voucher.objects.create(
+                        name='Welcome Discount',
+                        promo_code='WELCOME',
+                        description='5% off your order as a thank you for completing your profile! Use code WELCOME at checkout.',
+                        discount_type='percent',
+                        discount_value=Decimal('5.00'),
+                        max_discount=Decimal('50.00'),
+                        min_purchase=Decimal('10.00'),
+                        first_time_only=False,
+                        max_uses=None,
+                        max_uses_per_user=1,
+                        start_date=timezone.now(),
+                        end_date=timezone.now() + timedelta(days=365),
+                        is_active=True,
+                        user=None,  # Public voucher
+                        created_by=superuser,
+                    )
+                except Exception:
+                    pass  # Voucher might already exist, ignore error
+        
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            message = 'Profile updated successfully! Your recommendations will be more personalized.'
+            if profile_just_completed:
+                message = '🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!'
             return JsonResponse({
                 'success': True,
-                'message': 'Profile updated successfully! Your recommendations will be more personalized.'
+                'message': message,
+                'profile_completed': profile_just_completed
             })
         else:
-            messages.success(request, 'Profile updated successfully!')
+            if profile_just_completed:
+                messages.success(request, '🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!')
+            else:
+                messages.success(request, 'Profile updated successfully!')
             return redirect('accounts:profile')
     
     return redirect('accounts:profile')

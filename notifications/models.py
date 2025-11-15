@@ -15,7 +15,7 @@ class Notification(models.Model):
     # Notifications are primarily for customers
     # If you need notifications for Staff/Superuser, you'll need to use GenericForeignKey
     user = models.ForeignKey(
-        'accounts.Customer', on_delete=models.CASCADE, related_name="notifications"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"
     )
     message = models.TextField()
     link = models.CharField(max_length=255, blank=True, null=True)

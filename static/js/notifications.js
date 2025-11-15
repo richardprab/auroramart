@@ -290,7 +290,6 @@ const NotificationSystem = {
             this.websocket = new WebSocket(wsUrl);
             
             this.websocket.onopen = () => {
-                console.log('WebSocket connected for notifications');
                 this.reconnectAttempts = 0;
                 this.fallbackPolling = false;
                 
@@ -308,31 +307,28 @@ const NotificationSystem = {
             };
             
             this.websocket.onerror = (error) => {
-                console.error('WebSocket error:', error);
+                // Silently handle WebSocket errors - fallback to polling
+                // Errors are handled by onclose event which triggers polling fallback
             };
             
             this.websocket.onclose = () => {
-                console.log('WebSocket disconnected');
                 this.websocket = null;
                 
-                // Attempt to reconnect
+                // Attempt to reconnect silently
                 if (this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
-                    console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
                     
                     this.reconnectTimeout = setTimeout(() => {
                         this.connectWebSocket();
                     }, this.reconnectDelay);
                 } else {
                     // Fallback to polling after max reconnection attempts
-                    console.log('Max reconnection attempts reached. Falling back to polling.');
                     this.fallbackPolling = true;
                     this.startPolling();
                 }
             };
         } catch (error) {
-            console.error('Error connecting WebSocket:', error);
-            // Fallback to polling
+            // Silently fallback to polling if WebSocket connection fails
             this.fallbackPolling = true;
             this.startPolling();
         }
@@ -442,24 +438,27 @@ const NotificationSystem = {
     },
     
     getCurrentBadgeCount() {
-        const badge = document.getElementById('notification-count');
-        if (!badge || badge.classList.contains('hidden')) {
-            return 0;
-        }
-        const count = parseInt(badge.textContent);
-        return isNaN(count) ? 0 : count;
+        // Badge notification removed - always return 0
+        return 0;
+        // const badge = document.getElementById('notification-count');
+        // if (!badge || badge.classList.contains('hidden')) {
+        //     return 0;
+        // }
+        // const count = parseInt(badge.textContent);
+        // return isNaN(count) ? 0 : count;
     },
     
     updateBadgeCount(count) {
-        const badge = document.getElementById('notification-count');
-        if (!badge) return;
-        
-        if (count > 0) {
-            badge.textContent = count > 99 ? '99+' : count;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+        // Badge notification removed - no longer showing count
+        // const badge = document.getElementById('notification-count');
+        // if (!badge) return;
+        // 
+        // if (count > 0) {
+        //     badge.textContent = count > 99 ? '99+' : count;
+        //     badge.classList.remove('hidden');
+        // } else {
+        //     badge.classList.add('hidden');
+        // }
     },
     
     async updateBadge() {
@@ -496,16 +495,16 @@ const NotificationSystem = {
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        // Only initialize for authenticated users
-        const notificationBadge = document.getElementById('notification-count');
-        if (notificationBadge) {
+        // Initialize for authenticated users (check for notification bell instead of badge)
+        const notificationBell = document.getElementById('notification-bell');
+        if (notificationBell) {
             NotificationSystem.init();
         }
     });
 } else {
-    // Only initialize for authenticated users
-    const notificationBadge = document.getElementById('notification-count');
-    if (notificationBadge) {
+    // Initialize for authenticated users (check for notification bell instead of badge)
+    const notificationBell = document.getElementById('notification-bell');
+    if (notificationBell) {
         NotificationSystem.init();
     }
 }

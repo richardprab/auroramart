@@ -38,12 +38,10 @@ class CustomerCategoryPredictor:
         from accounts.models import Customer
         
         # Ensure user is a Customer instance
+        # Since AUTH_USER_MODEL is Customer, user is usually a Customer instance
         if not isinstance(user, Customer):
-            if hasattr(user, 'customer'):
-                user = user.customer
-            else:
-                # Fallback to defaults if not a customer
-                user = None
+            # Fallback to defaults if not a customer (edge case: staff/superuser)
+            user = None
         
         if user is None:
             # Return default values if user is not a customer
@@ -311,8 +309,9 @@ class PersonalizedRecommendations:
         
         # PRIORITY 1: Use ML model to predict category based on demographics
         # Check if user is a Customer with demographic data
+        # Since AUTH_USER_MODEL is Customer, user is usually a Customer instance
         from accounts.models import Customer
-        customer = user if isinstance(user, Customer) else (user.customer if hasattr(user, 'customer') else None)
+        customer = user if isinstance(user, Customer) else None
         
         if customer and customer.age and customer.gender:
             try:

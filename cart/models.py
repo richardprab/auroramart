@@ -10,7 +10,7 @@ class Cart(models.Model):
     an anonymous cart identified by a `session_key`.
     """
     user = models.OneToOneField(
-        'accounts.Customer', 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE,
         null=True, # Allows for anonymous carts
         blank=True,

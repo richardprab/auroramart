@@ -64,9 +64,6 @@
                     <div class="relative" id="notification-dropdown-container">
                         <button type="button" id="notification-bell" class="relative p-2 text-gray-700 hover:text-blue-600 transition-colors">
                             <i data-lucide="bell" class="w-6 h-6"></i>
-                            <span class="absolute -top-0 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden"
-                                id="notification-count">
-                            </span>
                         </button>
                         
                         <!-- Notification Dropdown -->
@@ -128,6 +125,7 @@
                         </span>
                     </a>
 
+
                     <!-- User Profile Menu -->
                     <div class="relative" id="profile-dropdown-wrapper">
                         <button id="user-menu-button" type="button"
@@ -140,7 +138,14 @@
                         <div id="user-menu"
                             class="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-2xl py-2 hidden z-50 border border-gray-100">
                             <div class="px-5 py-3 border-b border-gray-100">
-                                <p class="text-sm font-semibold text-gray-900 text-center">{{ user.get_full_name|default:user.username }}</p>
+                                <div class="flex items-center justify-center gap-2">
+                                    <p class="text-sm font-semibold text-gray-900">{{ user.get_full_name|default:user.username }}</p>
+                                    <button type="button" onclick="openMilestoneModal()" 
+                                        class="relative transition-transform hover:scale-110 hidden"
+                                        id="milestone-badge-button">
+                                        <span id="milestone-badge-container"></span>
+                                    </button>
+                                </div>
                             </div>
                             <div class="px-2 py-2">
                                 <a href="{% url 'accounts:profile' %}"
@@ -346,6 +351,7 @@
     <script src="{% static 'js/chat.js' %}"></script>
     <script src="{% static 'js/search.js' %}"></script>
     <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/milestones.js' %}"></script>
     
     <!-- Initialize modules after DOM is ready -->
     <script>
@@ -353,6 +359,11 @@
             // Initialize wishlist module
             if (typeof WishlistModule !== 'undefined') {
                 WishlistModule.init();
+            }
+            
+            // Initialize milestone module
+            if (typeof MilestoneModule !== 'undefined') {
+                MilestoneModule.init();
             }
             
             // Render product rating stars with half-star support
@@ -389,6 +400,82 @@
     
     <!-- Page-specific JavaScript -->
     {% block extra_js %}{% endblock %}
+
+    <!-- Milestone Progress Modal -->
+    {% if user.is_authenticated %}
+    <div id="milestoneModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <i data-lucide="award" class="w-6 h-6 text-yellow-600"></i>
+                    Milestone Progress
+                </h2>
+                <button onclick="closeMilestoneModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-6" id="milestone-modal-content">
+                <div class="text-center py-8">
+                    <i data-lucide="loader" class="w-8 h-8 mx-auto mb-2 animate-spin text-gray-400"></i>
+                    <p class="text-sm text-gray-500">Loading milestone progress...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function openMilestoneModal() {
+            const modal = document.getElementById('milestoneModal');
+            const content = document.getElementById('milestone-modal-content');
+            if (!modal || !content) return;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Load milestone progress data
+            try {
+                const response = await fetch('/vouchers/api/milestone-progress/');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.milestone_progress) {
+                        MilestoneModule.updateModalContent(data.milestone_progress);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading milestone progress:', error);
+                content.innerHTML = '<p class="text-center text-gray-500">Error loading milestone progress.</p>';
+            }
+            
+            lucide.createIcons();
+        }
+
+        function closeMilestoneModal() {
+            const modal = document.getElementById('milestoneModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('milestoneModal');
+            if (modal && event.target === modal) {
+                closeMilestoneModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeMilestoneModal();
+            }
+        });
+    </script>
+    {% endif %}
 </body>
 
 </html>

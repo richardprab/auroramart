@@ -14,7 +14,8 @@ def predict_user_category(request):
     user = request.user
     
     # Check if user is a Customer instance
-    customer = user if isinstance(user, Customer) else (user.customer if hasattr(user, 'customer') else None)
+    # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
+    customer = user if isinstance(user, Customer) else None
     
     if not customer or not customer.age or not customer.gender:
         return JsonResponse({
@@ -229,8 +230,9 @@ def get_personalized_recommendations(request):
                 pass
         
         # Check if user is a Customer with demographic data
+        # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
         from accounts.models import Customer
-        customer = request.user if isinstance(request.user, Customer) else (request.user.customer if hasattr(request.user, 'customer') else None)
+        customer = request.user if isinstance(request.user, Customer) else None
         has_demographics = customer and bool(customer.age) if customer else False
         
         return JsonResponse({
