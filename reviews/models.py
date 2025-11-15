@@ -21,7 +21,7 @@ class Review(models.Model):
     # reviews → products (Review references Product)
     # No cycle!
     user = models.ForeignKey(
-        'accounts.Customer',
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
     rating = models.IntegerField(

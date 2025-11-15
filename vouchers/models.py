@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class Voucher(models.Model):
@@ -93,7 +94,7 @@ class Voucher(models.Model):
     
     # User Restrictions
     user = models.ForeignKey(
-        'accounts.Customer',
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -117,7 +118,7 @@ class Voucher(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
-        'accounts.Superuser',
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -196,7 +197,7 @@ class VoucherUsage(models.Model):
         related_name='usages'
     )
     user = models.ForeignKey(
-        'accounts.Customer',
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='voucher_usages'
     )

@@ -18,7 +18,7 @@ class ChatConversation(models.Model):
         ('replied', 'Replied'),
     ]
     
-    user = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, related_name='conversations')  # Customers start chats
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations')  # Customers start chats
     product = models.ForeignKey('products.Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='chats')
     admin = models.ForeignKey('accounts.Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_chats')  # Staff handle chats
     
@@ -47,7 +47,7 @@ class ChatMessage(models.Model):
 
     conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='messages')
     # Sender can be Customer (customer messages) or Staff (staff replies)
-    sender = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, null=True, blank=True)
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     # Alternative: staff_sender for staff messages (if needed)
     staff_sender = models.ForeignKey('accounts.Staff', on_delete=models.CASCADE, null=True, blank=True)
     content = models.TextField()

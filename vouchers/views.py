@@ -4,6 +4,8 @@ from django.utils import timezone
 from django.db.models import Q
 from django.http import JsonResponse
 from .models import Voucher, VoucherUsage
+from .rewards import get_milestone_progress
+import math
 
 
 @login_required
@@ -310,4 +312,43 @@ def voucher_detail_json(request, voucher_id):
             for usage in usage_history
         ],
     })
+
+
+@login_required
+def get_milestone_progress_api(request):
+    """API endpoint for milestone progress (badge and progress bar)"""
+    try:
+        progress = get_milestone_progress(request.user)
+        
+        # Calculate circular progress offset for donut-style progress bar
+        if progress.get('next_badge') and progress.get('progress_percentage') is not None:
+            # Full circle circumference: 2 * π * r (for radius 60)
+            circumference = 2 * math.pi * 60  # ≈ 376.99
+            # Calculate offset: when progress is 0%, show nothing (offset = full circumference)
+            # When progress is 100%, show full circle (offset = 0)
+            progress['circular_offset'] = round(
+                circumference - (progress['progress_percentage'] / 100 * circumference), 
+                2
+            )
+        else:
+            progress['circular_offset'] = 376.99  # Full offset (no progress)
+        
+        return JsonResponse({
+            'success': True,
+            'milestone_progress': progress
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'milestone_progress': {
+                'current_badge': None,
+                'next_badge': None,
+                'progress_percentage': 0,
+                'current_amount': 0,
+                'next_threshold': None,
+                'amount_needed': 0,
+                'circular_offset': 314.16
+            },
+            'error': str(e)
+        })
 

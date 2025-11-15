@@ -1,7 +1,6 @@
 const ChatWidget = {
     currentSession: null,
     sessions: [],
-    unreadCount: 0,
     isOpen: false,
     pollInterval: null,
     sessionListOpen: true,
@@ -222,9 +221,6 @@ const ChatWidget = {
                     // No sessions exist - just update the UI, don't auto-create
                     this.updateSessionSelector();
                 }
-                
-                // Update unread count
-                this.updateUnreadCountFromSessions();
             } else {
                 console.error('Failed to load sessions:', response.status);
             }
@@ -445,27 +441,9 @@ const ChatWidget = {
             if (this.currentSession) {
                 this.currentSession.user_has_unread = false;
             }
-            
-            this.updateUnreadCountFromSessions();
         } catch (error) {
             console.error('Error marking as read:', error);
         }
-    },
-
-    updateUnreadCountFromSessions() {
-        const totalUnread = this.sessions.reduce((sum, session) => sum + (session.user_has_unread ? 1 : 0), 0);
-        this.updateUnreadBadge(totalUnread);
-    },
-
-    updateUnreadBadge(count) {
-        const badge = document.getElementById('chat-badge');
-        if (count > 0) {
-            badge.textContent = count > 99 ? '99+' : count;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-        this.unreadCount = count;
     },
 
     updateSessionSelector() {
@@ -625,7 +603,6 @@ const ChatWidget = {
 
                 // Update UI
                 this.updateSessionSelector();
-                this.updateUnreadCountFromSessions();
 
                 if (window.AuroraMart && window.AuroraMart.toast) {
                     window.AuroraMart.toast('Chat session deleted', 'success');
@@ -682,9 +659,9 @@ const ChatWidget = {
 
 // Initialize when DOM is ready (skip if flag is set)
 if (!window.skipChatInit) {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => ChatWidget.init());
-    } else {
-        ChatWidget.init();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => ChatWidget.init());
+} else {
+    ChatWidget.init();
     }
 }

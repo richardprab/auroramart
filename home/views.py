@@ -48,18 +48,14 @@ def index(request):
             .values_list('product_id', flat=True)
         )
         # Calculate profile completion percentage (only for customers)
-        # With multi-table inheritance, check if user is a Customer instance
-        # or if there's a Customer record with the same ID
+        # Since AUTH_USER_MODEL is Customer, request.user is usually a Customer instance
         try:
             if isinstance(request.user, Customer):
-                customer = request.user
-                profile_completion_percentage = customer.get_profile_completion_percentage()
+                profile_completion_percentage = request.user.get_profile_completion_percentage()
             else:
-                # Try to get the Customer instance
-                # With multi-table inheritance, Customer extends User with same ID
-                customer = Customer.objects.get(id=request.user.id)
-                profile_completion_percentage = customer.get_profile_completion_percentage()
-        except (Customer.DoesNotExist, AttributeError):
+                # Edge case: staff/superuser viewing home page
+                profile_completion_percentage = None
+        except (AttributeError, TypeError):
             # User is not a customer (staff/superuser) or error accessing customer
             profile_completion_percentage = None
         # Get recently viewed products (last 8)

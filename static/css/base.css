@@ -235,6 +235,83 @@ nav .cart-count {
     transform: translateX(4px);
 }
 
+/* Badge Icon in Navbar */
+.badge-icon-nav {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.badge-icon-nav:hover {
+    transform: scale(1.1);
+}
+
+/* Badge Icon Large (for modal) */
+.badge-icon-large {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Badge Icon Small (for dropdown and profile) */
+.badge-icon-nav-small {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.badge-icon-nav-small:hover {
+    transform: scale(1.1);
+}
+
+.badge-icon-profile {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.badge-icon-profile:hover {
+    transform: scale(1.1);
+}
+
+.badge-icon-small {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Milestone Progress Item */
+.milestone-progress-item {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: #f9fafb;
+    transition: background 0.2s ease;
+}
+
+.milestone-progress-item:hover {
+    background: #f3f4f6;
+}
+
 /* Footer Styles */
 footer {
     background: #1f2937;
