@@ -840,8 +840,8 @@ def seed_from_csv(csv_path, reset=True):
     # Assign 5% profile completion voucher to all users
     assign_profile_completion_vouchers()
     
-    # Assign milestone reward vouchers based on cumulative spending
-    assign_milestone_vouchers()
+    # Note: Milestone vouchers are now granted on-demand when users view vouchers/milestones
+    # No need to assign them manually here
 
     # Seed browsing/chat data so analytics dashboard has activity
     create_adminpanel_analytics_data()
@@ -1294,22 +1294,15 @@ def create_sample_orders_and_reviews():
     Customers need to have ordered items to review them.
     
     Note: Disables the order reward signal during seeding to prevent duplicate
-    voucher creation. Vouchers will be assigned by assign_milestone_vouchers() instead.
+    voucher creation. Milestone vouchers are now granted on-demand when users
+    view their vouchers or milestone progress.
     """
     print("\n" + "=" * 60)
     print("CREATING SAMPLE ORDERS AND REVIEWS")
     print("=" * 60)
     
-    # Disconnect the reward signal to prevent it from firing during seeding
-    # We'll handle milestone vouchers manually after all orders are created
-    from orders.signals import generate_reward_on_order_completion
-    from django.db.models.signals import post_save
-    
-    Order = apps.get_model("orders", "Order")
-    post_save.disconnect(generate_reward_on_order_completion, sender=Order)
-    signal_disconnected = True
-    
     try:
+        Order = apps.get_model("orders", "Order")
         OrderItem = apps.get_model("orders", "OrderItem")
         Address = apps.get_model("accounts", "Address")
         Review = apps.get_model("reviews", "Review")
@@ -1577,13 +1570,6 @@ def create_sample_orders_and_reviews():
         print(f"Error creating orders and reviews: {e}")
         import traceback
         traceback.print_exc()
-    finally:
-        # Always reconnect the signal, even if there was an error
-        if signal_disconnected:
-            try:
-                post_save.connect(generate_reward_on_order_completion, sender=Order)
-            except Exception:
-                pass
 
 
 def delete_all_data():

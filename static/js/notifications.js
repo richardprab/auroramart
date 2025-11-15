@@ -99,15 +99,6 @@ const NotificationSystem = {
             }
         });
         
-        // Mark all as read
-        const markAllBtn = document.getElementById('mark-all-read-btn');
-        if (markAllBtn) {
-            markAllBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.markAllAsRead();
-            });
-        }
-        
         // View All button (marks all as read and resets counter)
         const viewAllBtn = document.getElementById('view-all-notifications-btn');
         if (viewAllBtn) {

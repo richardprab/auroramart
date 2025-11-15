@@ -144,11 +144,7 @@
     }
 
     .table-pagination .page-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        padding: 0.625rem 1.5rem;
+        padding: 0.5rem 1.25rem;
         border-radius: 999px;
         border: 1px solid rgba(124, 58, 237, 0.4);
         font-size: 0.8125rem;
@@ -157,8 +153,6 @@
         background: #fff;
         transition: all 0.2s ease;
         text-decoration: none;
-        white-space: nowrap;
-        min-width: fit-content;
     }
 
     .table-pagination .page-button:hover {
@@ -169,13 +163,6 @@
     .table-pagination .page-button.disabled {
         opacity: 0.4;
         pointer-events: none;
-        cursor: not-allowed;
-    }
-
-    .table-pagination .page-button i {
-        width: 16px;
-        height: 16px;
-        flex-shrink: 0;
     }
 
     .table-pagination .page-info {
@@ -246,6 +233,118 @@
         border-color: rgba(34, 197, 94, 0.4);
         transform: translateY(-1px);
     }
+
+    /* Confirmation Modal */
+    .confirmation-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .confirmation-modal.active {
+        display: flex;
+    }
+
+    .confirmation-modal-content {
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        max-width: 500px;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .confirmation-modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .confirmation-modal-header i {
+        width: 24px;
+        height: 24px;
+        color: #dc2626;
+    }
+
+    .confirmation-modal-header h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0;
+    }
+
+    .confirmation-modal-body {
+        padding: 1.5rem;
+    }
+
+    .confirmation-modal-body p {
+        color: #4b5563;
+        font-size: 0.9375rem;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .confirmation-modal-footer {
+        padding: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+    }
+
+    .btn-modal-cancel {
+        padding: 0.625rem 1.25rem;
+        background: white;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-modal-cancel:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+
+    .btn-modal-confirm {
+        padding: 0.625rem 1.25rem;
+        background: #dc2626;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-modal-confirm:hover {
+        background: #b91c1c;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-modal-confirm.unsuspend {
+        background: #059669;
+    }
+
+    .btn-modal-confirm.unsuspend:hover {
+        background: #047857;
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
 </style>
 {% endblock %}
 
@@ -301,16 +400,16 @@
                                             <i data-lucide="eye" class="w-4 h-4"></i>
                                             View
                                         </a>
-                                        <form method="post" action="{% url 'adminpanel:suspend_customer' item.customer.id %}" class="inline" onsubmit="return confirm('Are you sure you want to {% if item.customer.is_active %}suspend{% else %}unsuspend{% endif %} this customer?');">
+                                        <form method="post" action="{% url 'adminpanel:suspend_customer' item.customer.id %}" class="inline suspend-form" data-customer-id="{{ item.customer.id }}" data-customer-username="{{ item.customer.username }}" data-is-active="{{ item.customer.is_active|yesno:'true,false' }}">
                                             {% csrf_token %}
                                             <input type="hidden" name="search_query" value="{{ search_query }}">
                                             {% if item.customer.is_active %}
-                                                <button type="submit" class="btn-suspend">
+                                                <button type="button" class="btn-suspend" onclick="showConfirmModal(this)">
                                                     <i data-lucide="ban" class="w-4 h-4"></i>
                                                     Suspend
                                                 </button>
                                             {% else %}
-                                                <button type="submit" class="btn-unsuspend">
+                                                <button type="button" class="btn-unsuspend" onclick="showConfirmModal(this)">
                                                     <i data-lucide="check-circle" class="w-4 h-4"></i>
                                                     Unsuspend
                                                 </button>
@@ -334,35 +433,25 @@
                 </table>
 
                 {% if customers_page_obj.has_other_pages %}
+                    {% with query_string=customers_extra_query|default:'' %}
                     <div class="table-pagination">
                         {% if customers_page_obj.has_previous %}
-                            <a href="?page={{ customers_page_obj.previous_page_number }}{{ customers_extra_query }}" class="page-button">
-                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                                Previous
-                            </a>
+                        <a href="?page={{ customers_page_obj.previous_page_number }}{{ query_string }}" class="page-button" aria-label="Previous page">&lt;</a>
                         {% else %}
-                            <span class="page-button disabled">
-                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                                Previous
-                            </span>
+                        <span class="page-button disabled" aria-disabled="true">&lt;</span>
                         {% endif %}
 
                         <span class="page-info">
-                            Page {{ customers_page_obj.number }} of {{ customers_page_obj.paginator.num_pages }}
+                            Page {{ customers_page_obj.number }} of {{ customers_page_obj.paginator.num_pages }} · {{ customers_page_obj.paginator.count }} total
                         </span>
 
                         {% if customers_page_obj.has_next %}
-                            <a href="?page={{ customers_page_obj.next_page_number }}{{ customers_extra_query }}" class="page-button">
-                                Next
-                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                            </a>
+                        <a href="?page={{ customers_page_obj.next_page_number }}{{ query_string }}" class="page-button" aria-label="Next page">&gt;</a>
                         {% else %}
-                            <span class="page-button disabled">
-                                Next
-                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                            </span>
+                        <span class="page-button disabled" aria-disabled="true">&gt;</span>
                         {% endif %}
                     </div>
+                    {% endwith %}
                 {% endif %}
             {% else %}
                 <div class="text-center py-8 text-gray-500">
@@ -374,12 +463,92 @@
                 </div>
              {% endif %}
          </div>
-     </div>
- </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="confirmation-modal">
+    <div class="confirmation-modal-content">
+        <div class="confirmation-modal-header">
+            <i data-lucide="alert-triangle"></i>
+            <h3 id="modalTitle">Confirm Action</h3>
+        </div>
+        <div class="confirmation-modal-body">
+            <p id="modalMessage">Are you sure you want to perform this action?</p>
+        </div>
+        <div class="confirmation-modal-footer">
+            <button type="button" class="btn-modal-cancel" onclick="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn-modal-confirm" id="modalConfirmBtn" onclick="confirmAction()">
+                <i data-lucide="check" class="w-4 h-4"></i>
+                <span id="modalConfirmText">Confirm</span>
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block admin_extra_js %}
 <script>
+let pendingForm = null;
+
+function showConfirmModal(button) {
+    const form = button.closest('.suspend-form');
+    const isActive = form.dataset.isActive === 'true';
+    const username = form.dataset.customerUsername;
+    const action = isActive ? 'suspend' : 'unsuspend';
+    
+    const modal = document.getElementById('confirmModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalConfirmText = document.getElementById('modalConfirmText');
+    const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+    
+    if (action === 'suspend') {
+        modalTitle.textContent = 'Suspend Customer Account';
+        modalMessage.textContent = `Are you sure you want to suspend the account for ${username}? The customer will not be able to log in or make purchases.`;
+        modalConfirmText.textContent = 'Suspend Account';
+        modalConfirmBtn.classList.remove('unsuspend');
+    } else {
+        modalTitle.textContent = 'Unsuspend Customer Account';
+        modalMessage.textContent = `Are you sure you want to unsuspend the account for ${username}? The customer will regain full access.`;
+        modalConfirmText.textContent = 'Unsuspend Account';
+        modalConfirmBtn.classList.add('unsuspend');
+    }
+    
+    pendingForm = form;
+    modal.classList.add('active');
+    
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    modal.classList.remove('active');
+    pendingForm = null;
+}
+
+function confirmAction() {
+    if (pendingForm) {
+        pendingForm.submit();
+    }
+}
+
+// Close modal on background click
+document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeConfirmModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeConfirmModal();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Lucide icons
     if (typeof lucide !== 'undefined') {

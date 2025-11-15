@@ -4,11 +4,7 @@ const ChatWidget = {
     isOpen: false,
     sessionListOpen: true,
     sessionToDelete: null,
- // Check every 5 seconds for chat (more frequent than notifications)
-
-    // Get CSRF token for session authentication
-    getCSRFToken() {
-        const cookieValue = docume    websocket: null,
+    websocket: null,
     reconnectAttempts: 0,
     maxReconnectAttempts: 5,
     reconnectDelay: 3000,
@@ -16,7 +12,9 @@ const ChatWidget = {
     useWebSocket: true,
     fallbackPolling: false,
     pollInterval: null,
-    checkInterval: 5000,nt.cookie
+    checkInterval: 5000, 
+    getCSRFToken() {
+        const cookieValue = document.cookie
             .split('; ')
             .find(row => row.startsWith('csrftoken='));
         return cookieValue ? cookieValue.split('=')[1] : null;

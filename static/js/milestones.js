@@ -99,7 +99,9 @@ function applyWhiteIconStyles(icon) {
     icon.classList.add('text-white');
     
     // Also style the SVG element if lucide has created it
-    const svg = icon.querySelector('svg');
+    // Note: Lucide replaces the <i> element with <svg>, so we need to check the parent
+    const parent = icon.parentElement;
+    const svg = icon.querySelector('svg') || (parent ? parent.querySelector('svg') : null);
     if (svg) {
         svg.setAttribute('style', `
             color: #ffffff !important;
@@ -108,9 +110,20 @@ function applyWhiteIconStyles(icon) {
             stroke-width: 2px !important;
         `);
         svg.style.color = '#ffffff';
+        svg.style.setProperty('color', '#ffffff', 'important');
         svg.style.fill = '#ffffff';
         svg.style.stroke = '#ffffff';
         svg.style.strokeWidth = '2px';
+        
+        // Force white on all paths
+        const paths = svg.querySelectorAll('path, circle, line, polyline, polygon, rect');
+        paths.forEach(path => {
+            path.style.stroke = '#ffffff';
+            path.style.setProperty('stroke', '#ffffff', 'important');
+            path.style.fill = 'none';
+            path.setAttribute('stroke', '#ffffff');
+            path.setAttribute('fill', 'none');
+        });
     }
 }
 
@@ -251,19 +264,32 @@ const MilestoneModule = {
             return;
         }
 
-        const { next_badge: nextBadge, progress_percentage: progressPercent = 0 } = progress;
+        const { next_badge: nextBadge, progress_percentage: progressPercent = 0, current_badge: currentBadge } = progress;
+        
+        // If user has reached the milestone (has current badge and no next badge, or progress is 100%), show 100%
+        let displayPercent = progressPercent;
+        if (currentBadge && !nextBadge) {
+            displayPercent = 100;
+        } else if (progressPercent >= 100) {
+            displayPercent = 100;
+        }
         
         const circumference = 2 * Math.PI * PROGRESS_RING.RADIUS;
-        const offset = circumference - (progressPercent / 100 * circumference);
+        const offset = circumference - (displayPercent / 100 * circumference);
         
-        progressRing.setAttribute('stroke-dashoffset', progress.circular_offset || offset);
+        // Set stroke-dasharray to match the circumference (important for progress calculation)
+        progressRing.setAttribute('stroke-dasharray', circumference.toString());
+        // Always calculate offset locally to ensure it matches the current radius (ignore backend value)
+        progressRing.setAttribute('stroke-dashoffset', offset);
+        // Ensure the transform rotates from top (12 o'clock position)
+        progressRing.setAttribute('transform', `rotate(-90 ${PROGRESS_RING.CENTER_X} ${PROGRESS_RING.CENTER_Y})`);
         progressRing.setAttribute('stroke', 'url(#gradient-fill)');
         progressRing.setAttribute('stroke-width', '10');
         progressRing.style.opacity = '1';
         progressBg.style.opacity = '0.3';
         
-        if (indicator && progressPercent > 0 && nextBadge) {
-            const angle = -90 + (progressPercent / 100 * 360);
+        if (indicator && displayPercent > 0 && (nextBadge || currentBadge)) {
+            const angle = -90 + (displayPercent / 100 * 360);
             const radian = (angle * Math.PI) / 180;
             const x = PROGRESS_RING.CENTER_X + PROGRESS_RING.RADIUS * Math.cos(radian);
             const y = PROGRESS_RING.CENTER_Y + PROGRESS_RING.RADIUS * Math.sin(radian);
@@ -359,7 +385,7 @@ const MilestoneModule = {
         const iconName = currentBadge ? (currentBadge.icon || 'award') : 'award';
         const icon = document.createElement('i');
         icon.setAttribute('data-lucide', iconName);
-        icon.className = 'w-12 h-12';
+        icon.className = 'w-12 h-12 text-white'; // Add text-white class for white icon
         badgeIcon.appendChild(icon);
         
         if (typeof lucide !== 'undefined') {
@@ -384,48 +410,59 @@ const MilestoneModule = {
                 z-index: 10 !important;
             `;
             
-            // Apply white icon styles to match the left badge design - ensure icon is white
-            applyWhiteIconStyles(icon);
-            
-            // Re-apply after a short delay to ensure lucide icons are rendered and styled white
-            setTimeout(() => {
+            // Function to force white color on SVG
+            const forceWhiteIcon = () => {
+                // Apply white icon styles
                 applyWhiteIconStyles(icon);
-                // Force white color on all SVG paths and elements
-                const svg = icon.querySelector('svg');
+                
+                // Find the SVG that Lucide created (it replaces the <i> element)
+                const svg = badgeIcon.querySelector('svg');
                 if (svg) {
+                    // Set color on SVG element
                     svg.style.color = '#ffffff';
-                    svg.style.fill = '#ffffff';
-                    svg.style.stroke = '#ffffff';
-                    const paths = svg.querySelectorAll('path, circle, line, polyline, polygon');
+                    svg.style.setProperty('color', '#ffffff', 'important');
+                    
+                    // Set stroke and fill on all paths
+                    const paths = svg.querySelectorAll('path, circle, line, polyline, polygon, rect');
                     paths.forEach(path => {
                         path.style.stroke = '#ffffff';
+                        path.style.setProperty('stroke', '#ffffff', 'important');
                         path.style.fill = 'none';
+                        path.style.setProperty('fill', 'none', 'important');
                         path.setAttribute('stroke', '#ffffff');
                         path.setAttribute('fill', 'none');
+                        // Remove any existing stroke color attributes
+                        path.removeAttribute('stroke-width');
                     });
+                    
+                    // Set stroke-width on SVG if needed
+                    svg.setAttribute('stroke-width', '2');
+                    svg.style.strokeWidth = '2px';
                 }
-                if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
-                }
-            }, 50);
+            };
             
-            // One more pass after lucide fully renders
-            setTimeout(() => {
-                applyWhiteIconStyles(icon);
-                const svg = icon.querySelector('svg');
-                if (svg) {
-                    svg.style.color = '#ffffff';
-                    svg.style.fill = '#ffffff';
-                    svg.style.stroke = '#ffffff';
-                    const paths = svg.querySelectorAll('path, circle, line, polyline, polygon');
-                    paths.forEach(path => {
-                        path.style.stroke = '#ffffff';
-                        path.style.fill = 'none';
-                        path.setAttribute('stroke', '#ffffff');
-                        path.setAttribute('fill', 'none');
-                    });
-                }
-            }, 150);
+            // Apply immediately
+            forceWhiteIcon();
+            
+            // Use MutationObserver to catch when Lucide replaces <i> with <svg>
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.addedNodes.length) {
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.nodeName === 'SVG' || (node.nodeName === 'I' && node.querySelector('svg'))) {
+                                forceWhiteIcon();
+                            }
+                        });
+                    }
+                });
+            });
+            
+            observer.observe(badgeIcon, { childList: true, subtree: true });
+            
+            // Also apply after delays to ensure it's styled
+            setTimeout(forceWhiteIcon, 50);
+            setTimeout(forceWhiteIcon, 150);
+            setTimeout(forceWhiteIcon, 300);
         } else {
             badgeIcon.style.cssText = `
                 background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%) !important;

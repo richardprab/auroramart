@@ -77,19 +77,65 @@ def process_checkout(request):
 
     # Get form data
     shipping_address = request.POST.get('shipping_address', '').strip()
-    billing_address = request.POST.get('billing_address', '').strip()
     payment_method = request.POST.get('payment_method', 'credit_card')
+    address_id = request.POST.get('address_id', '').strip()
     
     # Validation
     if not shipping_address:
         messages.error(request, "Please provide a shipping address.")
         return redirect('orders:checkout')
-    
-    if not billing_address:
-        billing_address = shipping_address
 
     try:
         with transaction.atomic():
+            from accounts.models import Address
+            
+            # Handle address - either use existing or create new
+            order_address = None
+            if address_id:
+                # Use existing saved address
+                try:
+                    order_address = Address.objects.get(id=address_id, user=request.user, address_type='shipping')
+                except Address.DoesNotExist:
+                    logger.warning(f"Address {address_id} not found for user {request.user.id}")
+                    messages.error(request, "Selected address not found.")
+                    return redirect('orders:checkout')
+            else:
+                # Create new address from form fields
+                street_address = request.POST.get('street_address', '').strip()
+                city = request.POST.get('city', '').strip()
+                postal_code = request.POST.get('postal_code', '').strip()
+                country = request.POST.get('country', '').strip()
+                save_address = request.POST.get('save_address', '0') == '1'
+                
+                if not all([street_address, city, postal_code, country]):
+                    messages.error(request, "Please fill in all required address fields.")
+                    return redirect('orders:checkout')
+                
+                # Get user's full name
+                full_name = request.user.get_full_name() or request.user.username
+                
+                # Only create Address record if user wants to save it
+                # Otherwise, we'll just use the text delivery_address
+                if save_address:
+                    # Create new address and save it to user's addresses
+                    order_address = Address.objects.create(
+                        user=request.user,
+                        full_name=full_name,
+                        address_type='shipping',
+                        address_line1=street_address,
+                        address_line2='',
+                        city=city,
+                        state=city,  # Use city as state if state not provided
+                        postal_code=postal_code,
+                        zip_code=postal_code,
+                        country=country,
+                        is_default=False  # Don't set as default automatically
+                    )
+                else:
+                    # User doesn't want to save address, so we'll just use text version
+                    # Set address to None - order will only have delivery_address text
+                    order_address = None
+            
             # Get voucher code from session
             voucher_code = request.session.get('applied_voucher_code', None)
             voucher = None
@@ -130,8 +176,8 @@ def process_checkout(request):
             # Create order (pending payment)
             order = Order.objects.create(
                 user=request.user,
-                address=None,
-                delivery_address=shipping_address,
+                address=order_address,  # Link to Address model
+                delivery_address=shipping_address,  # Keep text version for historical reference
                 contact_number=contact_number,
                 payment_method=payment_method,
                 status='pending',
@@ -201,12 +247,23 @@ def create_stripe_checkout(request):
         # Prepare line items for Stripe
         line_items = []
         for item in order.items.all():
+            # Build variant description from attributes
+            variant_desc = ""
+            if item.product_variant:
+                variant_attrs = []
+                if item.product_variant.color:
+                    variant_attrs.append(item.product_variant.color)
+                if item.product_variant.size:
+                    variant_attrs.append(item.product_variant.size)
+                if variant_attrs:
+                    variant_desc = f" ({', '.join(variant_attrs)})"
+            
             line_items.append({
                 'price_data': {
                     'currency': 'usd',
                     'product_data': {
                         'name': item.product.name,
-                        'description': f"{item.product_variant.name if item.product_variant else ''} - Qty: {item.quantity}",
+                        'description': f"{item.product.name}{variant_desc} - Qty: {item.quantity}",
                     },
                     'unit_amount': int(item.price * 100),  # Convert to cents
                 },
@@ -289,9 +346,9 @@ def payment_success(request):
         
         # Verify payment was successful
         if checkout_session.payment_status == 'paid':
-            # Update order with payment information
+            # Update order with payment information but keep status as pending
             order.payment_status = 'paid'
-            order.status = 'confirmed'
+            order.status = 'pending'  # Keep as pending for admin review
             order.stripe_payment_intent_id = checkout_session.payment_intent
             order.stripe_customer_id = checkout_session.customer or ''
             
@@ -316,11 +373,29 @@ def payment_success(request):
                 del request.session['pending_order_id']
                 request.session.modified = True
             
-            messages.success(request, f"Payment successful! Order {order.order_number} has been confirmed.")
+            messages.success(request, f"Payment successful! Order {order.order_number} is pending confirmation.")
             return redirect('orders:order_detail', order_id=order.id)
         else:
-            messages.warning(request, "Payment is still processing. Please check back later.")
-            return redirect('orders:order_detail', order_id=order.id)
+            # Payment failed or not completed - restore stock only (items still in cart)
+            for order_item in order.items.all():
+                # Restore stock
+                if order_item.product_variant:
+                    order_item.product_variant.stock += order_item.quantity
+                    order_item.product_variant.save()
+                else:
+                    order_item.product.stock += order_item.quantity
+                    order_item.product.save()
+            
+            # Delete the failed order
+            order.delete()
+            
+            # Clear pending order from session
+            if 'pending_order_id' in request.session:
+                del request.session['pending_order_id']
+                request.session.modified = True
+            
+            messages.error(request, "Payment was not completed. Your items are still in your cart.")
+            return redirect('cart:cart_detail')
             
     except Order.DoesNotExist:
         messages.error(request, "Order not found.")
@@ -333,23 +408,35 @@ def payment_success(request):
 
 @login_required
 def payment_cancel(request):
-    """Handle cancelled payment"""
+    """Handle cancelled payment - redirect back to cart"""
     order_id = request.session.get('pending_order_id')
     
     if order_id:
         try:
             order = Order.objects.get(id=order_id, user=request.user)
-            # Optionally delete the pending order or keep it for retry
-            messages.info(request, "Payment was cancelled. You can try again.")
+            
+            # Restore stock (items are still in cart, so no need to restore to cart)
+            for order_item in order.items.all():
+                # Restore stock
+                if order_item.product_variant:
+                    order_item.product_variant.stock += order_item.quantity
+                    order_item.product_variant.save()
+                else:
+                    order_item.product.stock += order_item.quantity
+                    order_item.product.save()
+            
+            # Delete the cancelled order
+            order.delete()
+            messages.info(request, "Payment was cancelled. Your items are still in your cart.")
         except Order.DoesNotExist:
-            pass
+            messages.info(request, "Payment was cancelled.")
         
         # Clear pending order from session
         if 'pending_order_id' in request.session:
             del request.session['pending_order_id']
             request.session.modified = True
     
-    return redirect('orders:checkout')
+    return redirect('cart:cart_detail')
 
 
 @csrf_exempt
@@ -388,8 +475,9 @@ def stripe_webhook(request):
             try:
                 order = Order.objects.get(id=order_id)
                 if session.payment_status == 'paid':
+                    # Keep order as pending even after payment
                     order.payment_status = 'paid'
-                    order.status = 'confirmed'
+                    order.status = 'pending'  # Keep as pending for admin review
                     order.stripe_payment_intent_id = session.payment_intent
                     order.stripe_customer_id = session.customer or ''
                     
@@ -397,7 +485,7 @@ def stripe_webhook(request):
                     order.paid_at = timezone.now()
                     order.save()
                     
-                    logger.info(f"Order {order.order_number} confirmed via webhook")
+                    logger.info(f"Order {order.order_number} payment received via webhook (status: pending)")
             except Order.DoesNotExist:
                 logger.error(f"Order {order_id} not found in webhook")
     

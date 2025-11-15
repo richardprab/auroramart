@@ -1612,23 +1612,6 @@ def delete_voucher(request, voucher_id):
     return render(request, 'adminpanel/delete_voucher.html', context)
 
 
-@staff_login_required
-def database_management(request):
-    """Database management page for populating and managing database"""
-    # Get project root directory
-    project_root = Path(settings.BASE_DIR)
-    csv_files = []
-    data_dir = project_root / 'data'
-    
-    if data_dir.exists():
-        csv_files = [f.name for f in data_dir.glob('*.csv')]
-    
-    context = {
-        'csv_files': csv_files,
-    }
-    return render(request, 'adminpanel/database_management.html', context)
-
-
 # ==================== STAFF MANAGEMENT ====================
 
 def superuser_required(view_func):
@@ -1652,11 +1635,37 @@ def superuser_required(view_func):
             return redirect('/accounts/login/')
         
         if not request.user.is_superuser:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden('Only superusers can access this page.')
+            feature_name_map = {
+                'database_management': 'Database Management',
+                'run_populate_db': 'Database Management',
+                'staff_management': 'Staff Management',
+                'search_staff': 'Staff Management',
+                'edit_staff': 'Staff Management',
+                'update_staff': 'Staff Management',
+            }
+            feature_name = feature_name_map.get(view_func.__name__, 'This Feature')
+            return render(request, 'adminpanel/permission_denied.html', {
+                'feature_name': feature_name,
+            })
         
         return view_func(request, *args, **kwargs)
     return _wrapped_view
+
+
+@superuser_required
+def database_management(request):
+    """Database management page for populating and managing database"""
+    project_root = Path(settings.BASE_DIR)
+    csv_files = []
+    data_dir = project_root / 'data'
+    
+    if data_dir.exists():
+        csv_files = [f.name for f in data_dir.glob('*.csv')]
+    
+    context = {
+        'csv_files': csv_files,
+    }
+    return render(request, 'adminpanel/database_management.html', context)
 
 
 @superuser_required
@@ -1767,7 +1776,17 @@ def edit_staff(request, staff_id):
     # Get search query from request if coming from search page
     search_query = request.GET.get('q', request.GET.get('query', ''))
     
-    form = StaffPermissionForm(instance=staff)
+    # Initialize form with current permissions
+    initial_data = {}
+    if staff.permissions == 'all':
+        initial_data['all_permissions'] = True
+    else:
+        permission_list = [p.strip() for p in staff.permissions.split(',')]
+        for perm in permission_list:
+            if perm in ['products', 'orders', 'chat', 'analytics']:
+                initial_data[perm] = True
+    
+    form = StaffPermissionForm(initial=initial_data)
     
     context = {
         'staff': staff,
@@ -1788,10 +1807,11 @@ def update_staff(request, staff_id):
     # Get search query to preserve it in redirect
     search_query = request.POST.get('search_query', '')
     
-    form = StaffPermissionForm(request.POST, instance=staff)
+    form = StaffPermissionForm(request.POST)
     
     if form.is_valid():
-        form.save()
+        staff.permissions = form.cleaned_data['permissions']
+        staff.save()
         from django.contrib import messages
         from django.urls import reverse
         messages.success(request, f'Staff permissions for {staff.username} updated successfully!')
@@ -1967,7 +1987,7 @@ def suspend_customer(request, customer_id):
         return redirect('adminpanel:customer_management')
 
 
-@staff_login_required
+@superuser_required
 def run_populate_db(request):
     """Execute populate_db functions via AJAX"""
     if request.method != 'POST':
@@ -2024,11 +2044,31 @@ def run_populate_db(request):
             elif action == 'create_sample_users':
                 populate_db.create_sample_users()
                 
-            elif action == 'create_sample_vouchers':
-                populate_db.create_sample_vouchers()
-                
             elif action == 'create_sample_orders_and_reviews':
                 populate_db.create_sample_orders_and_reviews()
+                
+            elif action == 'create_nus_computing_tshirt':
+                populate_db.create_nus_computing_tshirt()
+                
+            elif action == 'assign_profile_completion_vouchers':
+                populate_db.assign_profile_completion_vouchers()
+                
+            elif action == 'create_adminpanel_analytics_data':
+                populate_db.create_adminpanel_analytics_data()
+                
+            elif action == 'create_everything':
+                reset = request.POST.get('reset', 'true').lower() == 'true'
+                csv_path = project_root / 'data' / 'b2c_products_500.csv'
+                
+                if not csv_path.exists():
+                    return JsonResponse({'error': f'CSV file not found: {csv_path}'}, status=404)
+                
+                original_cwd = os.getcwd()
+                try:
+                    os.chdir(project_root)
+                    populate_db.seed_from_csv(str(csv_path), reset=reset)
+                finally:
+                    os.chdir(original_cwd)
                 
             else:
                 return JsonResponse({'error': f'Unknown action: {action}'}, status=400)

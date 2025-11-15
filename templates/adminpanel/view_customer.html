@@ -285,6 +285,118 @@
         margin: 0 auto 1rem;
         color: #d1d5db;
     }
+
+    /* Confirmation Modal */
+    .confirmation-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .confirmation-modal.active {
+        display: flex;
+    }
+
+    .confirmation-modal-content {
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        max-width: 500px;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .confirmation-modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .confirmation-modal-header i {
+        width: 24px;
+        height: 24px;
+        color: #dc2626;
+    }
+
+    .confirmation-modal-header h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0;
+    }
+
+    .confirmation-modal-body {
+        padding: 1.5rem;
+    }
+
+    .confirmation-modal-body p {
+        color: #4b5563;
+        font-size: 0.9375rem;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .confirmation-modal-footer {
+        padding: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+    }
+
+    .btn-modal-cancel {
+        padding: 0.625rem 1.25rem;
+        background: white;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-modal-cancel:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+
+    .btn-modal-confirm {
+        padding: 0.625rem 1.25rem;
+        background: #dc2626;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-modal-confirm:hover {
+        background: #b91c1c;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-modal-confirm.unsuspend {
+        background: #059669;
+    }
+
+    .btn-modal-confirm.unsuspend:hover {
+        background: #047857;
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
 </style>
 {% endblock %}
 
@@ -354,18 +466,18 @@
             </div>
         </div>
 
-        <form method="post" action="{% url 'adminpanel:suspend_customer' customer.id %}" onsubmit="return confirm('Are you sure you want to {% if customer.is_active %}suspend{% else %}unsuspend{% endif %} this customer?');">
+        <form method="post" action="{% url 'adminpanel:suspend_customer' customer.id %}" id="suspend-form">
             {% csrf_token %}
             {% if search_query %}
                 <input type="hidden" name="search_query" value="{{ search_query }}">
             {% endif %}
             {% if customer.is_active %}
-                <button type="submit" class="btn-suspend">
+                <button type="button" class="btn-suspend" onclick="showConfirmModal('suspend', '{{ customer.username }}')">
                     <i data-lucide="ban" class="w-4 h-4"></i>
                     Suspend Account
                 </button>
             {% else %}
-                <button type="submit" class="btn-unsuspend">
+                <button type="button" class="btn-unsuspend" onclick="showConfirmModal('unsuspend', '{{ customer.username }}')">
                     <i data-lucide="check-circle" class="w-4 h-4"></i>
                     Unsuspend Account
                 </button>
@@ -429,10 +541,87 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="confirmation-modal">
+    <div class="confirmation-modal-content">
+        <div class="confirmation-modal-header">
+            <i data-lucide="alert-triangle"></i>
+            <h3 id="modalTitle">Confirm Action</h3>
+        </div>
+        <div class="confirmation-modal-body">
+            <p id="modalMessage">Are you sure you want to perform this action?</p>
+        </div>
+        <div class="confirmation-modal-footer">
+            <button type="button" class="btn-modal-cancel" onclick="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn-modal-confirm" id="modalConfirmBtn" onclick="confirmAction()">
+                <i data-lucide="check" class="w-4 h-4"></i>
+                <span id="modalConfirmText">Confirm</span>
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block admin_extra_js %}
 <script>
+let pendingForm = null;
+let actionType = '';
+
+function showConfirmModal(action, username) {
+    actionType = action;
+    const modal = document.getElementById('confirmModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalConfirmText = document.getElementById('modalConfirmText');
+    const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+    
+    if (action === 'suspend') {
+        modalTitle.textContent = 'Suspend Customer Account';
+        modalMessage.textContent = `Are you sure you want to suspend the account for ${username}? The customer will not be able to log in or make purchases.`;
+        modalConfirmText.textContent = 'Suspend Account';
+        modalConfirmBtn.classList.remove('unsuspend');
+    } else {
+        modalTitle.textContent = 'Unsuspend Customer Account';
+        modalMessage.textContent = `Are you sure you want to unsuspend the account for ${username}? The customer will regain full access.`;
+        modalConfirmText.textContent = 'Unsuspend Account';
+        modalConfirmBtn.classList.add('unsuspend');
+    }
+    
+    pendingForm = document.getElementById('suspend-form');
+    modal.classList.add('active');
+    
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    modal.classList.remove('active');
+    pendingForm = null;
+}
+
+function confirmAction() {
+    if (pendingForm) {
+        pendingForm.submit();
+    }
+}
+
+// Close modal on background click
+document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeConfirmModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeConfirmModal();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();

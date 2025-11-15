@@ -38,10 +38,10 @@
                                     <a href="{% url 'adminpanel:view_customer' customer.id %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}" class="btn-view">
                                         <i data-lucide="eye" class="w-4 h-4 inline"></i> View
                                     </a>
-                                    <form method="post" action="{% url 'adminpanel:suspend_customer' customer.id %}" class="inline">
+                                    <form method="post" action="{% url 'adminpanel:suspend_customer' customer.id %}" class="inline suspend-form" data-customer-id="{{ customer.id }}" data-customer-username="{{ customer.username }}" data-is-active="{{ customer.is_active|yesno:'true,false' }}">
                                         {% csrf_token %}
                                         <input type="hidden" name="search_query" value="{{ search_query }}">
-                                        <button type="submit" class="btn-suspend {% if customer.is_active %}btn-suspend-active{% else %}btn-unsuspend{% endif %}" onclick="return confirm('Are you sure you want to {% if customer.is_active %}suspend{% else %}unsuspend{% endif %} this customer?');">
+                                        <button type="button" class="btn-suspend {% if customer.is_active %}btn-suspend-active{% else %}btn-unsuspend{% endif %}" onclick="showConfirmModal(this)">
                                             <i data-lucide="{% if customer.is_active %}ban{% else %}check-circle{% endif %}" class="w-4 h-4 inline"></i> 
                                             {% if customer.is_active %}Suspend{% else %}Unsuspend{% endif %}
                                         </button>

@@ -111,20 +111,45 @@ class StaffSearchForm(forms.Form):
         return query
 
 
-class StaffPermissionForm(forms.ModelForm):
-    """Form for editing staff permissions"""
+class StaffPermissionForm(forms.Form):
+    """Form for editing staff permissions with checkboxes"""
     
-    class Meta:
-        model = Staff
-        fields = ['permissions']
-        widgets = {
-            'permissions': forms.Select(
-                attrs={
-                    'class': 'form-control',
-                    'style': 'width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;'
-                }
-            )
-        }
+    PERMISSION_OPTIONS = [
+        ('products', 'Product Management'),
+        ('orders', 'Order Management'),
+        ('chat', 'Customer Support/Chat'),
+        ('analytics', 'Analytics'),
+    ]
+    
+    all_permissions = forms.BooleanField(
+        required=False,
+        label='All Permissions',
+        help_text='Grant all permissions (overrides individual selections)'
+    )
+    
+    products = forms.BooleanField(required=False, label='Product Management')
+    orders = forms.BooleanField(required=False, label='Order Management')
+    chat = forms.BooleanField(required=False, label='Customer Support/Chat')
+    analytics = forms.BooleanField(required=False, label='Analytics')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        all_permissions = cleaned_data.get('all_permissions')
+        
+        if all_permissions:
+            cleaned_data['permissions'] = 'all'
+        else:
+            selected = []
+            for perm_key, perm_label in self.PERMISSION_OPTIONS:
+                if cleaned_data.get(perm_key):
+                    selected.append(perm_key)
+            
+            if not selected:
+                raise forms.ValidationError('Please select at least one permission or "All Permissions".')
+            
+            cleaned_data['permissions'] = ','.join(selected)
+        
+        return cleaned_data
 
 
 class CustomerSearchForm(forms.Form):

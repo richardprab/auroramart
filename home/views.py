@@ -1,4 +1,5 @@
 from datetime import timedelta
+import logging
 
 from django.shortcuts import render
 from django.db.models import Q, Sum
@@ -6,6 +7,8 @@ from django.utils import timezone
 
 from products.models import Product, Category
 from orders.models import OrderItem
+
+logger = logging.getLogger(__name__)
 
 
 def index(request):
@@ -103,9 +106,16 @@ def index(request):
             except (AttributeError, TypeError):
                 profile_completion_percentage = None
             # Get recently viewed products (last 8)
-            recently_viewed = BrowsingHistory.objects.filter(
-                user=request.user
-            ).select_related('product').prefetch_related('product__images', 'product__variants').order_by('-viewed_at')[:8]
+            try:
+                recently_viewed = list(
+                    BrowsingHistory.objects.filter(
+                        user=request.user
+                    ).select_related('product').prefetch_related('product__images', 'product__variants').order_by('-viewed_at')[:8]
+                )
+            except Exception as e:
+                # If database error occurs, set to empty list
+                logger.error(f"Error fetching recently viewed products: {str(e)}")
+                recently_viewed = []
 
     return render(
         request,

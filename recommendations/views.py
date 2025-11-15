@@ -57,27 +57,68 @@ def get_similar_products(request, product_id):
         # Serialize products manually
         recommendations_data = []
         for prod in recommendations:
-            default_variant = prod.get_lowest_priced_variant()
-            image = prod.get_primary_image()
-            
-            recommendations_data.append({
-                'id': prod.id,
-                'name': prod.name,
-                'slug': prod.slug,
-                'sku': prod.sku,
-                'brand': prod.brand,
-                'rating': float(prod.rating) if prod.rating else 0.0,
-                'primary_image': {
-                    'url': image.image.url if image else None,
-                    'alt_text': image.alt_text if image else prod.name
-                } if image else None,
-                'lowest_variant': {
-                    'id': default_variant.id if default_variant else None,
-                    'price': float(default_variant.effective_price) if default_variant else 0.0,
-                    'compare_price': float(default_variant.compare_price) if default_variant and default_variant.compare_price else None,
-                    'stock': default_variant.stock if default_variant else 0,
-                } if default_variant else None
-            })
+            try:
+                default_variant = prod.get_lowest_priced_variant()
+                image = prod.get_primary_image()
+                
+                # Convert rating properly - handle DecimalField
+                rating_value = 0.0
+                if prod.rating is not None:
+                    try:
+                        rating_value = float(prod.rating)
+                    except (TypeError, ValueError):
+                        rating_value = 0.0
+                
+                # Safely get image URL
+                image_url = None
+                image_alt = prod.name
+                if image:
+                    try:
+                        if hasattr(image, 'image') and image.image:
+                            image_url = image.image.url
+                        if hasattr(image, 'alt_text') and image.alt_text:
+                            image_alt = image.alt_text
+                    except (AttributeError, ValueError):
+                        image_url = None
+                
+                # Safely get variant price
+                variant_price = 0.0
+                variant_compare_price = None
+                variant_stock = 0
+                variant_id = None
+                if default_variant:
+                    try:
+                        variant_id = default_variant.id
+                        from products.pricing import get_effective_price
+                        variant_price = float(get_effective_price(default_variant))
+                        if default_variant.compare_price:
+                            variant_compare_price = float(default_variant.compare_price)
+                        variant_stock = default_variant.stock if default_variant.stock else 0
+                    except (AttributeError, ValueError, TypeError):
+                        variant_price = 0.0
+                        variant_stock = 0
+                
+                recommendations_data.append({
+                    'id': prod.id,
+                    'name': prod.name,
+                    'slug': prod.slug,
+                    'sku': prod.sku,
+                    'brand': prod.brand or '',
+                    'rating': rating_value,
+                    'primary_image': {
+                        'url': image_url,
+                        'alt_text': image_alt
+                    } if image_url else None,
+                    'lowest_variant': {
+                        'id': variant_id,
+                        'price': variant_price,
+                        'compare_price': variant_compare_price,
+                        'stock': variant_stock,
+                    } if variant_id else None
+                })
+            except Exception as e:
+                # Skip products that fail to serialize
+                continue
         
         return JsonResponse({
             'product': {
@@ -86,11 +127,13 @@ def get_similar_products(request, product_id):
                 'sku': product.sku,
             },
             'recommendations': recommendations_data,
-            'count': len(recommendations)
+            'count': len(recommendations_data)
         })
     except Exception as e:
         return JsonResponse({
-            'error': str(e)
+            'error': str(e),
+            'recommendations': [],
+            'count': 0
         }, status=500)
 
 
@@ -119,7 +162,8 @@ def get_cart_recommendations(request):
             'message': 'Cart is empty'
         })
     
-    top_n = int(request.GET.get('limit', request.POST.get('limit', 5)))
+    # Get limit from request, default to 20 (show all recommendations)
+    top_n = int(request.GET.get('limit', request.POST.get('limit', 20)))
     
     try:
         recommendations = ProductRecommender.get_recommendations(cart_items, top_n=top_n)

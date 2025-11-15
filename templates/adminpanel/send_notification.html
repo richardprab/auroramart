@@ -222,17 +222,6 @@
 
 <div class="admin-content-body">
 
-{% if messages %}
-    <div class="admin-messages">
-        {% for message in messages %}
-            <div class="admin-alert admin-alert-{{ message.tags }}">
-                <i data-lucide="{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}alert-circle{% else %}info{% endif %}"></i>
-                <span>{{ message }}</span>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
-
 <!-- Stat Card -->
 <div class="stat-card mb-6">
     <div class="stat-icon-wrapper">

@@ -168,13 +168,6 @@ def cart_detail(request):
     cart = get_or_create_cart(request)
     cart_items = cart.items.select_related("product", "product_variant").all()
 
-    # DEBUG: Print cart items for recommendation debugging
-    print(f"DEBUG: Cart has {cart_items.count()} items")
-    for item in cart_items:
-        if item.product_variant:
-            print(f"DEBUG: Cart item - Product: {item.product.name}, SKU: {item.product.sku}")
-            print(f"DEBUG: Variant SKU: {item.product_variant.sku}")
-
     # Remove invalid items (no variant)
     for it in list(cart_items):
         if not it.product_variant:

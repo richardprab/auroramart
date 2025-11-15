@@ -187,28 +187,95 @@ def get_badge_for_amount(amount):
     return None
 
 
+def check_and_grant_milestone_vouchers(user):
+    """
+    Check if user has reached milestones and grant vouchers if needed.
+    Returns list of newly created vouchers.
+    """
+    from vouchers.models import Voucher
+    from orders.models import Order
+    
+    if not hasattr(settings, 'REWARD_BADGES') or not hasattr(settings, 'REWARD_THRESHOLDS'):
+        return []
+    
+    reward_badges = settings.REWARD_BADGES
+    reward_thresholds = getattr(settings, 'REWARD_THRESHOLDS', {})
+    
+    if not reward_badges or not reward_thresholds:
+        return []
+    
+    cumulative_spending = get_cumulative_spending(user)
+    earned_milestones = get_earned_milestones(user)
+    newly_created_vouchers = []
+    
+    for threshold_amount in sorted(reward_thresholds.keys()):
+        if cumulative_spending < Decimal(str(threshold_amount)):
+            continue
+            
+        if threshold_amount in earned_milestones:
+            continue
+        
+        voucher_amount = Decimal(str(reward_thresholds[threshold_amount]))
+        
+        existing_vouchers = Voucher.objects.filter(
+            user=user,
+            promo_code__startswith=f"REWARD-{user.id}-",
+            discount_value=voucher_amount
+        )
+        
+        if existing_vouchers.exists():
+            continue
+        
+        badge_info = reward_badges.get(threshold_amount)
+        if badge_info:
+            badge_info = badge_info.copy()
+            badge_info['threshold'] = threshold_amount
+        
+        milestone_order = Order.objects.filter(
+            user=user,
+            payment_status='paid'
+        ).order_by('-created_at').first()
+        
+        try:
+            voucher = create_reward_voucher(
+                user=user,
+                amount=voucher_amount,
+                order=milestone_order,
+                badge_info=badge_info
+            )
+            
+            if voucher:
+                newly_created_vouchers.append(voucher)
+                logger.info(
+                    f"Granted milestone voucher {voucher.promo_code} "
+                    f"(${voucher_amount}) for reaching {badge_info.get('name', 'milestone')} milestone "
+                    f"(threshold: ${threshold_amount}, cumulative: ${cumulative_spending}) "
+                    f"for user {user.username}"
+                )
+        except Exception as e:
+            logger.error(
+                f"Error creating milestone voucher for user {user.username} "
+                f"(threshold: ${threshold_amount}): {str(e)}",
+                exc_info=True
+            )
+    
+    return newly_created_vouchers
+
+
 def create_reward_voucher(user, amount, order, badge_info=None):
     from vouchers.models import Voucher
-    from accounts.models import Superuser
     
-    # Generate unique voucher code
     voucher_code = generate_reward_voucher_code(user)
     
-    # Ensure code is unique (try up to 10 times)
     attempts = 0
     while Voucher.objects.filter(promo_code=voucher_code).exists() and attempts < 10:
         voucher_code = generate_reward_voucher_code(user)
         attempts += 1
     
     if attempts >= 10:
-        # Failed to generate unique code, log error
         logger.error(f"Failed to generate unique voucher code for user {user.id}")
         return None
     
-    # Get or create a superuser for created_by (or use None)
-    superuser = Superuser.objects.filter(is_superuser=True).first()
-    
-    # Build accurate description based on milestone achievement
     if badge_info:
         threshold = badge_info.get('threshold', 0)
         badge_name = badge_info.get('name', 'milestone')
@@ -218,13 +285,11 @@ def create_reward_voucher(user, amount, order, badge_info=None):
             f"Use this voucher on your next purchase!"
         )
     else:
-        # Fallback description if no badge info
         description = (
             f"Reward voucher for reaching a spending milestone! "
             f"You've received a ${amount} discount voucher as a reward."
         )
     
-    # Create voucher with effectively no expiration (10 years)
     voucher = Voucher.objects.create(
         name=f"Reward Voucher - ${amount}",
         promo_code=voucher_code,
@@ -233,13 +298,13 @@ def create_reward_voucher(user, amount, order, badge_info=None):
         discount_value=amount,
         min_purchase=Decimal(str(settings.REWARD_VOUCHER_MIN_PURCHASE)),
         first_time_only=False,
-        max_uses=None,  # Unlimited total uses (but per-user limit applies)
-        max_uses_per_user=1,  # Each user can only use this voucher once
+        max_uses=None,
+        max_uses_per_user=1,
         start_date=timezone.now(),
-        end_date=timezone.now() + timedelta(days=365*10),  # 10 years (effectively no expiration)
+        end_date=timezone.now() + timedelta(days=365*10),
         is_active=True,
-        user=user,  # User-specific voucher
-        created_by=superuser,
+        user=user,
+        created_by=None,
     )
     
     return voucher
@@ -406,10 +471,14 @@ def get_milestone_progress(user):
         # Calculate percentage (0-100)
         if next_threshold > 0:
             progress_percentage = float((cumulative_spending / Decimal(str(next_threshold))) * 100)
-            if progress_percentage > 100:
+            # Cap at 100% - if user has reached or exceeded threshold, show 100%
+            if progress_percentage >= 100:
                 progress_percentage = 100
             if progress_percentage < 0:
                 progress_percentage = 0
+    elif current_badge:
+        # User has reached the current badge threshold - show 100% progress
+        progress_percentage = 100
     
     return {
         'current_badge': current_badge,
