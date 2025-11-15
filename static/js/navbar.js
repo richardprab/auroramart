@@ -307,10 +307,6 @@ const NavbarModule = {
 // Export
 window.NavbarModule = NavbarModule;
 
-/**
- * Navbar functionality
- * Handles mobile menu toggle and profile dropdown with hover delay
- */
 
 document.addEventListener('DOMContentLoaded', function () {
     // Mobile menu toggle
@@ -475,9 +471,6 @@ function updateCartCount() {
     }
 }
 
-/**
- * Show notification in navbar
- */
 function showNavNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.className = `fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition-all duration-300 ${type === 'success' ? 'bg-green-500' :

@@ -123,9 +123,9 @@ def process_checkout(request):
                     )
                     voucher = voucher_result['voucher']
                     discount_amount = voucher_result['discount_amount']
-                    logger.info(f"✅ Voucher {voucher_code} applied - Discount: ${discount_amount}")
+                    logger.info(f"Voucher {voucher_code} applied - Discount: ${discount_amount}")
                 except Exception as e:
-                    logger.warning(f"⚠️ Voucher validation failed: {str(e)}")
+                    logger.warning(f"Voucher validation failed: {str(e)}")
                     # Continue without voucher if validation fails
                     voucher_code = None
                     discount_amount = Decimal('0.00')
@@ -157,7 +157,7 @@ def process_checkout(request):
                 payment_status='pending'
             )
             
-            logger.info(f"✅ Order created successfully: {order.order_number} (ID: {order.id})")
+            logger.info(f"Order created successfully: {order.order_number} (ID: {order.id})")
             
             # Track voucher usage if voucher was applied
             if voucher and discount_amount > 0:
@@ -173,7 +173,7 @@ def process_checkout(request):
                 voucher.current_uses += 1
                 voucher.save()
                 
-                logger.info(f"✅ Voucher usage tracked for {voucher_code}")
+                logger.info(f"Voucher usage tracked for {voucher_code}")
             
             # Clear voucher from session after successful order
             if 'applied_voucher_code' in request.session:
@@ -192,7 +192,7 @@ def process_checkout(request):
                     price=item_price
                 )
                 
-                logger.info(f"✅ Created order item: {cart_item.product.name} x {cart_item.quantity} @ ${item_price}")
+                logger.info(f"Created order item: {cart_item.product.name} x {cart_item.quantity} @ ${item_price}")
                 
                 # Update product stock
                 if cart_item.product_variant:
@@ -200,35 +200,35 @@ def process_checkout(request):
                         cart_item.product_variant.stock -= cart_item.quantity
                         cart_item.product_variant.save()
                         # Use variant ID instead of name since it doesn't have a name attribute
-                        logger.info(f"✅ Updated stock for variant ID {cart_item.product_variant.id} (remaining: {cart_item.product_variant.stock})")
+                        logger.info(f"Updated stock for variant ID {cart_item.product_variant.id} (remaining: {cart_item.product_variant.stock})")
                     else:
-                        logger.error(f"❌ Insufficient stock for {cart_item.product.name} variant ID {cart_item.product_variant.id}")
+                        logger.error(f"Insufficient stock for {cart_item.product.name} variant ID {cart_item.product_variant.id}")
                         raise ValueError(f"Insufficient stock for {cart_item.product.name}")
                 else:
                     # If no variant, update main product stock
                     if cart_item.product.stock >= cart_item.quantity:
                         cart_item.product.stock -= cart_item.quantity
                         cart_item.product.save()
-                        logger.info(f"✅ Updated stock for product: {cart_item.product.name} (remaining: {cart_item.product.stock})")
+                        logger.info(f"Updated stock for product: {cart_item.product.name} (remaining: {cart_item.product.stock})")
                     else:
-                        logger.error(f"❌ Insufficient stock for {cart_item.product.name}")
+                        logger.error(f"Insufficient stock for {cart_item.product.name}")
                         raise ValueError(f"Insufficient stock for {cart_item.product.name}")
             
             # Clear cart
             deleted_count = cart_items.count()
             cart_items.delete()
-            logger.info(f"✅ Cart cleared - {deleted_count} items removed")
+            logger.info(f"Cart cleared - {deleted_count} items removed")
             
             messages.success(request, f"Order {order.order_number} placed successfully! Thank you for your purchase.")
-            logger.info(f"✅ Redirecting to order detail page for order {order.id}")
+            logger.info(f"Redirecting to order detail page for order {order.id}")
             return redirect('orders:order_detail', order_id=order.id)
             
     except ValueError as ve:
-        logger.error(f"❌ Validation error: {str(ve)}")
+        logger.error(f"Validation error: {str(ve)}")
         messages.error(request, str(ve))
         return redirect('orders:checkout')
     except Exception as e:
-        logger.error(f"❌ Checkout error for user {request.user.username}: {str(e)}", exc_info=True)
+        logger.error(f"Checkout error for user {request.user.username}: {str(e)}", exc_info=True)
         messages.error(request, f"An error occurred while processing your order. Please try again.")
         return redirect('orders:checkout')
 
@@ -343,21 +343,21 @@ def cancel_order(request, order_id):
                 if item.product_variant:
                     item.product_variant.stock += item.quantity
                     item.product_variant.save()
-                    logger.info(f"✅ Restored {item.quantity} units of stock for variant ID {item.product_variant.id}")
+                    logger.info(f"Restored {item.quantity} units of stock for variant ID {item.product_variant.id}")
                 else:
                     item.product.stock += item.quantity
                     item.product.save()
-                    logger.info(f"✅ Restored {item.quantity} units of stock for product: {item.product.name}")
+                    logger.info(f"Restored {item.quantity} units of stock for product: {item.product.name}")
             
             # Update order status
             order.status = 'cancelled'
             order.save()
             
-            logger.info(f"✅ Order {order.order_number} cancelled successfully by user {request.user.username}")
+            logger.info(f"Order {order.order_number} cancelled successfully by user {request.user.username}")
             messages.success(request, f"Order {order.order_number} has been cancelled successfully.")
             
     except Exception as e:
-        logger.error(f"❌ Error cancelling order {order.order_number}: {str(e)}", exc_info=True)
+        logger.error(f"Error cancelling order {order.order_number}: {str(e)}", exc_info=True)
         messages.error(request, "An error occurred while cancelling the order. Please try again.")
     
     return redirect('orders:order_detail', order_id=order_id)

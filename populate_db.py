@@ -441,10 +441,10 @@ def create_staff_user():
             is_staff=True,
             is_superuser=False,
         )
-        print(f"✅ Created staff user: {username} (email: {email})")
+        print(f"Created staff user: {username} (email: {email})")
         return staff_user
     except Exception as e:
-        print(f"❌ Error creating staff user: {e}")
+        print(f"Error creating staff user: {e}")
         return None
 
 
@@ -500,7 +500,7 @@ def create_nus_computing_tshirt():
             reorder_quantity=10,
             is_active=True,
         )
-        print(f"✅ Created product: {product_name} (SKU: {product_sku})")
+        print(f"Created product: {product_name} (SKU: {product_sku})")
     
     # Add product image (using a t-shirt image)
     if product.images.count() == 0:
@@ -513,7 +513,7 @@ def create_nus_computing_tshirt():
         )
         filename = f"{product_slug}-main.jpg"
         img.image.save(filename, download_image(image_url, filename), save=True)
-        print(f"  → Added product image")
+        print("  Added product image")
     
     # Delete existing variants to recreate them
     ProductVariant.objects.filter(product=product).delete()
@@ -593,9 +593,9 @@ def create_nus_computing_tshirt():
         created_variants += 1
         
         sale_text = f" (was ${compare_price})" if compare_price else ""
-        print(f"  → Created variant: {color} / {size} - ${price}{sale_text} (Stock: {stock}, SKU: {variant_sku})")
+        print(f"  Created variant: {color} / {size} - ${price}{sale_text} (Stock: {stock}, SKU: {variant_sku})")
     
-    print(f"✅ Created {created_variants} variants for {product_name}")
+    print(f"Created {created_variants} variants for {product_name}")
     return product
 
 
@@ -694,7 +694,7 @@ def seed_from_csv(csv_path, reset=True):
         # Note: We keep users to avoid FK constraint issues
         # create_sample_users() uses get_or_create(), so it will handle existing users
         
-        print("✅ Database reset complete!\n")
+        print("Database reset complete!\n")
     
     create_sample_users()
     
@@ -813,7 +813,7 @@ def seed_from_csv(csv_path, reset=True):
                     is_active=True,
                     is_default=True,
                 )
-                print(f"  → Created variant: {color} / {size} - ${price} (SKU: {variant_sku})")
+                print(f"  Created variant: {color} / {size} - ${price} (SKU: {variant_sku})")
             else:
                 # For non-fashion items, create default variant without color/size
                 # Use the same SKU as the product (no variant suffix needed)
@@ -828,7 +828,7 @@ def seed_from_csv(csv_path, reset=True):
                     is_active=True,
                     is_default=True,
                 )
-                print(f"  → Created default variant - ${price} (SKU: {sku})")
+                print(f"  Created default variant - ${price} (SKU: {sku})")
 
     print(
         f"\nDone. Categories: {Category.objects.count()}, Products: {Product.objects.count()}, Variants: {ProductVariant.objects.count()}"
@@ -982,11 +982,11 @@ def create_sample_vouchers():
                 created_by=superuser,
             )
             vouchers_created += 1
-            print(f"  ✅ Created voucher: {voucher.promo_code}")
+            print(f"  Created voucher: {voucher.promo_code}")
         except Exception as e:
-            print(f"  ❌ Error creating voucher {v_data['promo_code']}: {e}")
+            print(f"  Error creating voucher {v_data['promo_code']}: {e}")
     
-    print(f"✅ Created {vouchers_created} vouchers")
+    print(f"Created {vouchers_created} vouchers")
     print()
 
 
@@ -1014,7 +1014,7 @@ def assign_profile_completion_vouchers():
             customers_with_complete_profile.append(customer)
     
     if not customers_with_complete_profile:
-        print("  ℹ️  No customers with completed profiles found. Skipping voucher assignment.")
+        print("  No customers with completed profiles found. Skipping voucher assignment.")
         print()
         return
     
@@ -1502,7 +1502,8 @@ def create_sample_orders_and_reviews():
                         voucher.current_uses += 1
                         voucher.save()
                     except Exception as e:
-                        print(f"  ⚠️  Error tracking voucher usage: {e}")
+                        print(f"  Warning: Error tracking voucher usage: {e}")
+                
                 # Set created_at after creation (Django doesn't allow setting auto_now_add fields)
                 Order.objects.filter(id=order.id).update(created_at=order_date)
                 
@@ -1569,16 +1570,20 @@ def create_sample_orders_and_reviews():
                             from products.utils import update_product_rating
                             update_product_rating(product)
         
-        print(f"✅ Created {orders_created} orders")
-        print(f"✅ Created {reviews_created} reviews")
+        print(f"Created {orders_created} orders")
+        print(f"Created {reviews_created} reviews")
         print()
+    except Exception as e:
+        print(f"Error creating orders and reviews: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         # Always reconnect the signal, even if there was an error
         if signal_disconnected:
             try:
                 post_save.connect(generate_reward_on_order_completion, sender=Order)
             except Exception:
-                pass  # Signal might already be connected
+                pass
 
 
 def delete_all_data():
@@ -1677,7 +1682,7 @@ def delete_all_data():
         # Note: We keep users to avoid FK constraint issues
         # create_sample_users() uses get_or_create(), so it will handle existing users
         
-        print("\n✅ All data deleted successfully!")
+        print("\nAll data deleted successfully!")
     print(f"Remaining superusers: {Superuser.objects.count()}")
     print("=" * 60)
 
@@ -1700,7 +1705,7 @@ def delete_database_file():
     
     response = input("Are you sure? Type 'yes' to continue: ")
     if response.lower() != 'yes':
-        print("❌ Aborted.")
+        print("Aborted.")
         sys.exit(0)
     
     db_path = Path(__file__).resolve().parent / "db.sqlite3"
@@ -1708,16 +1713,16 @@ def delete_database_file():
     if db_path.exists():
         try:
             os.remove(db_path)
-            print(f"\n✅ Database file deleted: {db_path}")
+            print(f"\nDatabase file deleted: {db_path}")
             print("\nNext steps:")
             print("  1. python manage.py migrate")
             print("  2. python manage.py createsuperuser")
             print("  3. python populate_db.py --csv data/b2c_products_500.csv")
         except Exception as e:
-            print(f"❌ Error deleting database: {e}")
+            print(f"Error deleting database: {e}")
             sys.exit(1)
     else:
-        print(f"⚠️  Database file not found: {db_path}")
+        print(f"Warning: Database file not found: {db_path}")
 
 
 def main():

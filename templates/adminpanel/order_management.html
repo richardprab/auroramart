@@ -654,7 +654,7 @@ function performSearch(query) {
                 ordersTableLoading.style.display = 'none';
             }
             if (ordersTableContent) {
-                ordersTableContent.innerHTML = '<div class="no-results text-red-600">❌ Error searching orders. Please try again.</div>';
+                ordersTableContent.innerHTML = '<div class="no-results text-red-600">Error searching orders. Please try again.</div>';
             }
             console.error('Error:', error);
         });

@@ -1,7 +1,3 @@
-/**
- * Live Search Functionality
- * Real-time AJAX product search with debouncing
- */
 
 // Global function to perform live filtering (can be called from anywhere)
 window.performLiveFilter = function(urlParams) {
@@ -97,9 +93,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /**
-     * Perform live search using AJAX
-     */
     function performLiveSearch(query) {
         // Get current filters from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -125,9 +118,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    /**
-     * Update product display with new HTML
-     */
     function updateProductDisplay(html) {
         // Parse the HTML response
         const parser = new DOMParser();
@@ -187,9 +177,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-/**
- * Show loading state
- */
 function showLoadingState() {
     const productsGrid = document.querySelector('.products-grid-container');
     if (productsGrid) {
@@ -199,9 +186,6 @@ function showLoadingState() {
     }
 }
 
-/**
- * Hide loading state
- */
 function hideLoadingState() {
     const productsGrid = document.querySelector('.products-grid-container');
     if (productsGrid) {

@@ -349,7 +349,7 @@ def update_demographics(request):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             message = 'Profile updated successfully! Your recommendations will be more personalized.'
             if profile_just_completed:
-                message = '🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!'
+                message = 'Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!'
             return JsonResponse({
                 'success': True,
                 'message': message,
@@ -357,7 +357,7 @@ def update_demographics(request):
             })
         else:
             if profile_just_completed:
-                messages.success(request, '🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!')
+                messages.success(request, 'Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!')
             else:
                 messages.success(request, 'Profile updated successfully!')
             return redirect('accounts:profile')
