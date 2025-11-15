@@ -54,9 +54,119 @@ def calculate_reward_voucher_amount(subtotal):
     return None
 
 
+def get_cumulative_spending(user):
+    """
+    Calculate cumulative spending across all completed orders.
+    
+    Args:
+        user: Customer instance
+        
+    Returns:
+        Decimal: Total cumulative spending
+    """
+    from orders.models import Order
+    
+    orders = Order.objects.filter(
+        user=user,
+        status__in=['delivered', 'confirmed']
+    ).exclude(status__in=['cancelled', 'refunded'])
+    
+    total_spending = Decimal('0')
+    for order in orders:
+        total_spending += order.subtotal
+    
+    return total_spending
+
+
+def get_earned_milestones(user):
+    """
+    Get list of milestone thresholds that the user has already earned.
+    This is determined by checking existing milestone vouchers.
+    
+    Args:
+        user: Customer instance
+        
+    Returns:
+        set: Set of threshold amounts (as integers) that have been earned
+    """
+    from vouchers.models import Voucher
+    
+    if not hasattr(settings, 'REWARD_BADGES'):
+        return set()
+    
+    badges = settings.REWARD_BADGES
+    if not badges:
+        return set()
+    
+    reward_thresholds = getattr(settings, 'REWARD_THRESHOLDS', {})
+    earned_milestones = set()
+    
+    # Check user's existing vouchers to see which milestones they've earned
+    # Milestone vouchers have descriptions containing badge names
+    user_vouchers = Voucher.objects.filter(
+        user=user,
+        promo_code__startswith=f"REWARD-{user.id}-"
+    )
+    
+    # Check each threshold to see if user has a voucher for it
+    for threshold_amount in badges.keys():
+        threshold_voucher_amount = reward_thresholds.get(threshold_amount)
+        if threshold_voucher_amount:
+            # Check if user has a voucher with this amount (indicating they earned this milestone)
+            has_voucher = user_vouchers.filter(
+                discount_value=Decimal(str(threshold_voucher_amount))
+            ).exists()
+            if has_voucher:
+                earned_milestones.add(threshold_amount)
+    
+    return earned_milestones
+
+
+def get_badge_for_cumulative_amount(cumulative_amount, earned_milestones=None):
+    """
+    Get badge information for cumulative spending amount.
+    Only returns badges that haven't been earned yet.
+    
+    Args:
+        cumulative_amount: Decimal - Cumulative spending amount
+        earned_milestones: Optional set of already earned milestone thresholds
+        
+    Returns:
+        dict: Badge information for the highest unearned milestone, or None
+    """
+    if not hasattr(settings, 'REWARD_BADGES'):
+        return None
+    
+    badges = settings.REWARD_BADGES
+    if not badges:
+        return None
+    
+    if earned_milestones is None:
+        earned_milestones = set()
+    
+    # Find the highest badge threshold that the cumulative amount meets
+    # but hasn't been earned yet
+    qualifying_threshold = None
+    for threshold_amount in sorted(badges.keys(), reverse=True):
+        if cumulative_amount >= Decimal(str(threshold_amount)):
+            # Only return if this milestone hasn't been earned yet
+            if threshold_amount not in earned_milestones:
+                qualifying_threshold = threshold_amount
+                break
+    
+    if qualifying_threshold:
+        badge_info = badges[qualifying_threshold].copy()
+        badge_info['threshold'] = qualifying_threshold
+        return badge_info
+    
+    return None
+
+
 def get_badge_for_amount(amount):
     """
     Get badge information for a purchase amount.
+    DEPRECATED: Use get_badge_for_cumulative_amount instead.
+    Kept for backward compatibility.
     
     Args:
         amount: Decimal - Purchase amount
@@ -121,10 +231,21 @@ def create_reward_voucher(user, amount, order, badge_info=None):
     # Get or create a superuser for created_by (or use None)
     superuser = Superuser.objects.filter(is_superuser=True).first()
     
-    # Build description with badge info if available
-    description = f"Reward voucher for your ${order.subtotal} purchase!"
+    # Build accurate description based on milestone achievement
     if badge_info:
-        description += f" You earned the {badge_info['name']} badge!"
+        threshold = badge_info.get('threshold', 0)
+        badge_name = badge_info.get('name', 'milestone')
+        description = (
+            f"Congratulations! You've reached ${threshold:,.0f} in total spending and earned the "
+            f"{badge_name} badge! As a reward, you've received a ${amount} discount voucher. "
+            f"Use this voucher on your next purchase!"
+        )
+    else:
+        # Fallback description if no badge info
+        description = (
+            f"Reward voucher for reaching a spending milestone! "
+            f"You've received a ${amount} discount voucher as a reward."
+        )
     
     # Create voucher with effectively no expiration (10 years)
     voucher = Voucher.objects.create(
@@ -176,17 +297,16 @@ def should_generate_reward(order):
 
 def get_user_badges(user):
     """
-    Get all badges earned by a user based on their order history.
-    Badges are earned based on single order purchase amounts.
+    Get all badges earned by a user based on cumulative spending.
+    Badges are earned based on cumulative spending (like XP system).
+    Only returns badges that have been earned (user has voucher for them).
     
     Args:
         user: Customer instance
         
     Returns:
-        list: List of badge dictionaries (highest badge only, or all earned badges)
+        list: List of badge dictionaries for all earned badges
     """
-    from orders.models import Order
-    
     if not hasattr(settings, 'REWARD_BADGES'):
         return []
     
@@ -194,29 +314,16 @@ def get_user_badges(user):
     if not badges:
         return []
     
-    # Get all delivered/confirmed orders (non-cancelled, non-refunded)
-    orders = Order.objects.filter(
-        user=user,
-        status__in=['delivered', 'confirmed']
-    ).exclude(status__in=['cancelled', 'refunded'])
+    # Get milestones that have already been earned (have vouchers)
+    earned_milestones = get_earned_milestones(user)
     
-    # Find the highest badge threshold achieved across all orders
-    highest_threshold = None
-    for order in orders:
-        for threshold_amount in sorted(badges.keys(), reverse=True):
-            if order.subtotal >= Decimal(str(threshold_amount)):
-                if highest_threshold is None or threshold_amount > highest_threshold:
-                    highest_threshold = threshold_amount
-                break
-    
-    # Return all badges up to and including the highest threshold achieved
+    # Return all badges that have been earned
     earned_badges = []
-    if highest_threshold:
-        for threshold_amount in sorted(badges.keys()):
-            if threshold_amount <= highest_threshold:
-                badge_info = badges[threshold_amount].copy()
-                badge_info['threshold'] = threshold_amount
-                earned_badges.append(badge_info)
+    for threshold_amount in sorted(badges.keys()):
+        if threshold_amount in earned_milestones:
+            badge_info = badges[threshold_amount].copy()
+            badge_info['threshold'] = threshold_amount
+            earned_badges.append(badge_info)
     
     return earned_badges
 
@@ -224,6 +331,7 @@ def get_user_badges(user):
 def get_milestone_progress(user):
     """
     Get user's progress towards the next milestone badge.
+    Uses cumulative spending (like XP system) instead of highest single order.
     
     Args:
         user: Customer instance
@@ -233,12 +341,10 @@ def get_milestone_progress(user):
             - current_badge: Highest badge earned (or None)
             - next_badge: Next badge to earn (or None)
             - progress_percentage: Percentage towards next badge (0-100)
-            - current_amount: Highest single order amount
+            - current_amount: Cumulative spending amount
             - next_threshold: Next threshold to reach
             - amount_needed: Amount needed to reach next threshold
     """
-    from orders.models import Order
-    
     if not hasattr(settings, 'REWARD_BADGES'):
         return {
             'current_badge': None,
@@ -260,41 +366,42 @@ def get_milestone_progress(user):
             'amount_needed': 0
         }
     
-    # Get all delivered/confirmed orders (non-cancelled, non-refunded)
-    orders = Order.objects.filter(
-        user=user,
-        status__in=['delivered', 'confirmed']
-    ).exclude(status__in=['cancelled', 'refunded'])
+    # Calculate cumulative spending (like XP system)
+    cumulative_spending = get_cumulative_spending(user)
     
-    # Find the highest single order amount
-    highest_order_amount = Decimal('0')
-    for order in orders:
-        if order.subtotal > highest_order_amount:
-            highest_order_amount = order.subtotal
+    # Get milestones that have already been earned
+    earned_milestones = get_earned_milestones(user)
     
     # Get reward thresholds to include voucher amounts
     reward_thresholds = getattr(settings, 'REWARD_THRESHOLDS', {})
     
     # Find current badge (highest threshold achieved)
+    # Show the highest milestone reached, even if voucher hasn't been created yet
+    # (voucher will be created by the signal when order is processed)
     current_badge = None
     current_threshold = None
     sorted_thresholds = sorted(badges.keys())
     
     for threshold_amount in sorted_thresholds:
-        if highest_order_amount >= Decimal(str(threshold_amount)):
+        if cumulative_spending >= Decimal(str(threshold_amount)):
             current_threshold = threshold_amount
             badge_info = badges[threshold_amount].copy()
             badge_info['threshold'] = threshold_amount
             # Add voucher reward information
             if threshold_amount in reward_thresholds:
                 badge_info['voucher_amount'] = float(reward_thresholds[threshold_amount])
+            # Mark if voucher has been received
+            badge_info['voucher_received'] = threshold_amount in earned_milestones
             current_badge = badge_info
     
-    # Find next badge to earn
+    # Find next badge to earn (first milestone not yet reached based on spending)
+    # This should be based on cumulative spending, not earned_milestones
+    # because a user might have reached a threshold but voucher hasn't been created yet
     next_badge = None
     next_threshold = None
     for threshold_amount in sorted_thresholds:
-        if highest_order_amount < Decimal(str(threshold_amount)):
+        # Check if user hasn't reached this threshold yet (based on spending)
+        if cumulative_spending < Decimal(str(threshold_amount)):
             next_threshold = threshold_amount
             badge_info = badges[threshold_amount].copy()
             badge_info['threshold'] = threshold_amount
@@ -304,18 +411,18 @@ def get_milestone_progress(user):
             next_badge = badge_info
             break
     
-    # Calculate progress
+    # Calculate progress towards next badge
     progress_percentage = 0
     amount_needed = 0
     
     if next_badge and next_threshold:
-        amount_needed = Decimal(str(next_threshold)) - highest_order_amount
+        amount_needed = Decimal(str(next_threshold)) - cumulative_spending
         if amount_needed < 0:
             amount_needed = Decimal('0')
         
         # Calculate percentage (0-100)
         if next_threshold > 0:
-            progress_percentage = float((highest_order_amount / Decimal(str(next_threshold))) * 100)
+            progress_percentage = float((cumulative_spending / Decimal(str(next_threshold))) * 100)
             if progress_percentage > 100:
                 progress_percentage = 100
             if progress_percentage < 0:
@@ -325,7 +432,7 @@ def get_milestone_progress(user):
         'current_badge': current_badge,
         'next_badge': next_badge,
         'progress_percentage': round(progress_percentage, 1),
-        'current_amount': float(highest_order_amount),
+        'current_amount': float(cumulative_spending),
         'next_threshold': next_threshold,
         'amount_needed': float(amount_needed) if amount_needed else 0
     }
@@ -334,6 +441,7 @@ def get_milestone_progress(user):
 def get_all_milestones_progress(user):
     """
     Get progress for all milestone badges.
+    Uses cumulative spending (like XP system) instead of highest single order.
     
     Args:
         user: Customer instance
@@ -341,8 +449,6 @@ def get_all_milestones_progress(user):
     Returns:
         list: List of milestone progress dictionaries, one for each badge threshold
     """
-    from orders.models import Order
-    
     if not hasattr(settings, 'REWARD_BADGES'):
         return []
     
@@ -350,17 +456,11 @@ def get_all_milestones_progress(user):
     if not badges:
         return []
     
-    # Get all delivered/confirmed orders (non-cancelled, non-refunded)
-    orders = Order.objects.filter(
-        user=user,
-        status__in=['delivered', 'confirmed']
-    ).exclude(status__in=['cancelled', 'refunded'])
+    # Calculate cumulative spending (like XP system)
+    cumulative_spending = get_cumulative_spending(user)
     
-    # Find the highest single order amount
-    highest_order_amount = Decimal('0')
-    for order in orders:
-        if order.subtotal > highest_order_amount:
-            highest_order_amount = order.subtotal
+    # Get milestones that have already been earned
+    earned_milestones = get_earned_milestones(user)
     
     # Get progress for each milestone
     milestones = []
@@ -370,8 +470,8 @@ def get_all_milestones_progress(user):
         badge_info = badges[threshold_amount].copy()
         badge_info['threshold'] = threshold_amount
         
-        # Check if earned
-        is_earned = highest_order_amount >= Decimal(str(threshold_amount))
+        # Check if earned (both reached threshold and has voucher)
+        is_earned = threshold_amount in earned_milestones
         
         # Calculate progress percentage
         if is_earned:
@@ -380,7 +480,7 @@ def get_all_milestones_progress(user):
         else:
             # Calculate progress towards this milestone
             if threshold_amount > 0:
-                progress_percentage = float((highest_order_amount / Decimal(str(threshold_amount))) * 100)
+                progress_percentage = float((cumulative_spending / Decimal(str(threshold_amount))) * 100)
                 if progress_percentage > 100:
                     progress_percentage = 100
                 if progress_percentage < 0:
@@ -388,7 +488,7 @@ def get_all_milestones_progress(user):
             else:
                 progress_percentage = 0
             
-            amount_needed = float(Decimal(str(threshold_amount)) - highest_order_amount)
+            amount_needed = float(Decimal(str(threshold_amount)) - cumulative_spending)
             if amount_needed < 0:
                 amount_needed = 0
         
@@ -396,7 +496,7 @@ def get_all_milestones_progress(user):
             'badge': badge_info,
             'is_earned': is_earned,
             'progress_percentage': round(progress_percentage, 1),
-            'current_amount': float(highest_order_amount),
+            'current_amount': float(cumulative_spending),
             'threshold': threshold_amount,
             'amount_needed': amount_needed if not is_earned else 0
         })

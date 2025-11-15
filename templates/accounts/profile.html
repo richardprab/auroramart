@@ -403,6 +403,7 @@
 
     input[type="number"] {
         -moz-appearance: textfield;
+        appearance: textfield;
     }
 
     /* Badge Card Styles */
@@ -2152,18 +2153,21 @@
     // Store previous percentage to detect when reaching 100%
     let previousCompletionPercentage = null;
     
+    // Profile completion data (rendered server-side)
+    const profileCompletionData = {
+        age: {% if user.age %}true{% else %}false{% endif %},
+        gender: {% if user.gender %}true{% else %}false{% endif %},
+        employment_status: {% if user.employment_status %}true{% else %}false{% endif %},
+        occupation: {% if user.occupation %}true{% else %}false{% endif %},
+        education: {% if user.education %}true{% else %}false{% endif %},
+        household_size: {% if user.household_size %}true{% else %}false{% endif %},
+        has_children: {% if user.has_children is not None %}true{% else %}false{% endif %},
+        monthly_income_sgd: {% if user.monthly_income_sgd %}true{% else %}false{% endif %}
+    };
+    
     function calculateProfileCompletion() {
         // Check each field - for boolean fields, check if not null (answered, whether true or false)
-        const mlFields = {
-            age: {{ user.age|yesno:"true,false" }},
-            gender: {{ user.gender|yesno:"true,false" }},
-            employment_status: {{ user.employment_status|yesno:"true,false" }},
-            occupation: {{ user.occupation|yesno:"true,false" }},
-            education: {{ user.education|yesno:"true,false" }},
-            household_size: {{ user.household_size|yesno:"true,false" }},
-            has_children: {{ user.has_children|yesno:"true,true,false" }},  // Count as complete if True OR False (not None)
-            monthly_income_sgd: {{ user.monthly_income_sgd|yesno:"true,false" }}
-        };
+        const mlFields = profileCompletionData;
         
         const totalFields = Object.keys(mlFields).length;
         const completedFields = Object.values(mlFields).filter(v => v === true).length;

@@ -28,12 +28,23 @@ def staff_login_required(view_func):
     """
     Custom decorator that requires staff authentication.
     Redirects to staff login page if not authenticated or not staff.
+    Automatically logs out Customer users and redirects them to customer login.
     """
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
             login_url = reverse('adminpanel:staff_login')
             return redirect(f'{login_url}?next={request.path}')
+        
+        # Check if user is a Customer - if so, log them out and redirect
+        from accounts.models import Customer
+        if isinstance(request.user, Customer):
+            from django.contrib.auth import logout
+            from django.contrib import messages
+            logout(request)
+            messages.info(request, 'Customer accounts cannot access admin panel. Please use the customer login page.')
+            return redirect('/accounts/login/')
+        
         if not request.user.is_staff:
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden('You do not have permission to access this page.')
@@ -45,9 +56,19 @@ def staff_login(request):
     """
     Staff login - allows Staff users to login and access admin panel.
     Only Staff users can login through this endpoint.
+    Customer users are automatically logged out if they try to access this page.
     """
-    if request.user.is_authenticated and request.user.is_staff:
-        return redirect('/adminpanel/')
+    # If a Customer user is logged in, log them out and redirect
+    from accounts.models import Customer
+    if request.user.is_authenticated:
+        if isinstance(request.user, Customer):
+            from django.contrib.auth import logout
+            from django.contrib import messages
+            logout(request)
+            messages.info(request, 'Customer accounts cannot access admin panel. Please use the customer login page.')
+            return redirect('/accounts/login/')
+        elif request.user.is_staff:
+            return redirect('/adminpanel/')
     
     from django.contrib.auth import login
     from django.contrib import messages
