@@ -160,7 +160,7 @@ def check_wishlist_sale(sender, instance, created, **kwargs):
         if not existing:
             notification = Notification.objects.create(
                 user=wishlist_item.user,
-                message=f"🎉 {instance.product.name} is now on sale! Save {discount_percent}%",
+                message=f"{instance.product.name} is now on sale! Save {discount_percent}%",
                 link=f"/products/{instance.product.slug}/",
                 notification_type="sale"
             )

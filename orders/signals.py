@@ -83,7 +83,7 @@ def generate_reward_on_order_completion(sender, instance, created, **kwargs):
             
             if voucher:
                 logger.info(
-                    f"✅ Generated milestone voucher {voucher.promo_code} "
+                    f"Generated milestone voucher {voucher.promo_code} "
                     f"(${voucher_amount}) for reaching {badge_info['name']} milestone "
                     f"(threshold: ${threshold_amount}, cumulative: ${cumulative_spending}) "
                     f"for order {instance.order_number} "
@@ -91,15 +91,14 @@ def generate_reward_on_order_completion(sender, instance, created, **kwargs):
                 )
             else:
                 logger.error(
-                    f"❌ Failed to create milestone voucher for order {instance.order_number}"
+                    f"Failed to create milestone voucher for order {instance.order_number}"
                 )
                 
         except Exception as e:
             logger.error(
-                f"❌ Error generating milestone voucher for order {instance.order_number}: {str(e)}",
+                f"Error generating milestone voucher for order {instance.order_number}: {str(e)}",
                 exc_info=True
             )
     
     # Execute after transaction commits
     transaction.on_commit(generate_reward)
-

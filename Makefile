@@ -47,7 +47,7 @@ migrate:
 
 # Create superuser
 superuser:
-	@echo "Creating superuser..."
+	@echo "Creating superuser in 'superusers' table..."
 	python manage.py createsuperuser
 
 # Run development server (WSGI - no WebSocket support)
@@ -125,9 +125,8 @@ resetdb:
 endif
 
 # Full setup for new developers
-setup: install migrations migrate
+setup: install migrations migrate superuser
 	@echo "Setup complete!"
-	@echo "Run 'make superuser' to create an admin user"
 	@echo "Run 'make run' to start the development server"
 
 # Quick reset and run (for development)

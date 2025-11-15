@@ -2,7 +2,6 @@ const ChatWidget = {
     currentSession: null,
     sessions: [],
     isOpen: false,
-    pollInterval: null,
     sessionListOpen: true,
     sessionToDelete: null,
 
@@ -23,7 +22,6 @@ const ChatWidget = {
     },
 
     init() {
-        // Get current user ID from chat window data attribute
         const chatWindow = document.getElementById('chat-window');
         if (chatWindow) {
             const userId = chatWindow.getAttribute('data-user-id');
@@ -32,8 +30,6 @@ const ChatWidget = {
         
         this.attachEventListeners();
         this.attachProductChatListeners();
-        this.loadSessions();
-        this.startPolling();
     },
 
     attachProductChatListeners() {
@@ -148,12 +144,10 @@ const ChatWidget = {
         const chatWindow = document.getElementById('chat-window');
         chatWindow.classList.remove('hidden');
         
-        // Initialize Lucide icons
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
 
-        // Ensure session list is visible when opening chat
         const sessionList = document.getElementById('session-list');
         const chevron = document.getElementById('session-chevron');
         if (sessionList && this.sessionListOpen) {
@@ -161,12 +155,8 @@ const ChatWidget = {
             if (chevron) chevron.style.transform = 'rotate(0deg)';
         }
 
-        // Load sessions if not loaded
-        if (this.sessions.length === 0) {
-            await this.loadSessions();
-        }
+        this.updateSessionSelector();
 
-        // Load messages if we have a current session
         if (this.currentSession) {
             await this.loadMessages();
         }
@@ -178,6 +168,7 @@ const ChatWidget = {
     },
 
     async loadSessions() {
+        console.log('[ChatWidget] loadSessions() called - this should only happen when user expands session list');
         try {
             const response = await fetch('/chat/ajax/conversations/', {
                 method: 'GET',
@@ -452,13 +443,13 @@ const ChatWidget = {
         
         if (!sessionList) return;
         
-        sessionList.innerHTML = '';
-        
         if (this.sessions.length === 0) {
-            sessionList.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">No conversations yet</div>';
+            sessionList.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">No conversations yet. Click "New Chat" to start.</div>';
             if (indicator) indicator.textContent = '';
             return;
         }
+        
+        sessionList.innerHTML = '';
         
         // Update indicator
         if (indicator) {
@@ -525,8 +516,15 @@ const ChatWidget = {
         if (session) {
             this.currentSession = session;
             await this.loadMessages();
-            // Update UI to reflect the active session
             this.updateSessionSelector();
+        } else if (this.sessions.length === 0) {
+            await this.loadSessions();
+            const foundSession = this.sessions.find(s => s.id === parseInt(sessionId));
+            if (foundSession) {
+                this.currentSession = foundSession;
+                await this.loadMessages();
+                this.updateSessionSelector();
+            }
         }
     },
 
@@ -603,6 +601,7 @@ const ChatWidget = {
 
                 // Update UI
                 this.updateSessionSelector();
+                this.updateUnreadCountFromSessions();
 
                 if (window.AuroraMart && window.AuroraMart.toast) {
                     window.AuroraMart.toast('Chat session deleted', 'success');
@@ -621,7 +620,7 @@ const ChatWidget = {
         }
     },
 
-    toggleSessionList() {
+    async toggleSessionList() {
         const sessionList = document.getElementById('session-list');
         const chevron = document.getElementById('session-chevron');
         
@@ -632,18 +631,16 @@ const ChatWidget = {
         if (this.sessionListOpen) {
             sessionList.style.display = 'block';
             chevron.style.transform = 'rotate(0deg)';
+            
+            if (this.sessions.length === 0) {
+                await this.loadSessions();
+            }
         } else {
             sessionList.style.display = 'none';
             chevron.style.transform = 'rotate(-90deg)';
         }
     },
 
-    startPolling() {
-        // Poll for new messages every 5 seconds
-        this.pollInterval = setInterval(async () => {
-            await this.loadSessions();
-        }, 5000);
-    },
 
     scrollToBottom() {
         const container = document.getElementById('chat-messages');

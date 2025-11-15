@@ -1857,7 +1857,7 @@
                         const inputEl = document.getElementById(`id_${field}`);
                         
                         if (errorEl && errors.length > 0) {
-                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.textContent = errors[0];
                             errorEl.style.display = 'flex';
                         }
                         
@@ -2010,7 +2010,7 @@
                         const inputEl = document.getElementById(`id_${field}`);
                         
                         if (errorEl && errors.length > 0) {
-                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.textContent = errors[0];
                             errorEl.style.display = 'flex';
                         }
                         
@@ -2099,7 +2099,7 @@
                         const inputEl = document.getElementById(field);
                         
                         if (errorEl && errors.length > 0) {
-                            errorEl.textContent = '⚠️ ' + errors[0];
+                            errorEl.textContent = errors[0];
                             errorEl.style.display = 'flex';
                         }
                         
@@ -2166,7 +2166,6 @@
     };
     
     function calculateProfileCompletion() {
-        // Check each field - for boolean fields, check if not null (answered, whether true or false)
         const mlFields = profileCompletionData;
         
         const totalFields = Object.keys(mlFields).length;
@@ -2194,9 +2193,9 @@
                 if (justReached100) {
                     // Show success message briefly before hiding
                     if (window.toast) {
-                        window.toast.success('🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
+                        window.toast.success('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
                     } else if (window.AuroraMart && window.AuroraMart.toast) {
-                        window.AuroraMart.toast('🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
+                        window.AuroraMart.toast('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
                     }
                     
                     // Show success message in banner for 2 seconds before hiding
@@ -2483,9 +2482,9 @@
                 if (data.profile_completed) {
                     setTimeout(() => {
                         if (window.toast) {
-                            window.toast.success('🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
+                            window.toast.success('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
                         } else if (window.AuroraMart && window.AuroraMart.toast) {
-                            window.AuroraMart.toast('🎉 Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
+                            window.AuroraMart.toast('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
                         }
                     }, 500);
                 }

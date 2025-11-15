@@ -4,22 +4,9 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class Review(models.Model):
-    """
-    Product reviews.
-    Moved to separate app to break circular dependency between accounts and products.
-    """
-
     product = models.ForeignKey(
         'products.Product', on_delete=models.CASCADE, related_name="reviews"
     )
-   
-    # Use string reference to Customer to avoid circular dependency
-    # Reviews are from customers, not staff or superusers
-    # Since Review is in a separate app, this breaks the circular dependency:
-    # accounts → products (Wishlist references Product)
-    # reviews → accounts (Review references Customer)
-    # reviews → products (Review references Product)
-    # No cycle!
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
