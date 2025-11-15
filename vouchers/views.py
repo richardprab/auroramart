@@ -8,6 +8,27 @@ from .rewards import get_milestone_progress
 import math
 
 
+def get_voucher_status(voucher, user):
+    is_valid = voucher.is_valid()
+    
+    if not is_valid:
+        return 'expired'
+    
+    usage_count = VoucherUsage.objects.filter(
+        voucher=voucher,
+        user=user
+    ).count()
+    
+    if usage_count >= voucher.max_uses_per_user:
+        return 'used'
+    
+    can_use = voucher.can_be_used_by_user(user, usage_count=usage_count)
+    if not can_use:
+        return 'unavailable'
+    
+    return 'available'
+
+
 @login_required
 def my_vouchers(request):
     """
@@ -45,33 +66,9 @@ def my_vouchers(request):
         Q(end_date__lt=now) | Q(start_date__gt=now)
     ).order_by('-end_date')
     
-    # Check usage status for each voucher
-    def get_voucher_status(voucher):
-        is_valid = voucher.is_valid()
-        
-        if not is_valid:
-            return 'expired'
-        
-        # Check usage count once and reuse it
-        usage_count = VoucherUsage.objects.filter(
-            voucher=voucher,
-            user=request.user
-        ).count()
-        
-        if usage_count >= voucher.max_uses_per_user:
-            return 'used'
-        
-        # Check other restrictions (user-specific, first-time, etc.)
-        # Pass usage_count to avoid duplicate query
-        can_use = voucher.can_be_used_by_user(request.user, usage_count=usage_count)
-        if not can_use:
-            return 'unavailable'
-        
-        return 'available'
-    
     # Add status to each voucher
     def add_status_to_voucher(voucher):
-        voucher.status = get_voucher_status(voucher)
+        voucher.status = get_voucher_status(voucher, request.user)
         return voucher
     
     user_vouchers = [add_status_to_voucher(v) for v in user_vouchers]
@@ -165,30 +162,6 @@ def my_vouchers_json(request):
         Q(end_date__lt=now) | Q(start_date__gt=now)
     ).order_by('-end_date')
     
-    # Check usage status for each voucher
-    def get_voucher_status(voucher):
-        is_valid = voucher.is_valid()
-        
-        if not is_valid:
-            return 'expired'
-        
-        # Check usage count once and reuse it
-        usage_count = VoucherUsage.objects.filter(
-            voucher=voucher,
-            user=request.user
-        ).count()
-        
-        if usage_count >= voucher.max_uses_per_user:
-            return 'used'
-        
-        # Check other restrictions (user-specific, first-time, etc.)
-        # Pass usage_count to avoid duplicate query
-        can_use = voucher.can_be_used_by_user(request.user, usage_count=usage_count)
-        if not can_use:
-            return 'unavailable'
-        
-        return 'available'
-    
     def voucher_to_dict(voucher):
         usage_count = VoucherUsage.objects.filter(
             voucher=voucher,
@@ -204,7 +177,7 @@ def my_vouchers_json(request):
             'discount_value': str(voucher.discount_value),
             'max_discount': str(voucher.max_discount) if voucher.max_discount else None,
             'end_date': voucher.end_date.strftime('%b %d, %Y'),
-            'status': get_voucher_status(voucher),
+            'status': get_voucher_status(voucher, request.user),
             'remaining_uses': max(0, voucher.max_uses_per_user - usage_count),
         }
     
@@ -231,7 +204,7 @@ def my_vouchers_json(request):
     expired_list = []
     
     for voucher in unique_vouchers:
-        status = get_voucher_status(voucher)
+        status = get_voucher_status(voucher, request.user)
         if status == 'available':
             available_list.append(voucher_to_dict(voucher))
         elif status == 'used':

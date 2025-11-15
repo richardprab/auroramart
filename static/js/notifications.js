@@ -15,10 +15,8 @@ const NotificationSystem = {
     checkInterval: 30000, // Check every 30 seconds (fallback only)
     
     init() {
-        this.updateBadge();
         this.attachEventListeners();
         
-        // Try WebSocket first, fallback to polling if it fails
         if (this.useWebSocket) {
             this.connectWebSocket();
         } else {
@@ -31,7 +29,10 @@ const NotificationSystem = {
         const dropdown = document.getElementById('notification-dropdown');
         const container = document.getElementById('notification-dropdown-container');
         
-        if (!bell || !dropdown || !container) return;
+        if (!bell || !dropdown || !container) {
+            console.warn('Notification elements not found:', { bell: !!bell, dropdown: !!dropdown, container: !!container });
+            return;
+        }
         
         // Function to show dropdown
         const showDropdown = () => {
@@ -86,6 +87,7 @@ const NotificationSystem = {
             e.preventDefault();
             e.stopPropagation();
             
+            // Toggle dropdown
             if (dropdown.classList.contains('hidden')) {
                 showDropdown();
             } else {
@@ -97,10 +99,16 @@ const NotificationSystem = {
         // Mark all as read
         const markAllBtn = document.getElementById('mark-all-read-btn');
         if (markAllBtn) {
-            markAllBtn.addEventListener('click', () => {
+            markAllBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 this.markAllAsRead();
             });
         }
+        
+        // Prevent dropdown from closing when clicking inside it
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
         
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
@@ -218,9 +226,6 @@ const NotificationSystem = {
                 }
             });
             
-            // Update badge
-            this.updateBadge();
-            
             // Navigate if link exists
             if (link) {
                 window.location.href = link;
@@ -244,7 +249,6 @@ const NotificationSystem = {
             });
             
             if (response.ok) {
-                this.updateBadge();
                 this.loadNotifications();
                 if (window.toast) {
                     window.toast.success('All notifications marked as read');
@@ -387,16 +391,19 @@ const NotificationSystem = {
     },
     
     startPolling() {
-        // Only start polling if WebSocket is not available
         if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
             return;
         }
         
-        // Initial check
-        this.checkNotifications();
+        if (this.pollInterval) {
+            return;
+        }
         
-        // Set up polling
         this.pollInterval = setInterval(() => {
+            if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                this.stopPolling();
+                return;
+            }
             this.checkNotifications();
         }, this.checkInterval);
     },
@@ -438,40 +445,12 @@ const NotificationSystem = {
     },
     
     getCurrentBadgeCount() {
-        // Badge notification removed - always return 0
         return 0;
-        // const badge = document.getElementById('notification-count');
-        // if (!badge || badge.classList.contains('hidden')) {
-        //     return 0;
-        // }
-        // const count = parseInt(badge.textContent);
-        // return isNaN(count) ? 0 : count;
     },
     
     updateBadgeCount(count) {
-        // Badge notification removed - no longer showing count
-        // const badge = document.getElementById('notification-count');
-        // if (!badge) return;
-        // 
-        // if (count > 0) {
-        //     badge.textContent = count > 99 ? '99+' : count;
-        //     badge.classList.remove('hidden');
-        // } else {
-        //     badge.classList.add('hidden');
-        // }
     },
     
-    async updateBadge() {
-        try {
-            const response = await fetch('/notifications/api/unread-count/');
-            if (response.ok) {
-                const data = await response.json();
-                this.updateBadgeCount(data.count || 0);
-            }
-        } catch (error) {
-            console.error('Error updating notification badge:', error);
-        }
-    },
     
     showNewNotificationToast(count) {
         // Only show toast once per session to avoid flashing
@@ -481,8 +460,8 @@ const NotificationSystem = {
         }
         
         const message = count === 1 
-            ? '🔔 You have 1 new notification' 
-            : `🔔 You have ${count} new notifications`;
+            ? 'You have 1 new notification' 
+            : `You have ${count} new notifications`;
         
         if (window.toast) {
             window.toast.info(message);

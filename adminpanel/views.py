@@ -30,6 +30,10 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 import csv
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 from products.models import Product, ProductVariant, ProductImage, Category
 from accounts.models import User, Staff, BrowsingHistory
@@ -593,8 +597,6 @@ def search_product(request):
                 })
             except Exception as e:
                 # Skip products that cause errors
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.error(f"Error processing product {product.id}: {str(e)}")
                 continue
         
@@ -612,12 +614,9 @@ def search_product(request):
         return HttpResponse(table_html)
     
     except Exception as e:
-        import logging
-        import traceback
-        logger = logging.getLogger(__name__)
         logger.error(f"Error in search_product: {str(e)}\n{traceback.format_exc()}")
         return HttpResponse(
-            '<div class="error-message">❌ An error occurred while searching products. Please try again.</div>',
+            '<div class="error-message">An error occurred while searching products. Please try again.</div>',
             status=500
         )
 
@@ -719,7 +718,7 @@ def update_product(request):
                         img = ProductImage.objects.create(product=product, is_primary=True)
                         img.image.save(file_name, ContentFile(response.content), save=True)
             except Exception as e:
-                print(f"Error downloading product image: {e}")
+                logger.error(f"Error downloading product image: {e}")
         
         # Update variants
         variant_ids = request.POST.getlist('variant_id[]')
@@ -742,7 +741,7 @@ def update_product(request):
             except ProductVariant.DoesNotExist:
                 continue
             except Exception as e:
-                print(f"Error updating variant {variant_id}: {e}")
+                logger.error(f"Error updating variant {variant_id}: {e}")
                 continue
         
         # Add success message and redirect back to edit page with search query
@@ -765,11 +764,7 @@ def update_product(request):
             return redirect('adminpanel:edit_product', product_id=product_id)
         
     except Exception as e:
-        print(f"Error in update_product: {e}")
-        import traceback
-        traceback.print_exc()
-        # Redirect to edit page with error message
-        from django.contrib import messages
+        logger.error(f"Error updating product: {str(e)}\n{traceback.format_exc()}")
         messages.error(request, f'Error updating product: {str(e)}')
         return redirect('adminpanel:edit_product', product_id=product_id)
 
@@ -982,12 +977,9 @@ def search_order(request):
         return HttpResponse(table_html)
     
     except Exception as e:
-        import logging
-        import traceback
-        logger = logging.getLogger(__name__)
         logger.error(f"Error in search_order: {str(e)}\n{traceback.format_exc()}")
         return HttpResponse(
-            '<div class="error-message">❌ An error occurred while searching orders. Please try again.</div>',
+            '<div class="error-message">An error occurred while searching orders. Please try again.</div>',
             status=500
         )
 
@@ -1087,11 +1079,7 @@ def update_order(request, order_id):
             return redirect('adminpanel:edit_order', order_id=order_id)
         
     except Exception as e:
-        print(f"Error in update_order: {e}")
-        import traceback
-        traceback.print_exc()
-        # Redirect to edit page with error message
-        from django.contrib import messages
+        logger.error(f"Error in update_order: {str(e)}\n{traceback.format_exc()}")
         messages.error(request, f'Error updating order: {str(e)}')
         return redirect('adminpanel:edit_order', order_id=order_id)
 

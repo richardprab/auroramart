@@ -23,7 +23,6 @@ const ChatWidget = {
     },
 
     init() {
-        // Get current user ID from chat window data attribute
         const chatWindow = document.getElementById('chat-window');
         if (chatWindow) {
             const userId = chatWindow.getAttribute('data-user-id');
@@ -32,8 +31,6 @@ const ChatWidget = {
         
         this.attachEventListeners();
         this.attachProductChatListeners();
-        this.loadSessions();
-        this.startPolling();
     },
 
     attachProductChatListeners() {
@@ -148,12 +145,10 @@ const ChatWidget = {
         const chatWindow = document.getElementById('chat-window');
         chatWindow.classList.remove('hidden');
         
-        // Initialize Lucide icons
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
 
-        // Ensure session list is visible when opening chat
         const sessionList = document.getElementById('session-list');
         const chevron = document.getElementById('session-chevron');
         if (sessionList && this.sessionListOpen) {
@@ -161,20 +156,21 @@ const ChatWidget = {
             if (chevron) chevron.style.transform = 'rotate(0deg)';
         }
 
-        // Load sessions if not loaded
         if (this.sessions.length === 0) {
             await this.loadSessions();
         }
 
-        // Load messages if we have a current session
         if (this.currentSession) {
             await this.loadMessages();
         }
+        
+        this.startPolling();
     },
 
     closeChat() {
         this.isOpen = false;
         document.getElementById('chat-window').classList.add('hidden');
+        this.stopPolling();
     },
 
     async loadSessions() {
@@ -603,6 +599,7 @@ const ChatWidget = {
 
                 // Update UI
                 this.updateSessionSelector();
+                this.updateUnreadCountFromSessions();
 
                 if (window.AuroraMart && window.AuroraMart.toast) {
                     window.AuroraMart.toast('Chat session deleted', 'success');
@@ -639,10 +636,28 @@ const ChatWidget = {
     },
 
     startPolling() {
-        // Poll for new messages every 5 seconds
+        if (this.pollInterval) {
+            return;
+        }
+        
+        if (!this.isOpen) {
+            return;
+        }
+        
         this.pollInterval = setInterval(async () => {
+            if (!this.isOpen) {
+                this.stopPolling();
+                return;
+            }
             await this.loadSessions();
         }, 5000);
+    },
+
+    stopPolling() {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
     },
 
     scrollToBottom() {

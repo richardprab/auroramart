@@ -125,7 +125,7 @@ const CartModule = {
         const cartRect = cartIcon.getBoundingClientRect();
 
         const flyingIcon = document.createElement('div');
-        flyingIcon.innerHTML = '🛒';
+        flyingIcon.innerHTML = 'Cart';
         flyingIcon.style.cssText = `
             position: fixed;
             left: ${rect.left + rect.width / 2}px;

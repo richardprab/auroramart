@@ -1,7 +1,3 @@
-/**
- * Milestone Progress Module
- * Handles badge display and progress bar updates via API
- */
 
 // Constants
 const BADGE_COLORS = {
@@ -37,11 +33,6 @@ const PROGRESS_RING = {
 
 const INIT_DELAY = 300;
 
-/**
- * Convert hex color to RGB object
- * @param {string} hex - Hex color string (with or without #)
- * @returns {{r: number, g: number, b: number}|null} RGB object or null if invalid
- */
 function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -51,15 +42,24 @@ function hexToRgb(hex) {
     } : null;
 }
 
-/**
- * Generate gradient colors for a badge
- * @param {string} badgeColor - Base badge color in hex format
- * @returns {{start: string, mid: string, end: string}} Gradient color stops
- */
 function generateGradientColors(badgeColor) {
-    // Check if we have a preset gradient
+    if (!badgeColor) {
+        return {
+            start: '#f3f4f6',
+            mid: '#e5e7eb',
+            end: '#d1d5db'
+        };
+    }
+    
+    // Normalize color to uppercase for comparison
+    const normalizedColor = badgeColor.toUpperCase();
+    
+    // Check if we have a preset gradient (check both original and normalized)
     if (GRADIENT_PRESETS[badgeColor]) {
         return GRADIENT_PRESETS[badgeColor];
+    }
+    if (GRADIENT_PRESETS[normalizedColor]) {
+        return GRADIENT_PRESETS[normalizedColor];
     }
 
     // Generate gradient from base color
@@ -80,20 +80,11 @@ function generateGradientColors(badgeColor) {
     };
 }
 
-/**
- * Create CSS gradient string
- * @param {string} badgeColor - Base badge color
- * @returns {string} CSS linear-gradient string
- */
 function createGradient(badgeColor) {
     const colors = generateGradientColors(badgeColor);
     return `linear-gradient(135deg, ${colors.start} 0%, ${colors.mid} 50%, ${colors.end} 100%)`;
 }
 
-/**
- * Apply icon styles to ensure white color
- * @param {HTMLElement} icon - Icon element
- */
 function applyWhiteIconStyles(icon) {
     if (!icon) return;
     
@@ -107,10 +98,6 @@ function applyWhiteIconStyles(icon) {
     icon.classList.add('text-white');
 }
 
-/**
- * Apply gray icon styles for default state
- * @param {HTMLElement} icon - Icon element
- */
 function applyGrayIconStyles(icon) {
     if (!icon) return;
     
@@ -123,9 +110,6 @@ function applyGrayIconStyles(icon) {
 }
 
 const MilestoneModule = {
-    /**
-     * Initialize milestone module
-     */
     init() {
         const badgeContainer = document.getElementById('milestone-badge-container');
         const profileBadgeContainer = document.getElementById('badge-container');
@@ -164,9 +148,6 @@ const MilestoneModule = {
         }
     },
 
-    /**
-     * Update milestone progress badge and progress bar
-     */
     async updateMilestoneProgress() {
         try {
             const response = await fetch('/vouchers/api/milestone-progress/');
@@ -191,9 +172,6 @@ const MilestoneModule = {
         }
     },
 
-    /**
-     * Hide all badge elements
-     */
     hideAllBadges() {
         const badgeButton = document.getElementById('milestone-badge-button');
         const badgeContainer = document.getElementById('badge-container');
@@ -206,10 +184,6 @@ const MilestoneModule = {
         }
     },
 
-    /**
-     * Update badge in navbar dropdown
-     * @param {Object} progress - Progress data object
-     */
     updateBadge(progress) {
         const badgeButton = document.getElementById('milestone-badge-button');
         const badgeContainer = document.getElementById('milestone-badge-container');
@@ -247,14 +221,15 @@ const MilestoneModule = {
         }
     },
 
-    /**
-     * Update circular progress bar in profile page
-     * @param {Object} progress - Progress data object
-     */
     updateProgressBar(progress) {
-        const progressRing = document.querySelector('.progress-ring-fill');
-        const progressBg = document.querySelector('.progress-ring-bg');
-        const indicator = document.querySelector('.progress-indicator');
+        const badgeContainer = document.getElementById('badge-container');
+        if (!badgeContainer) {
+            return;
+        }
+        
+        const progressRing = badgeContainer.querySelector('.progress-ring-fill');
+        const progressBg = badgeContainer.querySelector('.progress-ring-bg');
+        const indicator = badgeContainer.querySelector('.progress-indicator');
         
         if (!progressRing || !progressBg) {
             return;
@@ -262,7 +237,6 @@ const MilestoneModule = {
 
         const { next_badge: nextBadge, progress_percentage: progressPercent = 0 } = progress;
         
-        // Calculate circumference and offset
         const circumference = 2 * Math.PI * PROGRESS_RING.RADIUS;
         const offset = circumference - (progressPercent / 100 * circumference);
         
@@ -272,7 +246,6 @@ const MilestoneModule = {
         progressRing.style.opacity = '1';
         progressBg.style.opacity = '0.3';
         
-        // Update indicator position
         if (indicator && progressPercent > 0 && nextBadge) {
             const angle = -90 + (progressPercent / 100 * 360);
             const radian = (angle * Math.PI) / 180;
@@ -292,282 +265,313 @@ const MilestoneModule = {
         }
     },
 
-    /**
-     * Update badge icon in profile page
-     * @param {Object} progress - Progress data object
-     */
     updateProfileBadge(progress) {
         const badgeContainer = document.getElementById('badge-container');
         if (!badgeContainer) {
             return;
         }
         
-        // Try multiple selectors to find the badge icon
-        let badgeIcon = document.getElementById('badge-icon-profile');
-        if (!badgeIcon) {
-            badgeIcon = badgeContainer.querySelector('.badge-icon-large-profile');
-        }
-        if (!badgeIcon) {
-            badgeIcon = badgeContainer.querySelector('[id*="badge"]');
-        }
-        
-        const { current_badge: currentBadge, next_badge: nextBadge } = progress;
-
-        badgeContainer.style.opacity = '1';
-        badgeContainer.style.display = 'block';
-        badgeContainer.style.visibility = 'visible';
-
-        if (!badgeIcon) {
+        if (badgeContainer.dataset.updating === 'true') {
             return;
         }
-
-        // Store previous badge info to detect changes
-        const previousBadgeName = badgeIcon.getAttribute('data-badge-name');
-        const currentBadgeName = currentBadge ? currentBadge.name : null;
-        const badgeChanged = previousBadgeName !== currentBadgeName;
-
-        badgeIcon.className = 'badge-icon-large-profile';
+        badgeContainer.dataset.updating = 'true';
         
-        // Clear all children (remove any existing icons and SVGs that lucide created)
-        badgeIcon.innerHTML = '';
-        
-        // Determine icon to use - use badge icon if available, otherwise default to 'award'
-        const iconName = currentBadge ? (currentBadge.icon || 'award') : 'award';
-        
-        // Create a single icon element
-        const icon = document.createElement('i');
-        icon.setAttribute('data-lucide', iconName);
-        icon.className = 'w-12 h-12 text-white';
-        badgeIcon.appendChild(icon);
-        
-        // Initialize lucide icons - scope it to only this badge icon to prevent duplicates
-        if (typeof lucide !== 'undefined') {
-            // Process only this specific element to avoid global reprocessing
-            lucide.createIcons(badgeIcon);
-            
-            // Safety check: if somehow we have multiple children, keep only the first SVG
-            // Wait a bit for lucide to process, then clean up
-            setTimeout(() => {
-                if (badgeIcon.children.length > 1) {
-                    const svgElement = badgeIcon.querySelector('svg');
-                    if (svgElement) {
-                        badgeIcon.innerHTML = '';
-                        badgeIcon.appendChild(svgElement);
-                    } else {
-                        // If no SVG, keep only the first child
-                        while (badgeIcon.children.length > 1) {
-                            badgeIcon.removeChild(badgeIcon.lastChild);
-                        }
-                    }
+        try {
+            const allProgressDivs = badgeContainer.querySelectorAll('.badge-with-circular-progress');
+            if (allProgressDivs.length > 1) {
+                for (let i = 1; i < allProgressDivs.length; i++) {
+                    allProgressDivs[i].remove();
                 }
-            }, 100);
-        }
-
-        if (currentBadge) {
-            const gradient = createGradient(currentBadge.color);
-            
-            badgeIcon.style.cssText = `
-                background: ${gradient} !important;
-                border-color: ${currentBadge.color} !important;
-                border-width: 3px !important;
-                box-shadow: 0 8px 20px ${currentBadge.color}40, 0 2px 6px rgba(0, 0, 0, 0.1) !important;
-                width: 100px !important;
-                height: 100px !important;
-                border-radius: 50% !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                transition: none !important;
-            `;
-            
-            // Store current badge name for change detection
-            badgeIcon.setAttribute('data-badge-name', currentBadge.name);
-            badgeIcon.setAttribute('data-badge-color', currentBadge.color);
-            
-            applyWhiteIconStyles(icon);
-        } else {
-            // Show black badge when user has no badge
-            const blackGradient = 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #000000 100%)';
-            badgeIcon.style.cssText = `
-                background: ${blackGradient} !important;
-                border-color: #333333 !important;
-                border-width: 3px !important;
-                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3) !important;
-                width: 100px !important;
-                height: 100px !important;
-                border-radius: 50% !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                transition: none !important;
-            `;
-            
-            badgeIcon.removeAttribute('data-badge-name');
-            badgeIcon.removeAttribute('data-badge-color');
-            
-            // Keep icon white for visibility on black background
-            applyWhiteIconStyles(icon);
-        }
-
-        // Update next milestone info
-        const nextInfo = document.getElementById('next-milestone-info');
-        if (nextInfo) {
-            if (nextBadge) {
-                const voucherAmount = nextBadge.voucher_amount || 0;
-                nextInfo.innerHTML = `
-                    <span class="font-medium">Next: </span>
-                    <span class="font-semibold" style="color: ${nextBadge.color};">${nextBadge.name}</span>
-                    ${voucherAmount > 0 ? `<span class="text-green-600 font-semibold"> • $${voucherAmount.toFixed(2)} voucher</span>` : ''}
-                    <span class="text-gray-400"> • </span>
-                    <span>$${parseFloat(progress.current_amount).toFixed(2)}</span>
-                    <span class="text-gray-400"> / </span>
-                    <span class="font-semibold">$${parseFloat(progress.next_threshold).toFixed(2)}</span>
-                `;
-                nextInfo.classList.remove('hidden');
-            } else {
-                nextInfo.classList.add('hidden');
             }
+            
+            const allCenterWrappers = badgeContainer.querySelectorAll('.badge-icon-large-center');
+            if (allCenterWrappers.length > 1) {
+                for (let i = 1; i < allCenterWrappers.length; i++) {
+                    allCenterWrappers[i].remove();
+                }
+            }
+            
+            const allBadgeIcons = badgeContainer.querySelectorAll('.badge-icon-large-profile');
+            if (allBadgeIcons.length > 1) {
+                for (let i = 1; i < allBadgeIcons.length; i++) {
+                    allBadgeIcons[i].remove();
+                }
+            }
+            
+            const allButtons = badgeContainer.querySelectorAll('button');
+            if (allButtons.length > 1) {
+                for (let i = 1; i < allButtons.length; i++) {
+                    allButtons[i].remove();
+                }
+            }
+            
+            let badgeIcon = document.getElementById('badge-icon-profile');
+            
+            if (!badgeIcon) {
+                badgeIcon = badgeContainer.querySelector('.badge-icon-large-profile');
+            }
+            
+            if (!badgeIcon) {
+                const centerWrapper = badgeContainer.querySelector('.badge-icon-large-center');
+                if (centerWrapper) {
+                    badgeIcon = centerWrapper.querySelector('.badge-icon-large-profile');
+                }
+            }
+            
+            const { current_badge: currentBadge, next_badge: nextBadge } = progress;
+
+            if (!badgeIcon) {
+                console.warn('Badge icon not found in badge-container.');
+                return;
+            }
+
+            badgeContainer.style.opacity = '1';
+            badgeContainer.style.display = 'block';
+            badgeContainer.style.visibility = 'visible';
+            
+            badgeIcon.className = 'badge-icon-large-profile';
+            badgeIcon.id = 'badge-icon-profile';
+            
+            const existingIcons = badgeIcon.querySelectorAll('i');
+            existingIcons.forEach(icon => icon.remove());
+            
+            const existingSvgs = badgeIcon.querySelectorAll('svg');
+            existingSvgs.forEach(svg => svg.remove());
+            
+            badgeIcon.innerHTML = '';
+            
+            const iconName = currentBadge ? (currentBadge.icon || 'award') : 'award';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', iconName);
+            badgeIcon.appendChild(icon);
+            
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
+            if (currentBadge && currentBadge.color) {
+                const badgeColor = currentBadge.color;
+                const gradient = createGradient(badgeColor);
+                
+                badgeIcon.style.cssText = `
+                    background: ${gradient} !important;
+                    border-color: ${badgeColor} !important;
+                    border-width: 3px !important;
+                    box-shadow: 0 8px 20px ${badgeColor}40, 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+                    width: 100px !important;
+                    height: 100px !important;
+                    border-radius: 50% !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    transition: none !important;
+                    opacity: 1 !important;
+                `;
+                
+                icon.className = 'w-12 h-12 text-white';
+                applyWhiteIconStyles(icon);
+            } else {
+                badgeIcon.style.cssText = `
+                    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%) !important;
+                    border-color: #9ca3af !important;
+                    border-width: 3px !important;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+                    width: 100px !important;
+                    height: 100px !important;
+                    border-radius: 50% !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    transition: none !important;
+                    opacity: 1 !important;
+                `;
+                
+                icon.className = 'w-16 h-16 text-gray-500';
+                applyGrayIconStyles(icon);
+            }
+
+            const nextInfo = document.getElementById('next-milestone-info');
+            if (nextInfo) {
+                if (nextBadge) {
+                    const voucherAmount = nextBadge.voucher_amount || 0;
+                    nextInfo.innerHTML = `
+                        <span class="font-medium">Next: </span>
+                        <span class="font-semibold" style="color: ${nextBadge.color};">${nextBadge.name}</span>
+                        ${voucherAmount > 0 ? `<span class="text-green-600 font-semibold"> • $${voucherAmount.toFixed(2)} voucher</span>` : ''}
+                        <span class="text-gray-400"> • </span>
+                        <span>$${parseFloat(progress.current_amount).toFixed(2)}</span>
+                        <span class="text-gray-400"> / </span>
+                        <span class="font-semibold">$${parseFloat(progress.next_threshold).toFixed(2)}</span>
+                    `;
+                    nextInfo.classList.remove('hidden');
+                } else {
+                    nextInfo.classList.add('hidden');
+                }
+            }
+            
+            this.updateProgressBar(progress);
+        } finally {
+            badgeContainer.dataset.updating = 'false';
         }
     },
 
-    /**
-     * Update modal content with milestone progress
-     * @param {Object} progress - Progress data object
-     */
     updateModalContent(progress) {
-        const content = document.getElementById('milestone-modal-content');
-        if (!content) {
-            return;
-        }
-
         const { current_badge: currentBadge, next_badge: nextBadge } = progress;
-        let html = '';
-
-        if (!currentBadge) {
-            // Show black badge when user has no badge
-            const blackGradient = 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #000000 100%)';
-            html += `
-                <div class="mb-8">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Current Badge</h3>
-                    <div class="flex items-center gap-4 p-4 rounded-xl" style="background: linear-gradient(135deg, #1a1a1a15 0%, #00000005 100%); border: 2px solid #333333;">
-                        <div class="badge-icon-large" style="background: ${blackGradient}; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); border-color: #333333;">
-                            <i data-lucide="award" class="w-12 h-12 text-white"></i>
-                        </div>
-                        <div class="flex-1">
-                            <h4 class="text-xl font-bold text-gray-700">No Badge Yet</h4>
-                            <p class="text-sm text-gray-600">Start shopping to earn your first badge!</p>
-                            <p class="text-xs text-gray-500 mt-1">Total spending: $${parseFloat(progress.current_amount || 0).toFixed(2)}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else if (currentBadge) {
-            const gradient = createGradient(currentBadge.color);
-            const voucherAmount = currentBadge.voucher_amount || 0;
-            const voucherReceived = currentBadge.voucher_received !== false; // Default to true if not specified
-            
-            html += `
-                <div class="mb-8">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Current Badge</h3>
-                    <div class="flex items-center gap-4 p-4 rounded-xl" style="background: linear-gradient(135deg, ${currentBadge.color}15 0%, ${currentBadge.color}05 100%); border: 2px solid ${currentBadge.color};">
-                        <div class="badge-icon-large" style="background: ${gradient}; box-shadow: 0 8px 20px ${currentBadge.color}40;">
-                            <i data-lucide="${currentBadge.icon || 'award'}" class="w-12 h-12 text-white"></i>
-                        </div>
-                        <div class="flex-1">
-                            <h4 class="text-xl font-bold" style="color: ${currentBadge.color};">${currentBadge.name}</h4>
-                            <p class="text-sm text-gray-600">${currentBadge.description || ''}</p>
-                            ${voucherAmount > 0 ? `
-                                <div class="mt-2 flex items-center gap-2">
-                                    <i data-lucide="gift" class="w-4 h-4 ${voucherReceived ? 'text-green-600' : 'text-yellow-600'}"></i>
-                                    <span class="text-sm font-semibold ${voucherReceived ? 'text-green-600' : 'text-yellow-600'}">
-                                        ${voucherReceived ? `Reward: $${voucherAmount.toFixed(2)} voucher received!` : `Reward: $${voucherAmount.toFixed(2)} voucher pending...`}
-                                    </span>
-                                </div>
-                            ` : ''}
-                            <p class="text-xs text-gray-500 mt-1">Total spending: $${parseFloat(progress.current_amount).toFixed(2)}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        if (nextBadge) {
-            const voucherAmount = nextBadge.voucher_amount || 0;
-            const nextGradient = createGradient(nextBadge.color);
-            
-            html += `
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Next Milestone</h3>
-                    <div class="bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="badge-icon-large" style="background: ${nextGradient}; box-shadow: 0 8px 20px ${nextBadge.color}40; border-color: ${nextBadge.color};">
-                                <i data-lucide="${nextBadge.icon || 'award'}" class="w-12 h-12 text-white"></i>
-                            </div>
-                            <div class="flex-1">
-                                <h4 class="text-xl font-bold text-gray-700">${nextBadge.name}</h4>
-                                <p class="text-sm text-gray-600">${nextBadge.description || ''}</p>
-                                ${voucherAmount > 0 ? `
-                                    <div class="mt-2 flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                                        <i data-lucide="gift" class="w-4 h-4 text-green-600 flex-shrink-0"></i>
-                                        <span class="text-sm font-semibold text-green-700">Earn a $${voucherAmount.toFixed(2)} voucher when you reach this milestone!</span>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-
-                        <!-- Progress Bar -->
-                        <div class="mb-4">
-                            <div class="flex items-center justify-between text-sm mb-2">
-                                <span class="text-gray-600 font-medium">Progress</span>
-                                <span class="text-gray-900 font-bold">${progress.progress_percentage}%</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                                <div class="h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-end pr-2" 
-                                     style="width: ${progress.progress_percentage}%; background: linear-gradient(90deg, ${nextBadge.color} 0%, ${nextBadge.color}dd 100%);">
-                                    ${progress.progress_percentage > 10 ? `<span class="text-xs font-bold text-white">${progress.progress_percentage}%</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Amount Info -->
-                        <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div class="bg-white rounded-lg p-3 border border-gray-200">
-                                <p class="text-gray-500 text-xs mb-1">Current</p>
-                                <p class="text-lg font-bold text-gray-900">$${parseFloat(progress.current_amount).toFixed(2)}</p>
-                            </div>
-                            <div class="bg-white rounded-lg p-3 border border-gray-200">
-                                <p class="text-gray-500 text-xs mb-1">Needed</p>
-                                <p class="text-lg font-bold" style="color: ${nextBadge.color};">$${parseFloat(progress.amount_needed).toFixed(2)}</p>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 text-center">
-                            <p class="text-sm text-gray-600">
-                                Spend a total of <span class="font-bold" style="color: ${nextBadge.color};">$${parseFloat(progress.next_threshold).toFixed(2)}</span> across all orders to earn this badge${voucherAmount > 0 ? ` and receive a <span class="font-bold text-green-600">$${voucherAmount.toFixed(2)} voucher</span>` : ''}!
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            html += `
-                <div class="text-center py-8">
-                    <div class="badge-icon-large mx-auto mb-4" style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); box-shadow: 0 8px 20px #FFD70040;">
-                        <i data-lucide="trophy" class="w-12 h-12 text-white"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-900 mb-2">Congratulations!</h3>
-                    <p class="text-gray-600">You've earned all available badges!</p>
-                </div>
-            `;
-        }
-
-        content.innerHTML = html;
+        
+        this.updateCurrentBadgeSection(currentBadge, progress);
+        this.updateNextBadgeSection(nextBadge, progress);
+        this.updateAllEarnedSection(currentBadge, nextBadge);
         
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
+    },
+
+    updateCurrentBadgeSection(currentBadge, progress) {
+        const section = document.getElementById('milestone-current-badge-section');
+        if (!section) return;
+
+        if (currentBadge && currentBadge.color) {
+            const gradient = createGradient(currentBadge.color);
+            const voucherAmount = currentBadge.voucher_amount || 0;
+            const container = document.getElementById('milestone-current-badge-container');
+            const icon = document.getElementById('milestone-current-badge-icon');
+            const nameEl = document.getElementById('milestone-current-badge-name');
+            const descEl = document.getElementById('milestone-current-badge-description');
+            const voucherInfo = document.getElementById('milestone-current-voucher-info');
+            const voucherAmountEl = document.getElementById('milestone-current-voucher-amount');
+            const amountEl = document.getElementById('milestone-current-amount');
+
+            if (container) {
+                container.style.background = `linear-gradient(135deg, ${currentBadge.color}15 0%, ${currentBadge.color}05 100%)`;
+                container.style.border = `2px solid ${currentBadge.color}`;
+            }
+
+            if (icon) {
+                icon.style.background = gradient;
+                icon.style.boxShadow = `0 8px 20px ${currentBadge.color}40`;
+                const iconElement = icon.querySelector('i');
+                if (iconElement) {
+                    iconElement.setAttribute('data-lucide', currentBadge.icon || 'award');
+                }
+            }
+
+            if (nameEl) {
+                nameEl.textContent = currentBadge.name;
+                nameEl.style.color = currentBadge.color;
+            }
+
+            if (descEl) {
+                descEl.textContent = currentBadge.description || '';
+            }
+
+            if (voucherAmount > 0) {
+                if (voucherInfo) voucherInfo.classList.remove('hidden');
+                if (voucherAmountEl) {
+                    voucherAmountEl.textContent = `Reward: $${voucherAmount.toFixed(2)} voucher received!`;
+                }
+            } else {
+                if (voucherInfo) voucherInfo.classList.add('hidden');
+            }
+
+            if (amountEl) {
+                amountEl.textContent = parseFloat(progress.current_amount).toFixed(2);
+            }
+
+            section.classList.remove('hidden');
+        } else {
+            section.classList.add('hidden');
+        }
+    },
+
+    updateNextBadgeSection(nextBadge, progress) {
+        const section = document.getElementById('milestone-next-badge-section');
+        if (!section) return;
+
+        if (nextBadge) {
+            const voucherAmount = nextBadge.voucher_amount || 0;
+            const gradient = createGradient(nextBadge.color);
+            const icon = document.getElementById('milestone-next-badge-icon');
+            const nameEl = document.getElementById('milestone-next-badge-name');
+            const descEl = document.getElementById('milestone-next-badge-description');
+            const voucherInfo = document.getElementById('milestone-next-voucher-info');
+            const voucherAmountEl = document.getElementById('milestone-next-voucher-amount');
+            const progressPercentEl = document.getElementById('milestone-progress-percentage');
+            const progressBar = document.getElementById('milestone-progress-bar');
+            const progressText = document.getElementById('milestone-progress-text');
+            const currentSpendingEl = document.getElementById('milestone-current-spending');
+            const amountNeededEl = document.getElementById('milestone-amount-needed');
+            const thresholdTextEl = document.getElementById('milestone-next-threshold-text');
+
+            if (icon) {
+                icon.style.background = gradient;
+                icon.style.boxShadow = `0 8px 20px ${nextBadge.color}40`;
+                const iconElement = icon.querySelector('i');
+                if (iconElement) {
+                    iconElement.setAttribute('data-lucide', nextBadge.icon || 'award');
+                }
+            }
+
+            if (nameEl) nameEl.textContent = nextBadge.name;
+            if (descEl) descEl.textContent = nextBadge.description || '';
+
+            if (voucherAmount > 0) {
+                if (voucherInfo) voucherInfo.classList.remove('hidden');
+                if (voucherAmountEl) {
+                    voucherAmountEl.textContent = `Earn a $${voucherAmount.toFixed(2)} voucher when you reach this milestone!`;
+                }
+            } else {
+                if (voucherInfo) voucherInfo.classList.add('hidden');
+            }
+
+            const progressPercent = progress.progress_percentage || 0;
+            if (progressPercentEl) {
+                progressPercentEl.textContent = `${progressPercent}%`;
+            }
+
+            if (progressBar) {
+                progressBar.style.width = `${progressPercent}%`;
+                progressBar.style.background = `linear-gradient(90deg, ${nextBadge.color} 0%, ${nextBadge.color}dd 100%)`;
+            }
+
+            if (progressText) {
+                if (progressPercent > 10) {
+                    progressText.textContent = `${progressPercent}%`;
+                    progressText.classList.remove('hidden');
+                } else {
+                    progressText.classList.add('hidden');
+                }
+            }
+
+            if (currentSpendingEl) {
+                currentSpendingEl.textContent = `$${parseFloat(progress.current_amount).toFixed(2)}`;
+            }
+
+            if (amountNeededEl) {
+                amountNeededEl.textContent = `$${parseFloat(progress.amount_needed).toFixed(2)}`;
+                amountNeededEl.style.color = nextBadge.color;
+            }
+
+            if (thresholdTextEl) {
+                const thresholdText = `Spend a total of $${parseFloat(progress.next_threshold).toFixed(2)} across all orders to earn this badge`;
+                const voucherText = voucherAmount > 0 ? ` and receive a $${voucherAmount.toFixed(2)} voucher` : '';
+                thresholdTextEl.innerHTML = `<span class="text-sm text-gray-600">${thresholdText}${voucherText}!</span>`;
+            }
+
+            section.classList.remove('hidden');
+        } else {
+            section.classList.add('hidden');
+        }
+    },
+
+    updateAllEarnedSection(currentBadge, nextBadge) {
+        const section = document.getElementById('milestone-all-earned-section');
+        if (!section) return;
+
+        if (currentBadge && !nextBadge) {
+            section.classList.remove('hidden');
+        } else {
+            section.classList.add('hidden');
+        }
     }
 };
-
-// Note: Initialization is handled in base.html's DOMContentLoaded event
-// This ensures it runs after all scripts are loaded

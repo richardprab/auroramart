@@ -133,8 +133,6 @@ const Utils = {
     }
 };
 
-// Toast Notification System
-
 // Create toast container if it doesn't exist
 function getToastContainer() {
     let container = document.getElementById('toast-container');
@@ -147,13 +145,6 @@ function getToastContainer() {
     return container;
 }
 
-/**
- * Show a toast notification
- * @param {string} message - The message to display
- * @param {string} type - Type of toast: 'success', 'error', 'info', 'warning'
- * @param {number} duration - Duration in milliseconds (default: 5000)
- * @param {string} title - Optional title for the toast
- */
 function showToast(message, type = 'success', duration = 5000, title = null) {
     const container = getToastContainer();
 
@@ -162,9 +153,9 @@ function showToast(message, type = 'success', duration = 5000, title = null) {
 
     const icons = {
         success: '✓',
-        error: '✕',
-        info: 'ℹ',
-        warning: '⚠'
+        error: 'X',
+        info: 'I',
+        warning: '!'
     };
 
     const titles = {
@@ -183,7 +174,7 @@ function showToast(message, type = 'success', duration = 5000, title = null) {
             <div class="toast-title">${toastTitle}</div>
             <div class="toast-message">${message}</div>
         </div>
-        <div class="toast-close">✕</div>
+        <div class="toast-close">X</div>
         <div class="toast-progress"></div>
     `;
 
@@ -225,9 +216,6 @@ window.toast = {
     warning: (message, duration, title) => showToast(message, 'warning', duration, title)
 };
 
-/**
- * Show Django messages as toasts on page load
- */
 document.addEventListener('DOMContentLoaded', function () {
     // Check for Django messages in the page
     const messageElements = document.querySelectorAll('.alert:not(.toast)');

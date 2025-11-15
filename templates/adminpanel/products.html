@@ -664,7 +664,7 @@ function performSearch(query) {
                 productsTableLoading.style.display = 'none';
             }
             if (productsTableContent) {
-                productsTableContent.innerHTML = '<div class="no-results text-red-600">❌ Error searching products. Please try again.</div>';
+                productsTableContent.innerHTML = '<div class="no-results text-red-600">Error searching products. Please try again.</div>';
             }
             console.error('Error:', error);
         });
