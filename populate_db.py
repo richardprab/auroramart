@@ -1092,8 +1092,12 @@ def assign_milestone_vouchers():
                 # Get voucher amount for this threshold
                 voucher_amount = Decimal(str(reward_thresholds[threshold_amount]))
                 
-                # Get badge info
+                # Get badge info and add threshold
                 badge_info = reward_badges.get(threshold_amount)
+                if badge_info:
+                    # Create a copy and add threshold (required by create_reward_voucher)
+                    badge_info = badge_info.copy()
+                    badge_info['threshold'] = threshold_amount
                 
                 # Check if voucher already exists (double-check)
                 existing_vouchers = Voucher.objects.filter(
