@@ -96,7 +96,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "auroramartproject.wsgi.application"
+# ASGI application is configured in auroramartproject/asgi.py
+# WSGI_APPLICATION = "auroramartproject.wsgi.application"  # Removed: Using ASGI as default
 
 
 # Database
