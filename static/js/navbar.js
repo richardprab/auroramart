@@ -172,13 +172,11 @@ const NavbarModule = {
         }
         
         if (!searchInput) {
-            console.error('Search input not found');
             return;
         }
         
         const inputWrapper = searchInput.parentElement;
         if (!inputWrapper) {
-            console.error('Input wrapper not found');
             return;
         }
         
@@ -248,7 +246,6 @@ const NavbarModule = {
             }
         })
         .catch(error => {
-            console.error('Error fetching suggestions:', error);
             suggestionsContainer.classList.add('hidden');
             suggestionsContainer.style.display = 'none';
         });
@@ -409,10 +406,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-    } else {
-        console.warn('❌ Profile dropdown elements not found!');
-        if (!profileButton) console.warn('Missing: #user-menu-button');
-        if (!profileDropdown) console.warn('Missing: #user-menu');
     }
 
     // Search functionality

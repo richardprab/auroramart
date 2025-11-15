@@ -76,7 +76,7 @@
                         </div>
                         {% endif %}
                         
-                        <p class="text-lg font-bold text-gray-900" id="unit-price-{{ item.id }}">${{ item.product_variant.price }}</p>
+                        <p class="text-lg font-bold text-gray-900" id="unit-price-{{ item.id }}">${{ item.product_variant.effective_price|floatformat:2 }}</p>
                     </div>
 
                     <!-- Quantity & Actions -->

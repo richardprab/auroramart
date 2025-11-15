@@ -187,7 +187,21 @@ const ChatWidget = {
             });
 
             if (response.ok) {
-                const data = await response.json();
+                // Check if response is actually JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    // Not JSON response, probably HTML redirect or error page
+                    return;
+                }
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (jsonError) {
+                    // Response is not valid JSON, skip
+                    console.warn('Response is not valid JSON, skipping session load');
+                    return;
+                }
                 
                 // Handle paginated response - extract results array
                 const sessions = Array.isArray(data) ? data : (data.results || []);
@@ -335,13 +349,16 @@ const ChatWidget = {
                 this.currentUserId = userId ? parseInt(userId) : null;
             }
         }
-        const isAdmin = message.sender && this.currentUserId && message.sender !== this.currentUserId;
+        // Determine if message is from staff/admin
+        // Check both the explicit is_staff flag and the sender ID comparison
+        const isAdmin = message.is_staff || (message.sender && this.currentUserId && message.sender !== this.currentUserId);
         
         // Get user's first name from chat window data attribute
         const chatWindow = document.getElementById('chat-window');
         const userFirstName = chatWindow ? (chatWindow.getAttribute('data-user-first-name') || 'You') : 'You';
         
         const messageEl = document.createElement('div');
+        // Staff messages should be on the left (justify-start), customer messages on the right (justify-end)
         messageEl.className = `flex ${isAdmin ? 'justify-start' : 'justify-end'}`;
         
         const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -663,9 +680,11 @@ const ChatWidget = {
     }
 };
 
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => ChatWidget.init());
-} else {
-    ChatWidget.init();
+// Initialize when DOM is ready (skip if flag is set)
+if (!window.skipChatInit) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => ChatWidget.init());
+    } else {
+        ChatWidget.init();
+    }
 }

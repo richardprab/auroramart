@@ -2,7 +2,7 @@
 
 {% with lowest_variant=product.get_lowest_priced_variant primary_image=product.images.first %}
 <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition duration-300 relative flex flex-col h-full"
-    data-product data-product-id="{{ product.id }}" data-price="{{ lowest_variant.price|default:'0' }}"
+    data-product data-product-id="{{ product.id }}" data-price="{{ lowest_variant.effective_price|default:'0' }}"
     data-category="{{ product.category.slug }}" data-name="{{ product.name }}">
 
     <!-- Product Image -->
@@ -80,14 +80,22 @@
                 <div class="flex items-center gap-2 flex-wrap">
                     {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
                     <div class="flex items-baseline gap-1">
-                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price }}</span>
-                        <span class="text-sm text-gray-400 line-through">${{ lowest_variant.compare_price }}</span>
+                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.effective_price|floatformat:2 }}</span>
+                        <span class="text-sm text-gray-400 line-through">${{ lowest_variant.compare_price|floatformat:2 }}</span>
                     </div>
                     <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold whitespace-nowrap">
                         -{{ lowest_variant.discount_percentage }}%
                     </span>
+                    {% elif lowest_variant.is_dynamically_priced %}
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.effective_price|floatformat:2 }}</span>
+                        <span class="text-sm text-gray-400 line-through">${{ lowest_variant.original_price|floatformat:2 }}</span>
+                    </div>
+                    <span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full font-semibold whitespace-nowrap">
+                        Low Stock
+                    </span>
                     {% else %}
-                    <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price }}</span>
+                    <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.effective_price|floatformat:2 }}</span>
                     {% endif %}
                 </div>
                 

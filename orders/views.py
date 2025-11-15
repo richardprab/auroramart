@@ -105,9 +105,9 @@ def process_checkout(request):
                 try:
                     from vouchers.utils import apply_voucher_to_cart
                     
-                    # Calculate subtotal for voucher validation
+                    # Calculate subtotal for voucher validation (using effective prices)
                     subtotal_before_voucher = sum(
-                        ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
+                        ((item.product_variant.effective_price if item.product_variant else Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
                         for item in cart_items
                     )
                     
@@ -180,9 +180,9 @@ def process_checkout(request):
                 del request.session['applied_voucher_code']
                 request.session.modified = True
             
-            # Create order items
+            # Create order items (store effective price at time of purchase)
             for cart_item in cart_items:
-                item_price = cart_item.product_variant.price if cart_item.product_variant else cart_item.product.price
+                item_price = cart_item.product_variant.effective_price if cart_item.product_variant else Decimal("0")
                 
                 order_item = OrderItem.objects.create(
                     order=order,
@@ -249,19 +249,23 @@ def order_list(request):
     
     # Group orders by status with their info
     orders_by_status = []
+    status_counts = {}
     for status, info in status_info.items():
         status_orders = orders.filter(status=status)
+        count = status_orders.count()
+        status_counts[status] = count
         orders_by_status.append({
             'status': status,
             'info': info,
             'orders': status_orders,
-            'count': status_orders.count()
+            'count': count
         })
 
     context = {
         "orders": orders,
         "orders_by_status": orders_by_status,
         "status_info": status_info,
+        "status_counts": status_counts,
     }
     return render(request, "orders/order_list.html", context)
 
@@ -379,10 +383,10 @@ def apply_voucher(request):
     try:
         from vouchers.utils import apply_voucher_to_cart
         
-        # Calculate subtotal first
+        # Calculate subtotal first (using effective prices)
         from decimal import Decimal
         subtotal = sum(
-            ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
+            ((item.product_variant.effective_price if item.product_variant else Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
             for item in cart_items
         )
         
@@ -445,9 +449,9 @@ def get_available_vouchers(request):
         cart = get_or_create_cart(request)
         cart_items = cart.items.select_related("product", "product_variant").all()
         
-        # Calculate current cart subtotal
+        # Calculate current cart subtotal (using effective prices)
         subtotal = sum(
-            ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
+            ((item.product_variant.effective_price if item.product_variant else Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
             for item in cart_items
         )
         

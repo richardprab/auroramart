@@ -23,7 +23,6 @@ def user_login(request):
     if request.user.is_authenticated:
         return redirect('home:index')
     
-    # Initialize form for both GET and POST requests
     from django.contrib.auth.forms import AuthenticationForm
     form = AuthenticationForm()
     
@@ -285,15 +284,15 @@ def wishlist(request):
         if item.product_variant:
             item.display_product = item.product_variant.product
             item.display_variant = item.product_variant
-            item.display_price = item.product_variant.price
+            item.display_price = item.product_variant.effective_price
             item.in_stock = item.product_variant.stock > 0
             item.stock_count = item.product_variant.stock
         elif item.product:
             item.display_product = item.product
-            # Get the lowest priced variant as default
+            # Get the lowest priced variant as default (order by base price, but use effective_price for display)
             lowest_variant = item.product.variants.filter(stock__gt=0).order_by('price').first()
             item.display_variant = lowest_variant
-            item.display_price = lowest_variant.price if lowest_variant else 0
+            item.display_price = lowest_variant.effective_price if lowest_variant else 0
             item.in_stock = lowest_variant is not None
             item.stock_count = lowest_variant.stock if lowest_variant else 0
 

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Staff Login - AuroraMart{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1><i data-lucide="shield" class="inline-block w-8 h-8"></i> Staff Login</h1>
+            <p>Access the admin panel</p>
+        </div>
+
+        <!-- Display error messages -->
+        {% if messages %}
+        <div class="alert alert-error">
+            {% for message in messages %}
+            <div><i data-lucide="alert-circle" class="inline-block w-4 h-4"></i> {{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="POST" class="auth-form" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next|default:'' }}">
+
+            <!-- Username Field -->
+            <div class="form-group">
+                <label for="username" class="form-label">
+                    Username<span class="required-mark">*</span>
+                </label>
+                <input type="text" name="username" id="username"
+                    class="form-control"
+                    placeholder="Enter your username" required autofocus>
+            </div>
+
+            <!-- Password Field -->
+            <div class="form-group">
+                <label for="password" class="form-label">
+                    Password<span class="required-mark">*</span>
+                </label>
+                <input type="password" name="password" id="password"
+                    class="form-control" placeholder="Enter your password" required>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-submit">
+                Sign In
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>
+                <a href="{% url 'home:index' %}">← Back to Home</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Prevent chat.js from running on login page
+    window.skipChatInit = true;
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.querySelector('.auth-form');
+        const inputs = form.querySelectorAll('.form-control');
+
+        // Shake animation on form errors
+        const formErrors = document.querySelectorAll('.form-error, .alert-error');
+        if (formErrors.length > 0) {
+            document.querySelector('.auth-card').classList.add('shake');
+            setTimeout(() => {
+                document.querySelector('.auth-card').classList.remove('shake');
+            }, 500);
+        }
+
+        // Loading state on submit
+        form.addEventListener('submit', function () {
+            const submitBtn = this.querySelector('.btn-submit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing in...';
+            form.classList.add('loading');
+        });
+
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+</script>
+{% endblock %}

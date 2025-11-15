@@ -448,14 +448,22 @@
                                 <div class="flex items-center gap-2 flex-wrap">
                             {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
                                     <div class="flex items-baseline gap-1">
-                                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price|floatformat:2 }}</span>
+                                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.effective_price|floatformat:2 }}</span>
                                         <span class="text-sm text-gray-400 line-through">${{ lowest_variant.compare_price|floatformat:2 }}</span>
                                     </div>
                                     <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold whitespace-nowrap">
                                         -{{ lowest_variant.discount_percentage }}%
                                 </span>
+                                    {% elif lowest_variant.is_dynamically_priced %}
+                                    <div class="flex items-baseline gap-1">
+                                        <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.effective_price|floatformat:2 }}</span>
+                                        <span class="text-sm text-gray-400 line-through">${{ lowest_variant.original_price|floatformat:2 }}</span>
+                                    </div>
+                                    <span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full font-semibold whitespace-nowrap">
+                                        Low Stock
+                                </span>
                                     {% else %}
-                                    <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.price|floatformat:2 }}</span>
+                                    <span class="text-2xl font-bold text-blue-600">${{ lowest_variant.effective_price|floatformat:2 }}</span>
                                     {% endif %}
                             </div>
                                 

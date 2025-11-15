@@ -378,6 +378,16 @@
                 <i data-lucide="trending-up"></i>
                 <span>Metrics Analysis</span>
             </a>
+
+            <a href="{% url 'adminpanel:voucher_management' %}" class="admin-nav-item {% if 'voucher' in request.resolver_match.url_name %}active{% endif %}">
+                <i data-lucide="ticket"></i>
+                <span>Voucher Management</span>
+            </a>
+
+            <a href="{% url 'adminpanel:database_management' %}" class="admin-nav-item {% if 'database' in request.resolver_match.url_name %}active{% endif %}">
+                <i data-lucide="database"></i>
+                <span>Database Management</span>
+            </a>
         </nav>
 
         <a href="{% url 'accounts:logout' %}" class="admin-logout-btn">

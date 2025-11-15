@@ -21,7 +21,7 @@ def calculate_cart_totals(cart_items, voucher_code=None, user=None):
         dict: Dictionary containing subtotal, tax, shipping, discount, total, and item_count
     """
     subtotal = sum(
-        ((item.product_variant.price or Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
+        ((item.product_variant.effective_price if item.product_variant else Decimal("0")) * item.quantity).quantize(Decimal("0.01"))
         for item in cart_items
     )
     
@@ -184,7 +184,7 @@ def cart_detail(request):
 
     # Per-line totals
     for it in cart_items:
-        price = it.product_variant.price or Decimal("0")
+        price = it.product_variant.effective_price if it.product_variant else Decimal("0")
         it.line_total = (price * it.quantity).quantize(Decimal("0.01"))
 
     # Calculate totals using helper function
@@ -330,7 +330,7 @@ def update_cart(request, item_id):
                 
                 if is_ajax:
                     # Calculate line total
-                    price = item.product_variant.price or Decimal("0")
+                    price = item.product_variant.effective_price if item.product_variant else Decimal("0")
                     line_total = (price * item.quantity).quantize(Decimal("0.01"))
                     
                     # Recalculate order totals using helper function
