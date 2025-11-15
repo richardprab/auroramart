@@ -1,7 +1,18 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponse, JsonResponse
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import (
+    Q,
+    Sum,
+    F,
+    IntegerField,
+    Count,
+    Avg,
+    ExpressionWrapper,
+    DurationField,
+)
+from django.db.models.functions import Coalesce, TruncDate
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
 from urllib.parse import quote
@@ -15,13 +26,24 @@ import sys
 import io
 from contextlib import redirect_stdout
 import requests
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+import csv
 
 from products.models import Product, ProductVariant, ProductImage, Category
-from accounts.models import User, Staff
+from accounts.models import User, Staff, BrowsingHistory
 from chat.models import ChatConversation, ChatMessage
-from orders.models import Order
+from orders.models import Order, OrderItem
 from vouchers.models import Voucher
 from .forms import ProductSearchForm, OrderSearchForm, VoucherForm
+from django.views.decorators.http import require_POST
+
+
+LOW_STOCK_THRESHOLD = 5
+PENDING_ORDER_STATUSES = ['pending', 'confirmed', 'processing']
+REVENUE_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
+FULFILLMENT_EXCLUDED_STATUSES = ['cancelled', 'refunded']
 
 
 def staff_login_required(view_func):
@@ -158,6 +180,9 @@ def dashboard(request):
         admin=request.user,
         status='pending'
     ).count()
+    low_stock_count = Product.objects.annotate(
+        total_stock=Coalesce(Sum('variants__stock'), 0, output_field=IntegerField())
+    ).filter(total_stock__lt=LOW_STOCK_THRESHOLD).count()
     
     # Recent orders
     recent_orders = Order.objects.select_related('user').order_by('-created_at')[:5]
@@ -166,6 +191,7 @@ def dashboard(request):
         'total_products': total_products,
         'pending_orders': pending_orders,
         'open_conversations': my_open_conversations,
+        'low_stock_count': low_stock_count,
         'recent_orders': recent_orders,
     }
     
@@ -262,6 +288,22 @@ def chat_conversation(request, conversation_id):
 
 # ==================== PRODUCT MANAGEMENT ====================
 
+def _get_primary_image_url(product):
+    """
+    Helper to retrieve a product's primary image URL, falling back gracefully.
+    """
+    try:
+        primary_image = product.images.filter(is_primary=True).first()
+        if primary_image and primary_image.image:
+            return primary_image.image.url
+        fallback = product.images.first()
+        if fallback and fallback.image:
+            return fallback.image.url
+    except Exception:
+        return ''
+    return ''
+
+
 @staff_login_required
 def product_management(request):
     """Product search and management page"""
@@ -315,17 +357,7 @@ def product_management(request):
     # Prepare product data for template
     for product in products:
         try:
-            primary_image_url = ''
-            try:
-                primary_image = product.images.filter(is_primary=True).first()
-                if primary_image and primary_image.image:
-                    primary_image_url = primary_image.image.url
-                else:
-                    first_image = product.images.first()
-                    if first_image and first_image.image:
-                        primary_image_url = first_image.image.url
-            except Exception:
-                pass
+            primary_image_url = _get_primary_image_url(product)
             
             total_stock = sum(variant.stock for variant in product.variants.all())
             reviews = product.reviews.select_related('user').all()[:5]
@@ -345,12 +377,77 @@ def product_management(request):
         except Exception:
             continue
     
+    low_stock_queryset = Product.objects.annotate(
+        total_stock=Coalesce(Sum('variants__stock'), 0, output_field=IntegerField())
+    ).filter(total_stock__lt=LOW_STOCK_THRESHOLD).select_related('category').prefetch_related('images').order_by('total_stock', 'name')
+
+    low_stock_products = []
+    for product in low_stock_queryset[:25]:
+        low_stock_products.append({
+            'id': product.id,
+            'name': product.name,
+            'sku': product.sku,
+            'category': product.category.name if product.category else 'Uncategorized',
+            'total_stock': product.total_stock or 0,
+            'reorder_quantity': product.reorder_quantity,
+            'image': _get_primary_image_url(product),
+        })
+
     context = {
         'form': form,
         'search_query': initial_query,
         'products_data': products_data,
+        'low_stock_products': low_stock_products,
+        'low_stock_threshold': LOW_STOCK_THRESHOLD,
     }
     return render(request, 'adminpanel/products.html', context)
+
+
+@staff_login_required
+@require_POST
+def reorder_product(request, product_id):
+    """Replenish a product's variants by its configured reorder quantity."""
+    product = get_object_or_404(Product.objects.prefetch_related('variants', 'category'), pk=product_id)
+    reorder_qty = product.reorder_quantity
+
+    if reorder_qty <= 0:
+        message = "This product has no reorder quantity configured."
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': message}, status=400)
+        messages.error(request, message)
+        return redirect('adminpanel:products')
+
+    variants = product.variants.all()
+    if not variants.exists():
+        message = "This product has no variants to restock."
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': message}, status=400)
+        messages.error(request, message)
+        return redirect('adminpanel:products')
+
+    with transaction.atomic():
+        variant_count = variants.count()
+        current_total = variants.aggregate(
+            total=Coalesce(Sum('stock'), 0, output_field=IntegerField())
+        )['total'] or 0
+
+        variants.update(stock=F('stock') + reorder_qty)
+        total_added = reorder_qty * variant_count
+        new_total = current_total + total_added
+
+    success_message = f"Restock placed for {product.name}. Added {total_added} units."
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({
+            'status': 'success',
+            'message': success_message,
+            'new_total_stock': new_total,
+            'added_amount': total_added,
+            'product_id': product.id,
+        })
+
+    messages.success(request, success_message)
+    return redirect('adminpanel:products')
 
 @staff_login_required
 def search_product(request):
@@ -671,7 +768,7 @@ def order_management(request):
         query_upper = initial_query.upper()
         
         # Determine if query looks like an order number
-        is_likely_order_number = query_upper.startswith('ORD') or (len(initial_query) >= 4 and initial_query.replace('-', '').replace('_', '').isalnum())
+        is_likely_order_number = query_upper.startswith('ORD') or any(char.isdigit() for char in initial_query)
         
         if is_likely_order_number:
             # Search by order number
@@ -731,10 +828,31 @@ def order_management(request):
                 'search_type': 'order',
             })
     
+    pending_orders_queryset = Order.objects.filter(
+        status__in=PENDING_ORDER_STATUSES
+    ).select_related('user').order_by('created_at')
+
+    pending_orders_alert = []
+    for order in pending_orders_queryset[:25]:
+        customer_name = order.user.get_full_name() or order.user.username if order.user else 'Guest'
+        pending_orders_alert.append({
+            'id': order.id,
+            'order_number': order.order_number,
+            'customer_name': customer_name,
+            'username': order.user.username if order.user else '',
+            'status': order.status,
+            'status_display': order.get_status_display(),
+            'total': order.total,
+            'created_at': order.created_at,
+        })
+
     context = {
         'form': form,
         'search_query': initial_query,
         'orders_data': orders_data,
+        'pending_orders_alert': pending_orders_alert,
+        'pending_orders_count': pending_orders_queryset.count(),
+        'pending_statuses': PENDING_ORDER_STATUSES,
     }
     return render(request, 'adminpanel/order_management.html', context)
 
@@ -758,7 +876,7 @@ def search_order(request):
             query_upper = query.upper()
             
             # Determine if query looks like an order number (starts with ORD or is alphanumeric)
-            is_likely_order_number = query_upper.startswith('ORD') or (len(query) >= 4 and query.replace('-', '').replace('_', '').isalnum())
+            is_likely_order_number = query_upper.startswith('ORD') or any(char.isdigit() for char in query)
             
             if is_likely_order_number:
                 # Search by order number with fuzzy matching
@@ -960,8 +1078,293 @@ def update_order(request, order_id):
 
 @staff_login_required
 def analytics(request):
-    """Analytics dashboard - Coming Soon"""
+    """Analytics dashboard with live metrics"""
     return render(request, 'adminpanel/analytics.html')
+
+
+def _format_currency(value):
+    return f"${value:,.2f}"
+
+
+def _safe_percentage(numerator, denominator):
+    if not denominator:
+        return 0.0
+    return float(numerator) / float(denominator)
+
+
+def _format_duration(seconds):
+    if seconds is None:
+        return "—"
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes, sec = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m {sec}s"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours}h {minutes}m"
+    days, hours = divmod(hours, 24)
+    return f"{days}d {hours}h"
+
+
+def _build_analytics_payload(days=14):
+    days = max(7, min(90, int(days)))
+    now = timezone.now()
+    start_date = (now - timedelta(days=days - 1)).date()
+
+    daily_qs = (
+        Order.objects.filter(
+            created_at__date__gte=start_date,
+            status__in=REVENUE_STATUSES
+        )
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(
+            revenue=Coalesce(Sum('total'), Decimal('0')),
+            orders=Count('id')
+        )
+        .order_by('day')
+    )
+
+    daily_map = {item['day']: item for item in daily_qs}
+    timeseries = []
+    highlights = []
+    prev_revenue = None
+    change_threshold = 0.25
+
+    for offset in range(days):
+        day = start_date + timedelta(days=offset)
+        metrics = daily_map.get(day, {'revenue': Decimal('0'), 'orders': 0})
+        revenue = metrics.get('revenue') or Decimal('0')
+        orders = metrics.get('orders') or 0
+        change_pct = 0.0
+        warning = False
+
+        if prev_revenue is not None and prev_revenue > 0:
+            change_pct = float((revenue - prev_revenue) / prev_revenue)
+            if abs(change_pct) >= change_threshold:
+                warning = True
+                highlights.append({
+                    'label': 'Revenue spike' if change_pct > 0 else 'Revenue dip',
+                    'description': f"{day.strftime('%b %d')}: {change_pct:+.0%} vs prior day",
+                    'direction': 'up' if change_pct > 0 else 'down',
+                })
+
+        timeseries.append({
+            'date': day.isoformat(),
+            'date_label': day.strftime('%b %d'),
+            'revenue': float(revenue),
+            'orders': orders,
+            'change_pct': change_pct,
+            'warning': warning,
+        })
+
+        prev_revenue = revenue
+
+    lookback_days = 30
+    period_start = now - timedelta(days=lookback_days)
+    previous_period_start = period_start - timedelta(days=lookback_days)
+
+    recent_orders_qs = Order.objects.filter(
+        created_at__gte=period_start,
+        status__in=REVENUE_STATUSES
+    )
+    recent_revenue = recent_orders_qs.aggregate(total=Coalesce(Sum('total'), Decimal('0')))['total']
+    recent_revenue = recent_revenue or Decimal('0')
+    recent_order_count = recent_orders_qs.count()
+
+    prev_orders_qs = Order.objects.filter(
+        created_at__gte=previous_period_start,
+        created_at__lt=period_start,
+        status__in=REVENUE_STATUSES
+    )
+    prev_revenue = prev_orders_qs.aggregate(total=Coalesce(Sum('total'), Decimal('0')))['total']
+    prev_revenue = prev_revenue or Decimal('0')
+
+    revenue_change = 0.0
+    if prev_revenue > 0:
+        revenue_change = float((recent_revenue - prev_revenue) / prev_revenue)
+
+    avg_order_value = float(recent_revenue / recent_order_count) if recent_order_count else 0.0
+
+    delivered_count = Order.objects.filter(status='delivered').count()
+    active_orders = Order.objects.exclude(status__in=FULFILLMENT_EXCLUDED_STATUSES).count()
+    fulfillment_rate = _safe_percentage(delivered_count, active_orders)
+
+    visit_count = BrowsingHistory.objects.filter(viewed_at__gte=period_start).count()
+
+    customer_orders = Order.objects.exclude(user__isnull=True).values('user').annotate(order_count=Count('id'))
+    repeat_customers = customer_orders.filter(order_count__gt=1).count()
+    unique_customers = customer_orders.count()
+    repeat_rate = _safe_percentage(repeat_customers, unique_customers)
+
+    pending_orders = Order.objects.filter(status__in=PENDING_ORDER_STATUSES).count()
+    conversion_rate = _safe_percentage(recent_order_count, visit_count)
+
+    conversations = ChatConversation.objects.filter(
+        created_at__gte=period_start
+    ).prefetch_related('messages__sender', 'messages__staff_sender')
+    response_total = timedelta()
+    response_samples = 0
+    for conv in conversations:
+        first_customer_msg = None
+        for msg in conv.messages.all():
+            if msg.staff_sender:
+                if first_customer_msg:
+                    delta = msg.created_at - first_customer_msg
+                    if delta.total_seconds() >= 0:
+                        response_total += delta
+                        response_samples += 1
+                    break
+            else:
+                if first_customer_msg is None:
+                    first_customer_msg = msg.created_at
+    avg_response_seconds = None
+    if response_samples:
+        avg_response_seconds = (response_total / response_samples).total_seconds()
+
+    cycle_queryset = Order.objects.filter(
+        status='delivered',
+        delivered_at__isnull=False,
+        delivered_at__gte=period_start,
+    ).annotate(
+        cycle=ExpressionWrapper(F('delivered_at') - F('created_at'), output_field=DurationField())
+    )
+    avg_cycle = cycle_queryset.aggregate(avg_cycle=Avg('cycle'))['avg_cycle']
+    avg_cycle_seconds = avg_cycle.total_seconds() if avg_cycle else None
+
+    summary = {
+        'revenue_30d': {
+            'value': float(recent_revenue),
+            'display': _format_currency(float(recent_revenue)),
+            'change_pct': revenue_change,
+            'context': f"{revenue_change:+.1%} vs prior 30 days" if revenue_change else "No prior data",
+            'alert': revenue_change < -0.2,
+        },
+        'avg_order_value': {
+            'value': avg_order_value,
+            'display': _format_currency(avg_order_value),
+            'context': f"{recent_order_count} orders last 30 days",
+            'alert': avg_order_value < 30,
+        },
+        'conversion_rate': {
+            'value': conversion_rate,
+            'display': f"{conversion_rate:.1%}",
+            'context': f"{recent_order_count} orders / {visit_count or 0} visits",
+            'alert': conversion_rate < 0.02 and visit_count > 100,
+        },
+        'repeat_customer_rate': {
+            'value': repeat_rate,
+            'display': f"{repeat_rate:.0%}",
+            'context': f"{repeat_customers} repeat shoppers of {unique_customers}",
+            'alert': repeat_rate < 0.25 and unique_customers > 20,
+        },
+        'fulfillment_rate': {
+            'value': fulfillment_rate,
+            'display': f"{fulfillment_rate:.0%}",
+            'context': f"{delivered_count} delivered / {active_orders} active orders",
+            'alert': fulfillment_rate < 0.9 and active_orders > 0,
+        },
+        'pending_orders': {
+            'value': pending_orders,
+            'display': f"{pending_orders} awaiting action",
+            'context': "Pending, confirmed, or processing",
+            'alert': pending_orders > 40,
+        },
+        'chat_response_time': {
+            'value': avg_response_seconds or 0,
+            'display': _format_duration(avg_response_seconds),
+            'context': f"Avg. from customer ping to staff reply ({response_samples} samples)",
+            'alert': avg_response_seconds is not None and avg_response_seconds > 3600,
+        },
+        'order_cycle_time': {
+            'value': avg_cycle_seconds or 0,
+            'display': _format_duration(avg_cycle_seconds),
+            'context': "Creation to delivery for recent fulfilled orders",
+            'alert': avg_cycle_seconds is not None and avg_cycle_seconds > 7 * 24 * 3600,
+        },
+    }
+
+    status_mix_raw = Order.objects.values('status').annotate(count=Count('id')).order_by('-count')
+    total_orders = sum(item['count'] for item in status_mix_raw) or 1
+    status_mix = [{
+        'status': item['status'],
+        'count': item['count'],
+        'percentage': round((item['count'] / total_orders) * 100, 1),
+    } for item in status_mix_raw]
+
+    recent_items = (
+        OrderItem.objects.filter(
+            order__created_at__gte=period_start,
+            order__status__in=REVENUE_STATUSES
+        )
+        .values('product__name', 'product__sku')
+        .annotate(quantity=Sum('quantity'))
+        .order_by('-quantity')[:5]
+    )
+    prev_items = (
+        OrderItem.objects.filter(
+            order__created_at__gte=previous_period_start,
+            order__created_at__lt=period_start,
+            order__status__in=REVENUE_STATUSES
+        )
+        .values('product__name', 'product__sku')
+        .annotate(quantity=Sum('quantity'))
+    )
+    prev_map = {}
+    for item in prev_items:
+        key = item['product__sku'] or item['product__name']
+        prev_map[key] = item['quantity'] or 0
+
+    product_insights = []
+    for item in recent_items:
+        key = item['product__sku'] or item['product__name']
+        qty = item['quantity'] or 0
+        prev_qty = prev_map.get(key, 0)
+        change = qty - prev_qty
+        change_pct = None
+        if prev_qty:
+            change_pct = _safe_percentage(change, prev_qty)
+        product_insights.append({
+            'name': item['product__name'] or 'Unnamed product',
+            'sku': item['product__sku'] or '',
+            'orders': int(qty),
+            'change_pct': change_pct,
+            'direction': 'up' if change >= 0 else 'down',
+        })
+
+    return {
+        'timeseries': timeseries,
+        'summary': summary,
+        'trend_highlights': highlights,
+        'status_mix': status_mix,
+        'product_insights': product_insights,
+        'updated_at': now.isoformat(),
+    }
+
+
+@staff_login_required
+def analytics_data(request):
+    days = request.GET.get('days', 14)
+    payload = _build_analytics_payload(days)
+    return JsonResponse(payload)
+
+
+@staff_login_required
+def analytics_export(request):
+    days = request.GET.get('days', 30)
+    payload = _build_analytics_payload(days)
+    response = HttpResponse(content_type='text/csv')
+    filename = f"auroramart-analytics-{timezone.now().strftime('%Y%m%d-%H%M%S')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Revenue', 'Orders'])
+    for row in payload['timeseries']:
+        writer.writerow([row['date'], f"{row['revenue']:.2f}", row['orders']])
+
+    return response
 
 # ==================== VOUCHER MANAGEMENT ====================
 
