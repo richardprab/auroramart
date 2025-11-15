@@ -4,6 +4,7 @@
 {% block title %}Home - AuroraMart{% endblock %}
 
 {% block content %}
+
 <!-- Profile Completion Reminder Banner -->
 {% if user.is_authenticated and profile_completion_percentage is not None and profile_completion_percentage < 100 %}
 <div class="container mx-auto px-4 pt-6">
@@ -52,65 +53,121 @@
             {% for category in categories %}
             {% if category.product_count > 0 %}
             <a href="{% url 'products:product_list' %}?category={{ category.slug }}"
-                class="category-card reveal group bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
-                {% if category.slug == 'electronics' %}
-                <div class="w-full h-40 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="laptop" class="w-16 h-16 text-white"></i>
+                class="category-card reveal group bg-white rounded-3xl border shadow-md transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col relative backdrop-blur-sm
+                {% if category.slug == 'electronics' %}border-blue-200/60 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/25
+                {% elif category.slug == 'fashion-men' %}border-indigo-200/60 hover:border-indigo-400 hover:shadow-2xl hover:shadow-indigo-500/25
+                {% elif category.slug == 'fashion-women' %}border-pink-200/60 hover:border-pink-400 hover:shadow-2xl hover:shadow-pink-500/25
+                {% elif category.slug == 'home-kitchen' %}border-amber-200/60 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/25
+                {% elif category.slug == 'sports-outdoors' %}border-emerald-200/60 hover:border-emerald-400 hover:shadow-2xl hover:shadow-emerald-500/25
+                {% elif category.slug == 'beauty-personal-care' %}border-purple-200/60 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/25
+                {% elif category.slug == 'health' %}border-rose-200/60 hover:border-rose-400 hover:shadow-2xl hover:shadow-rose-500/25
+                {% elif category.slug == 'groceries-gourmet' %}border-lime-200/60 hover:border-lime-400 hover:shadow-2xl hover:shadow-lime-500/25
+                {% elif category.slug == 'toys-games' %}border-orange-200/60 hover:border-orange-400 hover:shadow-2xl hover:shadow-orange-500/25
+                {% elif category.slug == 'books' %}border-yellow-200/60 hover:border-yellow-400 hover:shadow-2xl hover:shadow-yellow-500/25
+                {% elif category.slug == 'automotive' %}border-slate-200/60 hover:border-slate-400 hover:shadow-2xl hover:shadow-slate-500/25
+                {% elif category.slug == 'pet-supplies' %}border-cyan-200/60 hover:border-cyan-400 hover:shadow-2xl hover:shadow-cyan-500/25
+                {% else %}border-gray-200/60 hover:border-gray-300 hover:shadow-2xl{% endif %}">
+                
+                <!-- Gradient Border Effect -->
+                <div class="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none
+                    {% if category.slug == 'electronics' %}bg-gradient-to-br from-blue-500/10 to-purple-500/10
+                    {% elif category.slug == 'fashion-men' %}bg-gradient-to-br from-indigo-500/10 to-blue-500/10
+                    {% elif category.slug == 'fashion-women' %}bg-gradient-to-br from-pink-500/10 to-rose-500/10
+                    {% elif category.slug == 'home-kitchen' %}bg-gradient-to-br from-amber-500/10 to-orange-500/10
+                    {% elif category.slug == 'sports-outdoors' %}bg-gradient-to-br from-emerald-500/10 to-teal-500/10
+                    {% elif category.slug == 'beauty-personal-care' %}bg-gradient-to-br from-purple-500/10 to-pink-500/10
+                    {% elif category.slug == 'health' %}bg-gradient-to-br from-rose-500/10 to-pink-500/10
+                    {% elif category.slug == 'groceries-gourmet' %}bg-gradient-to-br from-lime-500/10 to-green-500/10
+                    {% elif category.slug == 'toys-games' %}bg-gradient-to-br from-orange-500/10 to-red-500/10
+                    {% elif category.slug == 'books' %}bg-gradient-to-br from-yellow-500/10 to-amber-500/10
+                    {% elif category.slug == 'automotive' %}bg-gradient-to-br from-slate-500/10 to-gray-500/10
+                    {% elif category.slug == 'pet-supplies' %}bg-gradient-to-br from-cyan-500/10 to-blue-500/10
+                    {% else %}bg-gradient-to-br from-gray-500/10 to-gray-500/10{% endif %}"></div>
+                
+                <!-- Icon Container with Modern Design -->
+                <div class="w-full h-36 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                    <!-- Subtle Background Pattern -->
+                    <div class="absolute inset-0 opacity-[0.03]
+                        {% if category.slug == 'electronics' %}bg-blue-500
+                        {% elif category.slug == 'fashion-men' %}bg-indigo-500
+                        {% elif category.slug == 'fashion-women' %}bg-pink-500
+                        {% elif category.slug == 'home-kitchen' %}bg-amber-500
+                        {% elif category.slug == 'sports-outdoors' %}bg-emerald-500
+                        {% elif category.slug == 'beauty-personal-care' %}bg-purple-500
+                        {% elif category.slug == 'health' %}bg-rose-500
+                        {% elif category.slug == 'groceries-gourmet' %}bg-lime-500
+                        {% elif category.slug == 'toys-games' %}bg-orange-500
+                        {% elif category.slug == 'books' %}bg-yellow-500
+                        {% elif category.slug == 'automotive' %}bg-slate-500
+                        {% elif category.slug == 'pet-supplies' %}bg-cyan-500
+                        {% else %}bg-gray-500{% endif %}">
+                        <div class="absolute inset-0" style="background-image: radial-gradient(circle, currentColor 1.5px, transparent 1.5px); background-size: 24px 24px;"></div>
+                    </div>
+                    
+                    <!-- Icon with Modern Glassmorphism Effect -->
+                    <div class="relative z-10 flex items-center justify-center transform group-hover:scale-110 transition-transform duration-500">
+                        {% if category.slug == 'electronics' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-blue-50 to-blue-100/50 group-hover:from-blue-100 group-hover:to-blue-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-blue-200/50">
+                            <i data-lucide="laptop" class="w-12 h-12 text-blue-600 group-hover:text-blue-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'fashion-men' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-indigo-50 to-indigo-100/50 group-hover:from-indigo-100 group-hover:to-indigo-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-indigo-200/50">
+                            <i data-lucide="shirt" class="w-12 h-12 text-indigo-600 group-hover:text-indigo-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'fashion-women' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-pink-50 to-pink-100/50 group-hover:from-pink-100 group-hover:to-pink-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-pink-200/50">
+                            <i data-lucide="sparkles" class="w-12 h-12 text-pink-600 group-hover:text-pink-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'home-kitchen' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-amber-50 to-amber-100/50 group-hover:from-amber-100 group-hover:to-amber-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-amber-200/50">
+                            <i data-lucide="home" class="w-12 h-12 text-amber-600 group-hover:text-amber-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'sports-outdoors' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 group-hover:from-emerald-100 group-hover:to-emerald-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-emerald-200/50">
+                            <i data-lucide="dumbbell" class="w-12 h-12 text-emerald-600 group-hover:text-emerald-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'beauty-personal-care' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-purple-50 to-purple-100/50 group-hover:from-purple-100 group-hover:to-purple-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-purple-200/50">
+                            <i data-lucide="sparkle" class="w-12 h-12 text-purple-600 group-hover:text-purple-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'health' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-rose-50 to-rose-100/50 group-hover:from-rose-100 group-hover:to-rose-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-rose-200/50">
+                            <i data-lucide="heart-pulse" class="w-12 h-12 text-rose-600 group-hover:text-rose-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'groceries-gourmet' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-lime-50 to-lime-100/50 group-hover:from-lime-100 group-hover:to-lime-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-lime-200/50">
+                            <i data-lucide="shopping-basket" class="w-12 h-12 text-lime-600 group-hover:text-lime-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'toys-games' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-orange-50 to-orange-100/50 group-hover:from-orange-100 group-hover:to-orange-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-orange-200/50">
+                            <i data-lucide="gamepad-2" class="w-12 h-12 text-orange-600 group-hover:text-orange-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'books' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-yellow-50 to-yellow-100/50 group-hover:from-yellow-100 group-hover:to-yellow-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-yellow-200/50">
+                            <i data-lucide="book-open" class="w-12 h-12 text-yellow-600 group-hover:text-yellow-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'automotive' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-slate-50 to-slate-100/50 group-hover:from-slate-100 group-hover:to-slate-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-slate-200/50">
+                            <i data-lucide="car" class="w-12 h-12 text-slate-600 group-hover:text-slate-700 transition-colors"></i>
+                        </div>
+                        {% elif category.slug == 'pet-supplies' %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-cyan-50 to-cyan-100/50 group-hover:from-cyan-100 group-hover:to-cyan-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-cyan-200/50">
+                            <i data-lucide="paw-print" class="w-12 h-12 text-cyan-600 group-hover:text-cyan-700 transition-colors"></i>
+                        </div>
+                        {% else %}
+                        <div class="p-5 rounded-3xl bg-gradient-to-br from-gray-50 to-gray-100/50 group-hover:from-gray-100 group-hover:to-gray-200/50 transition-all duration-500 shadow-sm group-hover:shadow-md border border-gray-200/50">
+                            <i data-lucide="box" class="w-12 h-12 text-gray-600 group-hover:text-gray-700 transition-colors"></i>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-                {% elif category.slug == 'fashion-men' %}
-                <div class="w-full h-40 bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="shirt" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'fashion-women' %}
-                <div class="w-full h-40 bg-gradient-to-br from-pink-400 to-red-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="sparkles" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'home-kitchen' %}
-                <div class="w-full h-40 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="home" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'sports-outdoors' %}
-                <div class="w-full h-40 bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="dumbbell" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'beauty-personal-care' %}
-                <div class="w-full h-40 bg-gradient-to-br from-pink-300 to-purple-400 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="sparkle" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'health' %}
-                <div class="w-full h-40 bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="heart-pulse" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'groceries-gourmet' %}
-                <div class="w-full h-40 bg-gradient-to-br from-lime-400 to-green-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="shopping-basket" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'toys-games' %}
-                <div class="w-full h-40 bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="gamepad-2" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'books' %}
-                <div class="w-full h-40 bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="book-open" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'automotive' %}
-                <div class="w-full h-40 bg-gradient-to-br from-slate-500 to-gray-700 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="car" class="w-16 h-16 text-white"></i>
-                </div>
-                {% elif category.slug == 'pet-supplies' %}
-                <div class="w-full h-40 bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="paw-print" class="w-16 h-16 text-white"></i>
-                </div>
-                {% else %}
-                <div class="w-full h-40 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="box" class="w-16 h-16 text-white"></i>
-                </div>
-                {% endif %}
-                <div class="p-3 flex-1 flex flex-col justify-center">
-                    <h3 class="text-sm md:text-base font-semibold mb-1 group-hover:text-blue-600 transition-colors text-center line-clamp-2">
+                
+                <!-- Content -->
+                <div class="p-5 flex-1 flex flex-col justify-center relative z-10">
+                    <h3 class="text-sm md:text-base font-bold mb-1.5 group-hover:text-gray-900 transition-colors text-center line-clamp-2 text-gray-800 tracking-tight">
                         {{ category.name }}
                     </h3>
-                    <p class="text-gray-600 text-xs text-center">
+                    <p class="text-gray-500 text-xs text-center font-semibold">
                         {{ category.product_count }} item{{ category.product_count|pluralize }}
                     </p>
                 </div>

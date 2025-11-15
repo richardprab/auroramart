@@ -1,17 +1,136 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import HttpResponse
-from django.db.models import Q
+from django.http import HttpResponse, JsonResponse
+from django.db import transaction
+from django.db.models import (
+    Q,
+    Sum,
+    F,
+    IntegerField,
+    Count,
+    Avg,
+    ExpressionWrapper,
+    DurationField,
+)
+from django.db.models.functions import Coalesce, TruncDate
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
 from urllib.parse import quote
+from functools import wraps
+from django.urls import reverse
+from django.conf import settings
+from django.contrib import messages
+from pathlib import Path
+import os
+import sys
+import io
+from contextlib import redirect_stdout
 import requests
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+import csv
 
 from products.models import Product, ProductVariant, ProductImage, Category
-from accounts.models import User, Staff
+from accounts.models import User, Staff, BrowsingHistory
 from chat.models import ChatConversation, ChatMessage
-from orders.models import Order
-from .forms import ProductSearchForm, OrderSearchForm
+from orders.models import Order, OrderItem
+from vouchers.models import Voucher
+from .forms import ProductSearchForm, OrderSearchForm, VoucherForm
+from django.views.decorators.http import require_POST
+
+
+LOW_STOCK_THRESHOLD = 5
+PENDING_ORDER_STATUSES = ['pending', 'confirmed', 'processing']
+REVENUE_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
+FULFILLMENT_EXCLUDED_STATUSES = ['cancelled', 'refunded']
+
+
+def staff_login_required(view_func):
+    """
+    Custom decorator that requires staff authentication.
+    Redirects to staff login page if not authenticated or not staff.
+    """
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            login_url = reverse('adminpanel:staff_login')
+            return redirect(f'{login_url}?next={request.path}')
+        if not request.user.is_staff:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden('You do not have permission to access this page.')
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+
+def staff_login(request):
+    """
+    Staff login - allows Staff users to login and access admin panel.
+    Only Staff users can login through this endpoint.
+    """
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect('/adminpanel/')
+    
+    from django.contrib.auth import login
+    from django.contrib import messages
+    from django.contrib.auth.backends import ModelBackend
+    
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        
+        if not username or not password:
+            messages.error(request, 'Please provide both username and password.')
+            return render(request, 'adminpanel/staff_login.html')
+        
+        # Try to find Staff user by username
+        try:
+            staff_user = Staff.objects.get(username=username)
+        except Staff.DoesNotExist:
+            # Also try to find by email in case user entered email
+            try:
+                staff_user = Staff.objects.get(email=username)
+            except Staff.DoesNotExist:
+                messages.error(request, 'Invalid credentials. Staff access only.')
+                return render(request, 'adminpanel/staff_login.html')
+        
+        # Verify password
+        password_valid = staff_user.check_password(password)
+        if not password_valid:
+            messages.error(request, 'Invalid credentials. Please check your username and password.')
+            return render(request, 'adminpanel/staff_login.html')
+        
+        if not staff_user.is_active:
+            messages.error(request, 'Your account is inactive. Please contact an administrator.')
+            return render(request, 'adminpanel/staff_login.html')
+        
+        # Ensure is_staff is True
+        if not staff_user.is_staff:
+            staff_user.is_staff = True
+            staff_user.save()
+        
+        # Use the custom StaffModelBackend for Staff users
+        # This ensures the user can be retrieved correctly from the session
+        backend = 'accounts.backends.StaffModelBackend'
+        
+        # Refresh the user from database to ensure we have the latest state
+        staff_user.refresh_from_db()
+        
+        # Log in the user using the Staff backend
+        # This will store the user ID and backend in the session
+        login(request, staff_user, backend=backend)
+        
+        # Verify login was successful
+        # request.user should now be the Staff user
+        if request.user.is_authenticated and request.user.is_staff:
+            # Always redirect to admin panel root (/adminpanel/)
+            return redirect('/adminpanel/')
+        else:
+            messages.error(request, 'Login failed. Please try again.')
+    
+    return render(request, 'adminpanel/staff_login.html', {
+        'next': request.GET.get('next', '')
+    })
 
 
 def get_next_assigned_staff():
@@ -50,7 +169,7 @@ def get_next_assigned_staff():
 
 # ==================== DASHBOARD ====================
 
-@staff_member_required
+@staff_login_required
 def dashboard(request):
     """Main admin dashboard with overview metrics"""
     
@@ -61,6 +180,9 @@ def dashboard(request):
         admin=request.user,
         status='pending'
     ).count()
+    low_stock_count = Product.objects.annotate(
+        total_stock=Coalesce(Sum('variants__stock'), 0, output_field=IntegerField())
+    ).filter(total_stock__lt=LOW_STOCK_THRESHOLD).count()
     
     # Recent orders
     recent_orders = Order.objects.select_related('user').order_by('-created_at')[:5]
@@ -69,6 +191,7 @@ def dashboard(request):
         'total_products': total_products,
         'pending_orders': pending_orders,
         'open_conversations': my_open_conversations,
+        'low_stock_count': low_stock_count,
         'recent_orders': recent_orders,
     }
     
@@ -76,7 +199,7 @@ def dashboard(request):
 
 # ==================== CUSTOMER ASSISTANCE ====================
 
-@staff_member_required
+@staff_login_required
 def customer_support(request):
     """List all messages assigned to current staff member"""
     
@@ -108,7 +231,7 @@ def customer_support(request):
     
     return render(request, 'adminpanel/customer_support.html', context)
 
-@staff_member_required
+@staff_login_required
 def chat_conversation(request, conversation_id):
     """View and reply to a specific customer message"""
     
@@ -165,7 +288,23 @@ def chat_conversation(request, conversation_id):
 
 # ==================== PRODUCT MANAGEMENT ====================
 
-@staff_member_required
+def _get_primary_image_url(product):
+    """
+    Helper to retrieve a product's primary image URL, falling back gracefully.
+    """
+    try:
+        primary_image = product.images.filter(is_primary=True).first()
+        if primary_image and primary_image.image:
+            return primary_image.image.url
+        fallback = product.images.first()
+        if fallback and fallback.image:
+            return fallback.image.url
+    except Exception:
+        return ''
+    return ''
+
+
+@staff_login_required
 def product_management(request):
     """Product search and management page"""
     # Initialize form with query from GET parameters if present
@@ -218,17 +357,7 @@ def product_management(request):
     # Prepare product data for template
     for product in products:
         try:
-            primary_image_url = ''
-            try:
-                primary_image = product.images.filter(is_primary=True).first()
-                if primary_image and primary_image.image:
-                    primary_image_url = primary_image.image.url
-                else:
-                    first_image = product.images.first()
-                    if first_image and first_image.image:
-                        primary_image_url = first_image.image.url
-            except Exception:
-                pass
+            primary_image_url = _get_primary_image_url(product)
             
             total_stock = sum(variant.stock for variant in product.variants.all())
             reviews = product.reviews.select_related('user').all()[:5]
@@ -248,14 +377,79 @@ def product_management(request):
         except Exception:
             continue
     
+    low_stock_queryset = Product.objects.annotate(
+        total_stock=Coalesce(Sum('variants__stock'), 0, output_field=IntegerField())
+    ).filter(total_stock__lt=LOW_STOCK_THRESHOLD).select_related('category').prefetch_related('images').order_by('total_stock', 'name')
+
+    low_stock_products = []
+    for product in low_stock_queryset[:25]:
+        low_stock_products.append({
+            'id': product.id,
+            'name': product.name,
+            'sku': product.sku,
+            'category': product.category.name if product.category else 'Uncategorized',
+            'total_stock': product.total_stock or 0,
+            'reorder_quantity': product.reorder_quantity,
+            'image': _get_primary_image_url(product),
+        })
+
     context = {
         'form': form,
         'search_query': initial_query,
         'products_data': products_data,
+        'low_stock_products': low_stock_products,
+        'low_stock_threshold': LOW_STOCK_THRESHOLD,
     }
     return render(request, 'adminpanel/products.html', context)
 
-@staff_member_required
+
+@staff_login_required
+@require_POST
+def reorder_product(request, product_id):
+    """Replenish a product's variants by its configured reorder quantity."""
+    product = get_object_or_404(Product.objects.prefetch_related('variants', 'category'), pk=product_id)
+    reorder_qty = product.reorder_quantity
+
+    if reorder_qty <= 0:
+        message = "This product has no reorder quantity configured."
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': message}, status=400)
+        messages.error(request, message)
+        return redirect('adminpanel:products')
+
+    variants = product.variants.all()
+    if not variants.exists():
+        message = "This product has no variants to restock."
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': message}, status=400)
+        messages.error(request, message)
+        return redirect('adminpanel:products')
+
+    with transaction.atomic():
+        variant_count = variants.count()
+        current_total = variants.aggregate(
+            total=Coalesce(Sum('stock'), 0, output_field=IntegerField())
+        )['total'] or 0
+
+        variants.update(stock=F('stock') + reorder_qty)
+        total_added = reorder_qty * variant_count
+        new_total = current_total + total_added
+
+    success_message = f"Restock placed for {product.name}. Added {total_added} units."
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({
+            'status': 'success',
+            'message': success_message,
+            'new_total_stock': new_total,
+            'added_amount': total_added,
+            'product_id': product.id,
+        })
+
+    messages.success(request, success_message)
+    return redirect('adminpanel:products')
+
+@staff_login_required
 def search_product(request):
     """AJAX endpoint to search for products and return HTML table rendered server-side"""
     query = request.GET.get('query', '').strip()
@@ -406,7 +600,7 @@ def search_product(request):
             status=500
         )
 
-@staff_member_required
+@staff_login_required
 def edit_product(request, product_id):
     """Display product edit form"""
     product = get_object_or_404(
@@ -444,7 +638,7 @@ def edit_product(request, product_id):
     
     return render(request, 'adminpanel/edit_product.html', context)
 
-@staff_member_required
+@staff_login_required
 def update_product(request):
     """Update product details and redirect back to edit page"""
     if request.method != 'POST':
@@ -560,7 +754,7 @@ def update_product(request):
 
 # ==================== ORDER MANAGEMENT ====================
 
-@staff_member_required
+@staff_login_required
 def order_management(request):
     """Order search and management page"""
     # Initialize form with query from GET parameters if present
@@ -574,7 +768,7 @@ def order_management(request):
         query_upper = initial_query.upper()
         
         # Determine if query looks like an order number
-        is_likely_order_number = query_upper.startswith('ORD') or (len(initial_query) >= 4 and initial_query.replace('-', '').replace('_', '').isalnum())
+        is_likely_order_number = query_upper.startswith('ORD') or any(char.isdigit() for char in initial_query)
         
         if is_likely_order_number:
             # Search by order number
@@ -634,14 +828,35 @@ def order_management(request):
                 'search_type': 'order',
             })
     
+    pending_orders_queryset = Order.objects.filter(
+        status__in=PENDING_ORDER_STATUSES
+    ).select_related('user').order_by('created_at')
+
+    pending_orders_alert = []
+    for order in pending_orders_queryset[:25]:
+        customer_name = order.user.get_full_name() or order.user.username if order.user else 'Guest'
+        pending_orders_alert.append({
+            'id': order.id,
+            'order_number': order.order_number,
+            'customer_name': customer_name,
+            'username': order.user.username if order.user else '',
+            'status': order.status,
+            'status_display': order.get_status_display(),
+            'total': order.total,
+            'created_at': order.created_at,
+        })
+
     context = {
         'form': form,
         'search_query': initial_query,
         'orders_data': orders_data,
+        'pending_orders_alert': pending_orders_alert,
+        'pending_orders_count': pending_orders_queryset.count(),
+        'pending_statuses': PENDING_ORDER_STATUSES,
     }
     return render(request, 'adminpanel/order_management.html', context)
 
-@staff_member_required
+@staff_login_required
 def search_order(request):
     """AJAX endpoint to search for orders and return HTML table rendered server-side"""
     query = request.GET.get('query', '').strip()
@@ -661,7 +876,7 @@ def search_order(request):
             query_upper = query.upper()
             
             # Determine if query looks like an order number (starts with ORD or is alphanumeric)
-            is_likely_order_number = query_upper.startswith('ORD') or (len(query) >= 4 and query.replace('-', '').replace('_', '').isalnum())
+            is_likely_order_number = query_upper.startswith('ORD') or any(char.isdigit() for char in query)
             
             if is_likely_order_number:
                 # Search by order number with fuzzy matching
@@ -755,7 +970,7 @@ def search_order(request):
             status=500
         )
 
-@staff_member_required
+@staff_login_required
 def edit_order(request, order_id):
     """Display order edit form"""
     order = get_object_or_404(
@@ -804,7 +1019,7 @@ def edit_order(request, order_id):
     
     return render(request, 'adminpanel/edit_order.html', context)
 
-@staff_member_required
+@staff_login_required
 def update_order(request, order_id):
     """Update order details and redirect back to edit page"""
     if request.method != 'POST':
@@ -861,9 +1076,474 @@ def update_order(request, order_id):
 
 # ==================== ANALYTICS ====================
 
-@staff_member_required
+@staff_login_required
 def analytics(request):
-    """Analytics dashboard - Coming Soon"""
+    """Analytics dashboard with live metrics"""
     return render(request, 'adminpanel/analytics.html')
+
+
+def _format_currency(value):
+    return f"${value:,.2f}"
+
+
+def _safe_percentage(numerator, denominator):
+    if not denominator:
+        return 0.0
+    return float(numerator) / float(denominator)
+
+
+def _format_duration(seconds):
+    if seconds is None:
+        return "—"
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes, sec = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m {sec}s"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours}h {minutes}m"
+    days, hours = divmod(hours, 24)
+    return f"{days}d {hours}h"
+
+
+def _build_analytics_payload(days=14):
+    days = max(7, min(90, int(days)))
+    now = timezone.now()
+    start_date = (now - timedelta(days=days - 1)).date()
+
+    daily_qs = (
+        Order.objects.filter(
+            created_at__date__gte=start_date,
+            status__in=REVENUE_STATUSES
+        )
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(
+            revenue=Coalesce(Sum('total'), Decimal('0')),
+            orders=Count('id')
+        )
+        .order_by('day')
+    )
+
+    daily_map = {item['day']: item for item in daily_qs}
+    timeseries = []
+    highlights = []
+    prev_revenue = None
+    change_threshold = 0.25
+
+    for offset in range(days):
+        day = start_date + timedelta(days=offset)
+        metrics = daily_map.get(day, {'revenue': Decimal('0'), 'orders': 0})
+        revenue = metrics.get('revenue') or Decimal('0')
+        orders = metrics.get('orders') or 0
+        change_pct = 0.0
+        warning = False
+
+        if prev_revenue is not None and prev_revenue > 0:
+            change_pct = float((revenue - prev_revenue) / prev_revenue)
+            if abs(change_pct) >= change_threshold:
+                warning = True
+                highlights.append({
+                    'label': 'Revenue spike' if change_pct > 0 else 'Revenue dip',
+                    'description': f"{day.strftime('%b %d')}: {change_pct:+.0%} vs prior day",
+                    'direction': 'up' if change_pct > 0 else 'down',
+                })
+
+        timeseries.append({
+            'date': day.isoformat(),
+            'date_label': day.strftime('%b %d'),
+            'revenue': float(revenue),
+            'orders': orders,
+            'change_pct': change_pct,
+            'warning': warning,
+        })
+
+        prev_revenue = revenue
+
+    lookback_days = 30
+    period_start = now - timedelta(days=lookback_days)
+    previous_period_start = period_start - timedelta(days=lookback_days)
+
+    recent_orders_qs = Order.objects.filter(
+        created_at__gte=period_start,
+        status__in=REVENUE_STATUSES
+    )
+    recent_revenue = recent_orders_qs.aggregate(total=Coalesce(Sum('total'), Decimal('0')))['total']
+    recent_revenue = recent_revenue or Decimal('0')
+    recent_order_count = recent_orders_qs.count()
+
+    prev_orders_qs = Order.objects.filter(
+        created_at__gte=previous_period_start,
+        created_at__lt=period_start,
+        status__in=REVENUE_STATUSES
+    )
+    prev_revenue = prev_orders_qs.aggregate(total=Coalesce(Sum('total'), Decimal('0')))['total']
+    prev_revenue = prev_revenue or Decimal('0')
+
+    revenue_change = 0.0
+    if prev_revenue > 0:
+        revenue_change = float((recent_revenue - prev_revenue) / prev_revenue)
+
+    avg_order_value = float(recent_revenue / recent_order_count) if recent_order_count else 0.0
+
+    delivered_count = Order.objects.filter(status='delivered').count()
+    active_orders = Order.objects.exclude(status__in=FULFILLMENT_EXCLUDED_STATUSES).count()
+    fulfillment_rate = _safe_percentage(delivered_count, active_orders)
+
+    visit_count = BrowsingHistory.objects.filter(viewed_at__gte=period_start).count()
+
+    customer_orders = Order.objects.exclude(user__isnull=True).values('user').annotate(order_count=Count('id'))
+    repeat_customers = customer_orders.filter(order_count__gt=1).count()
+    unique_customers = customer_orders.count()
+    repeat_rate = _safe_percentage(repeat_customers, unique_customers)
+
+    pending_orders = Order.objects.filter(status__in=PENDING_ORDER_STATUSES).count()
+    conversion_rate = _safe_percentage(recent_order_count, visit_count)
+
+    conversations = ChatConversation.objects.filter(
+        created_at__gte=period_start
+    ).prefetch_related('messages__sender', 'messages__staff_sender')
+    response_total = timedelta()
+    response_samples = 0
+    for conv in conversations:
+        first_customer_msg = None
+        for msg in conv.messages.all():
+            if msg.staff_sender:
+                if first_customer_msg:
+                    delta = msg.created_at - first_customer_msg
+                    if delta.total_seconds() >= 0:
+                        response_total += delta
+                        response_samples += 1
+                    break
+            else:
+                if first_customer_msg is None:
+                    first_customer_msg = msg.created_at
+    avg_response_seconds = None
+    if response_samples:
+        avg_response_seconds = (response_total / response_samples).total_seconds()
+
+    cycle_queryset = Order.objects.filter(
+        status='delivered',
+        delivered_at__isnull=False,
+        delivered_at__gte=period_start,
+    ).annotate(
+        cycle=ExpressionWrapper(F('delivered_at') - F('created_at'), output_field=DurationField())
+    )
+    avg_cycle = cycle_queryset.aggregate(avg_cycle=Avg('cycle'))['avg_cycle']
+    avg_cycle_seconds = avg_cycle.total_seconds() if avg_cycle else None
+
+    summary = {
+        'revenue_30d': {
+            'value': float(recent_revenue),
+            'display': _format_currency(float(recent_revenue)),
+            'change_pct': revenue_change,
+            'context': f"{revenue_change:+.1%} vs prior 30 days" if revenue_change else "No prior data",
+            'alert': revenue_change < -0.2,
+        },
+        'avg_order_value': {
+            'value': avg_order_value,
+            'display': _format_currency(avg_order_value),
+            'context': f"{recent_order_count} orders last 30 days",
+            'alert': avg_order_value < 30,
+        },
+        'conversion_rate': {
+            'value': conversion_rate,
+            'display': f"{conversion_rate:.1%}",
+            'context': f"{recent_order_count} orders / {visit_count or 0} visits",
+            'alert': conversion_rate < 0.02 and visit_count > 100,
+        },
+        'repeat_customer_rate': {
+            'value': repeat_rate,
+            'display': f"{repeat_rate:.0%}",
+            'context': f"{repeat_customers} repeat shoppers of {unique_customers}",
+            'alert': repeat_rate < 0.25 and unique_customers > 20,
+        },
+        'fulfillment_rate': {
+            'value': fulfillment_rate,
+            'display': f"{fulfillment_rate:.0%}",
+            'context': f"{delivered_count} delivered / {active_orders} active orders",
+            'alert': fulfillment_rate < 0.9 and active_orders > 0,
+        },
+        'pending_orders': {
+            'value': pending_orders,
+            'display': f"{pending_orders} awaiting action",
+            'context': "Pending, confirmed, or processing",
+            'alert': pending_orders > 40,
+        },
+        'chat_response_time': {
+            'value': avg_response_seconds or 0,
+            'display': _format_duration(avg_response_seconds),
+            'context': f"Avg. from customer ping to staff reply ({response_samples} samples)",
+            'alert': avg_response_seconds is not None and avg_response_seconds > 3600,
+        },
+        'order_cycle_time': {
+            'value': avg_cycle_seconds or 0,
+            'display': _format_duration(avg_cycle_seconds),
+            'context': "Creation to delivery for recent fulfilled orders",
+            'alert': avg_cycle_seconds is not None and avg_cycle_seconds > 7 * 24 * 3600,
+        },
+    }
+
+    status_mix_raw = Order.objects.values('status').annotate(count=Count('id')).order_by('-count')
+    total_orders = sum(item['count'] for item in status_mix_raw) or 1
+    status_mix = [{
+        'status': item['status'],
+        'count': item['count'],
+        'percentage': round((item['count'] / total_orders) * 100, 1),
+    } for item in status_mix_raw]
+
+    recent_items = (
+        OrderItem.objects.filter(
+            order__created_at__gte=period_start,
+            order__status__in=REVENUE_STATUSES
+        )
+        .values('product__name', 'product__sku')
+        .annotate(quantity=Sum('quantity'))
+        .order_by('-quantity')[:5]
+    )
+    prev_items = (
+        OrderItem.objects.filter(
+            order__created_at__gte=previous_period_start,
+            order__created_at__lt=period_start,
+            order__status__in=REVENUE_STATUSES
+        )
+        .values('product__name', 'product__sku')
+        .annotate(quantity=Sum('quantity'))
+    )
+    prev_map = {}
+    for item in prev_items:
+        key = item['product__sku'] or item['product__name']
+        prev_map[key] = item['quantity'] or 0
+
+    product_insights = []
+    for item in recent_items:
+        key = item['product__sku'] or item['product__name']
+        qty = item['quantity'] or 0
+        prev_qty = prev_map.get(key, 0)
+        change = qty - prev_qty
+        change_pct = None
+        if prev_qty:
+            change_pct = _safe_percentage(change, prev_qty)
+        product_insights.append({
+            'name': item['product__name'] or 'Unnamed product',
+            'sku': item['product__sku'] or '',
+            'orders': int(qty),
+            'change_pct': change_pct,
+            'direction': 'up' if change >= 0 else 'down',
+        })
+
+    return {
+        'timeseries': timeseries,
+        'summary': summary,
+        'trend_highlights': highlights,
+        'status_mix': status_mix,
+        'product_insights': product_insights,
+        'updated_at': now.isoformat(),
+    }
+
+
+@staff_login_required
+def analytics_data(request):
+    days = request.GET.get('days', 14)
+    payload = _build_analytics_payload(days)
+    return JsonResponse(payload)
+
+
+@staff_login_required
+def analytics_export(request):
+    days = request.GET.get('days', 30)
+    payload = _build_analytics_payload(days)
+    response = HttpResponse(content_type='text/csv')
+    filename = f"auroramart-analytics-{timezone.now().strftime('%Y%m%d-%H%M%S')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Revenue', 'Orders'])
+    for row in payload['timeseries']:
+        writer.writerow([row['date'], f"{row['revenue']:.2f}", row['orders']])
+
+    return response
+
+# ==================== VOUCHER MANAGEMENT ====================
+
+@staff_login_required
+def voucher_management(request):
+    """Voucher management page - list all vouchers"""
+    vouchers = Voucher.objects.all().order_by('-created_at')
+    
+    context = {
+        'vouchers': vouchers,
+    }
+    return render(request, 'adminpanel/voucher_management.html', context)
+
+@staff_login_required
+def add_voucher(request):
+    """Add a new voucher"""
+    if request.method == 'POST':
+        form = VoucherForm(request.POST)
+        if form.is_valid():
+            voucher = form.save(commit=False)
+            # Set created_by if user is a superuser
+            if hasattr(request.user, 'is_superuser') and request.user.is_superuser:
+                voucher.created_by = request.user
+            voucher.save()
+            form.save_m2m()  # Save many-to-many relationships
+            
+            from django.contrib import messages
+            messages.success(request, f'Voucher "{voucher.name}" created successfully!')
+            return redirect('adminpanel:voucher_management')
+    else:
+        form = VoucherForm()
+    
+    context = {
+        'form': form,
+        'action': 'Add',
+    }
+    return render(request, 'adminpanel/voucher_form.html', context)
+
+@staff_login_required
+def edit_voucher(request, voucher_id):
+    """Edit an existing voucher"""
+    voucher = get_object_or_404(Voucher, id=voucher_id)
+    
+    if request.method == 'POST':
+        form = VoucherForm(request.POST, instance=voucher)
+        if form.is_valid():
+            form.save()
+            
+            from django.contrib import messages
+            messages.success(request, f'Voucher "{voucher.name}" updated successfully!')
+            return redirect('adminpanel:voucher_management')
+    else:
+        form = VoucherForm(instance=voucher)
+    
+    context = {
+        'form': form,
+        'voucher': voucher,
+        'action': 'Edit',
+    }
+    return render(request, 'adminpanel/voucher_form.html', context)
+
+@staff_login_required
+def delete_voucher(request, voucher_id):
+    """Delete a voucher"""
+    voucher = get_object_or_404(Voucher, id=voucher_id)
+    
+    if request.method == 'POST':
+        voucher_name = voucher.name
+        voucher.delete()
+        
+        from django.contrib import messages
+        messages.success(request, f'Voucher "{voucher_name}" deleted successfully!')
+        return redirect('adminpanel:voucher_management')
+    
+    context = {
+        'voucher': voucher,
+    }
+    return render(request, 'adminpanel/delete_voucher.html', context)
+
+
+@staff_login_required
+def database_management(request):
+    """Database management page for populating and managing database"""
+    # Get project root directory
+    project_root = Path(settings.BASE_DIR)
+    csv_files = []
+    data_dir = project_root / 'data'
+    
+    if data_dir.exists():
+        csv_files = [f.name for f in data_dir.glob('*.csv')]
+    
+    context = {
+        'csv_files': csv_files,
+    }
+    return render(request, 'adminpanel/database_management.html', context)
+
+
+@staff_login_required
+def run_populate_db(request):
+    """Execute populate_db functions via AJAX"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    action = request.POST.get('action')
+    csv_file = request.POST.get('csv_file', 'b2c_products_500.csv')
+    reset = request.POST.get('reset', 'true').lower() == 'true'
+    
+    # Get project root directory
+    project_root = Path(settings.BASE_DIR)
+    csv_path = project_root / 'data' / csv_file
+    
+    # Capture stdout to get output from populate_db functions
+    output = io.StringIO()
+    
+    try:
+        # Import populate_db functions
+        # We need to import them in a way that doesn't trigger django.setup() again
+        import importlib.util
+        populate_db_path = project_root / 'populate_db.py'
+        
+        if not populate_db_path.exists():
+            return JsonResponse({'error': 'populate_db.py not found'}, status=404)
+        
+        # Load the module
+        spec = importlib.util.spec_from_file_location("populate_db", populate_db_path)
+        populate_db = importlib.util.module_from_spec(spec)
+        
+        # Temporarily redirect stdout to capture print statements
+        with redirect_stdout(output):
+            # Execute the module (this will run django.setup() but it's safe if already set up)
+            spec.loader.exec_module(populate_db)
+            
+            # Execute the requested action
+            if action == 'seed_from_csv':
+                if not csv_path.exists():
+                    return JsonResponse({'error': f'CSV file not found: {csv_path}'}, status=404)
+                
+                # Change to project root directory for relative paths
+                original_cwd = os.getcwd()
+                try:
+                    os.chdir(project_root)
+                    populate_db.seed_from_csv(str(csv_path), reset=reset)
+                finally:
+                    os.chdir(original_cwd)
+                
+            elif action == 'delete_all_data':
+                populate_db.delete_all_data()
+                
+            elif action == 'create_staff_user':
+                populate_db.create_staff_user()
+                
+            elif action == 'create_sample_users':
+                populate_db.create_sample_users()
+                
+            elif action == 'create_sample_vouchers':
+                populate_db.create_sample_vouchers()
+                
+            elif action == 'create_sample_orders_and_reviews':
+                populate_db.create_sample_orders_and_reviews()
+                
+            else:
+                return JsonResponse({'error': f'Unknown action: {action}'}, status=400)
+        
+        output_text = output.getvalue()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Action "{action}" completed successfully',
+            'output': output_text
+        })
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'traceback': error_trace,
+            'output': output.getvalue()
+        }, status=500)
 
 

@@ -280,7 +280,7 @@ class Address(models.Model):
     """
 
     user = models.ForeignKey(
-        'Customer',  # Addresses are customer-specific
+        settings.AUTH_USER_MODEL,  # Addresses are customer-specific
         on_delete=models.CASCADE,  # If user is deleted, delete their addresses
         related_name="addresses",
     )
@@ -330,7 +330,7 @@ class Wishlist(models.Model):
     Links a User to a ProductVariant they have "wishlisted".
     """
 
-    user = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='wishlist_items')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wishlist_items')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE,  null=True, blank=True)
     product = models.ForeignKey('products.Product', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -349,7 +349,7 @@ class SaleSubscription(models.Model):
     ProductVariant goes on sale.
     """
 
-    user = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='sale_subscriptions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sale_subscriptions')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE)
     category = models.ForeignKey('products.Category', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -370,7 +370,7 @@ class BrowsingHistory(models.Model):
     Used for "Recently Viewed" feature and analytics.
     """
 
-    user = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='browsing_history')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='browsing_history')
     product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='browsing_history')
     viewed_at = models.DateTimeField(auto_now=True)
     view_count = models.IntegerField(default=1)

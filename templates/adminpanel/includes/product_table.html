@@ -13,7 +13,7 @@
                     <th>Stock</th>
                     <th>Status</th>
                     <th>Reviews</th>
-                    <th>Action</th>
+                    <th class="col-action">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -29,7 +29,7 @@
                                     </div>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="product-info-cell">
                                 <div class="product-name">{{ product.name }}</div>
                                 <div class="product-sku">SKU: {{ product.sku }}</div>
                                 <div class="product-category">{{ product.category.name|default:"N/A" }}</div>
@@ -62,36 +62,20 @@
                                     <span class="status-badge status-inactive">Inactive</span>
                                 {% endif %}
                             </td>
-                            <td class="max-w-xs">
-                                {% if reviews %}
-                                    {% for review in reviews %}
-                                        <div class="review-item">
-                                            <div class="review-header">
-                                                <span class="review-user">{{ review.user.get_full_name|default:review.user.username }}</span>
-                                                <span class="review-rating">
-                                                    {% if review.rating >= 1 %}★{% else %}☆{% endif %}
-                                                    {% if review.rating >= 2 %}★{% else %}☆{% endif %}
-                                                    {% if review.rating >= 3 %}★{% else %}☆{% endif %}
-                                                    {% if review.rating >= 4 %}★{% else %}☆{% endif %}
-                                                    {% if review.rating >= 5 %}★{% else %}☆{% endif %}
-                                                </span>
-                                            </div>
-                                            <div class="review-title">{{ review.title }}</div>
-                                            <div class="review-comment">
-                                                {% if review.comment|length > 100 %}
-                                                    {{ review.comment|slice:":100" }}...
-                                                {% else %}
-                                                    {{ review.comment }}
-                                                {% endif %}
-                                            </div>
-                                            <div class="review-date">{{ review.created_at|date:"Y-m-d" }}</div>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="no-reviews">No reviews yet</div>
-                                {% endif %}
+                            <td class="text-sm text-gray-700">
+                                {% with review_total=product.review_count %}
+                                    {% if review_total %}
+                                        <span class="font-semibold text-gray-900">{{ review_total }}</span>
+                                        <span class="text-xs text-gray-500">reviews</span>
+                                    {% elif reviews %}
+                                        <span class="font-semibold text-gray-900">{{ reviews|length }}</span>
+                                        <span class="text-xs text-gray-500">reviews</span>
+                                    {% else %}
+                                        <span class="text-xs text-gray-400">No reviews yet</span>
+                                    {% endif %}
+                                {% endwith %}
                             </td>
-                            <td>
+                            <td class="action-cell">
                                 <a href="{% url 'adminpanel:edit_product' product.id %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}" class="btn-edit">
                                     <i data-lucide="edit" class="w-4 h-4 inline"></i> Edit
                                 </a>

@@ -2,55 +2,530 @@
 
 {% block admin_title %}Metrics Analysis{% endblock %}
 
+{% block admin_extra_css %}
+<style>
+    .analytics-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+    .metric-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+    .metric-section h3 {
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: #7c3aed;
+    }
+    .section-note {
+        font-size: 0.85rem;
+        color: #475569;
+        margin-top: -0.35rem;
+        margin-bottom: 0.6rem;
+    }
+    .metric-grid {
+        display: grid;
+        gap: 1.1rem;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    }
+    .metric-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.15rem;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        box-shadow: 0 3px 15px rgba(148, 163, 184, 0.1);
+        position: relative;
+        transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        inset: 0.65rem;
+        border-radius: 1rem;
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(248, 250, 252, 0.4));
+        z-index: 0;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+    .metric-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(167, 139, 250, 0.5);
+    }
+    .metric-card:hover::before {
+        opacity: 1;
+    }
+    .metric-card.alert {
+        border-color: rgba(251, 146, 60, 0.8);
+        box-shadow: 0 4px 25px rgba(251, 146, 60, 0.25);
+    }
+    .metric-card.alert::before {
+        background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(255, 247, 237, 0.8));
+        opacity: 1;
+    }
+    .metric-label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #7c3aed;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+        position: relative;
+        z-index: 1;
+    }
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0f172a;
+        position: relative;
+        z-index: 1;
+    }
+    .metric-context {
+        font-size: 0.9rem;
+        color: #475569;
+        margin-top: 0.35rem;
+        position: relative;
+        z-index: 1;
+    }
+    .chart-card,
+    .insights-card {
+        background: white;
+        border-radius: 1.5rem;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        box-shadow: 0 6px 30px rgba(15, 23, 42, 0.08);
+        padding: 1.75rem;
+    }
+    .chart-card header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    #revenueChart {
+        width: 100%;
+        min-height: 320px;
+    }
+    .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: rgba(124, 58, 237, 0.08);
+        color: #6d28d9;
+    }
+    .controls {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .controls button,
+    .controls select {
+        border-radius: 0.85rem;
+        padding: 0.5rem 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: white;
+        font-weight: 600;
+        color: #4c1d95;
+        transition: all 0.2s ease;
+    }
+    .controls button:hover {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 10px 25px rgba(124, 58, 237, 0.35);
+    }
+    .trend-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .trend-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.85rem 1.1rem;
+        border-radius: 1rem;
+        background: rgba(248, 250, 252, 0.8);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .trend-item .badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .badge.up {
+        background: rgba(16, 185, 129, 0.15);
+        color: #047857;
+    }
+    .badge.down {
+        background: rgba(248, 113, 113, 0.15);
+        color: #b91c1c;
+    }
+    .status-mix {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+    .status-chip {
+        border-radius: 1rem;
+        padding: 0.75rem 1rem;
+        border: 1px dashed rgba(148, 163, 184, 0.5);
+        background: rgba(249, 250, 251, 0.9);
+    }
+    .status-chip strong {
+        display: block;
+        font-size: 0.9rem;
+        color: #111827;
+    }
+    .status-chip span {
+        font-size: 0.8rem;
+        color: #475569;
+    }
+</style>
+{% endblock %}
+
 {% block admin_content %}
 <div class="admin-content-header">
     <h2>Metrics Analysis</h2>
-    <p>Advanced analytics and reporting</p>
+    <p>Live ecommerce KPIs with revenue, fulfillment, and customer health.</p>
 </div>
 
-<div class="admin-content-body">
-    <div class="text-center py-24">
-        <div class="text-8xl mb-8 animate-bounce">📈</div>
-        <h2 class="text-4xl font-bold text-gray-900 mb-4">Coming Soon!</h2>
-        <p class="text-lg text-gray-600 max-w-2xl mx-auto mb-12">
-            The Analytics dashboard is currently under development. 
-            Soon you'll be able to view detailed metrics, sales reports, 
-            customer insights, and performance analytics.
-        </p>
+<div class="admin-content-body analytics-grid">
+    <div class="controls">
+        <label class="pill" for="rangeSelector">
+            <span>Range</span>
+            <select id="rangeSelector">
+                <option value="14">Last 14 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="60">Last 60 days</option>
+                <option value="90">Last 90 days</option>
+            </select>
+        </label>
+        <button type="button" id="exportAnalytics">
+            ⬇️ Export CSV
+        </button>
+        <span class="pill">
+            Updated <span id="analyticsTimestamp">—</span>
+        </span>
+    </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
-                <div class="text-4xl mb-4">📊</div>
-                <div class="text-lg font-semibold text-gray-900 mb-2">Sales Analytics</div>
-                <div class="text-sm text-gray-600">
-                    Track revenue, order trends, and sales performance over time
-                </div>
+    <section class="metric-section">
+        <h3>Growth levers</h3>
+        <p class="section-note">Conversion, AOV, and repeat purchases work together to “keep the second” and grow lifetime value.</p>
+        <div class="metric-grid">
+            <div class="metric-card" data-metric-key="conversion_rate">
+                <div class="metric-label">Conversion rate</div>
+                <div class="metric-value" data-field="value">—</div>
+                <div class="metric-context" data-field="context">Loading…</div>
             </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
-                <div class="text-4xl mb-4">👥</div>
-                <div class="text-lg font-semibold text-gray-900 mb-2">Customer Insights</div>
-                <div class="text-sm text-gray-600">
-                    Analyze customer behavior, retention rates, and demographics
-                </div>
+            <div class="metric-card" data-metric-key="avg_order_value">
+                <div class="metric-label">Average order value</div>
+                <div class="metric-value" data-field="value">—</div>
+                <div class="metric-context" data-field="context">Loading…</div>
             </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
-                <div class="text-4xl mb-4">📦</div>
-                <div class="text-lg font-semibold text-gray-900 mb-2">Product Performance</div>
-                <div class="text-sm text-gray-600">
-                    Monitor best-selling products, inventory levels, and stock alerts
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
-                <div class="text-4xl mb-4">💬</div>
-                <div class="text-lg font-semibold text-gray-900 mb-2">Support Metrics</div>
-                <div class="text-sm text-gray-600">
-                    Review response times, resolution rates, and customer satisfaction
-                </div>
+            <div class="metric-card" data-metric-key="repeat_customer_rate">
+                <div class="metric-label">Repeat purchase rate</div>
+                <div class="metric-value" data-field="value">—</div>
+                <div class="metric-context" data-field="context">Loading…</div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <section class="metric-section">
+        <h3>Operational pulse</h3>
+        <div class="metric-grid">
+            <div class="metric-card" data-metric-key="revenue_30d">
+                <div class="metric-label">30-day revenue</div>
+                <div class="metric-value" data-field="value">—</div>
+                <div class="metric-context" data-field="context">Loading…</div>
+            </div>
+            <div class="metric-card" data-metric-key="fulfillment_rate">
+                <div class="metric-label">Fulfillment rate</div>
+                <div class="metric-value" data-field="value">—</div>
+                <div class="metric-context" data-field="context">Loading…</div>
+            </div>
+            <div class="metric-card" data-metric-key="pending_orders">
+                <div class="metric-label">Orders awaiting action</div>
+                <div class="metric-value" data-field="value">—</div>
+                <div class="metric-context" data-field="context">Loading…</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="metric-section">
+        <h3>Experience excellence</h3>
+        <p class="section-note">Support responsiveness and delivery cycle time keep promises on track.</p>
+        <div class="metric-grid">
+            <div class="metric-card" data-metric-key="chat_response_time">
+                <div class="metric-label">Average response time</div>
+                <div class="metric-value" data-field="value">—</div>
+                <div class="metric-context" data-field="context">Loading…</div>
+            </div>
+            <div class="metric-card" data-metric-key="order_cycle_time">
+                <div class="metric-label">Order cycle</div>
+                <div class="metric-value" data-field="value">—</div>
+                <div class="metric-context" data-field="context">Loading…</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="chart-card">
+        <header>
+            <div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-1">Revenue trend</h3>
+                <p class="text-sm text-gray-500">Auto-updates every 30 seconds. Gradient styling follows the shadcn/ui area templates for clarity between baseline and spikes.</p>
+            </div>
+        </header>
+        <canvas id="revenueChart"></canvas>
+    </section>
+
+    <section class="insights-card">
+        <div class="grid gap-8 md:grid-cols-3">
+            <div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-3">Trend highlights</h4>
+                <ul id="trendHighlightsList" class="trend-list">
+                    <li class="text-sm text-gray-500">No significant changes detected.</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-3">Status mix</h4>
+                <div id="statusMixList" class="status-mix text-sm text-gray-600">
+                    <div class="text-gray-500">Loading…</div>
+                </div>
+            </div>
+            <div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-3">Product insights</h4>
+                <ul id="productInsightsList" class="trend-list">
+                    <li class="text-sm text-gray-500">Loading…</li>
+                </ul>
+            </div>
+        </div>
+    </section>
 </div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ANALYTICS_ENDPOINT = "{% url 'adminpanel:analytics_data' %}";
+const ANALYTICS_EXPORT_URL = "{% url 'adminpanel:analytics_export' %}";
+const metricCards = document.querySelectorAll('[data-metric-key]');
+const highlightsContainer = document.getElementById('trendHighlightsList');
+const statusMixContainer = document.getElementById('statusMixList');
+const productInsightsContainer = document.getElementById('productInsightsList');
+const timestampEl = document.getElementById('analyticsTimestamp');
+const rangeSelector = document.getElementById('rangeSelector');
+const exportBtn = document.getElementById('exportAnalytics');
+let revenueChart;
+let chartGradient;
+let warningGradient;
+let refreshTimer;
+let selectedRange = parseInt(rangeSelector.value, 10);
+
+function createGradient(ctx) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+    gradient.addColorStop(0, 'rgba(124, 58, 237, 0.25)');
+    gradient.addColorStop(1, 'rgba(124, 58, 237, 0.02)');
+    return gradient;
+}
+
+function createWarningGradient(ctx) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+    gradient.addColorStop(0, 'rgba(249, 115, 22, 0.35)');
+    gradient.addColorStop(1, 'rgba(251, 191, 36, 0.05)');
+    return gradient;
+}
+
+function initChart(timeseries) {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    chartGradient = createGradient(ctx);
+    warningGradient = createWarningGradient(ctx);
+    revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timeseries.map(d => d.date_label),
+            datasets: [{
+                label: 'Revenue',
+                data: timeseries.map(d => d.revenue),
+                fill: true,
+                backgroundColor: chartGradient,
+                borderColor: '#7c3aed',
+                borderWidth: 2,
+                tension: 0.35,
+                pointRadius: timeseries.map(d => d.warning ? 4 : 2),
+                pointBackgroundColor: timeseries.map(d => d.warning ? '#fb923c' : '#7c3aed'),
+                pointBorderColor: 'white',
+                pointBorderWidth: 1.5,
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: value => '$' + value.toLocaleString()
+                    },
+                    grid: {
+                        drawBorder: false,
+                        color: 'rgba(148, 163, 184, 0.2)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: context => `Revenue: $${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateChart(timeseries) {
+    if (!revenueChart) {
+        initChart(timeseries);
+        return;
+    }
+    revenueChart.data.labels = timeseries.map(d => d.date_label);
+    revenueChart.data.datasets[0].data = timeseries.map(d => d.revenue);
+    revenueChart.data.datasets[0].pointRadius = timeseries.map(d => d.warning ? 4 : 2);
+    revenueChart.data.datasets[0].pointBackgroundColor = timeseries.map(d => d.warning ? '#fb923c' : '#7c3aed');
+    revenueChart.update('none');
+}
+
+function updateSummary(summary) {
+    metricCards.forEach(card => {
+        const key = card.dataset.metricKey;
+        const metric = summary[key];
+        const valueEl = card.querySelector('[data-field="value"]');
+        const contextEl = card.querySelector('[data-field="context"]');
+        if (!metric || !valueEl || !contextEl) return;
+        valueEl.textContent = metric.display || metric.value || '—';
+        contextEl.textContent = metric.context || '';
+        card.classList.toggle('alert', Boolean(metric.alert));
+    });
+}
+
+function updateHighlights(highlights) {
+    if (!highlights || !highlights.length) {
+        highlightsContainer.innerHTML = '<li class="text-sm text-gray-500">No significant changes detected.</li>';
+        return;
+    }
+    highlightsContainer.innerHTML = '';
+    highlights.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'trend-item';
+        li.innerHTML = `
+            <span class="badge ${item.direction}">${item.label}</span>
+            <div>
+                <div class="font-semibold text-slate-900">${item.description}</div>
+            </div>
+        `;
+        highlightsContainer.appendChild(li);
+    });
+}
+
+function toTitleCase(str) {
+    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+}
+
+function updateStatusMix(statusMix) {
+    if (!statusMix || !statusMix.length) {
+        statusMixContainer.innerHTML = '<div class="text-sm text-gray-500">No orders recorded yet.</div>';
+        return;
+    }
+    statusMixContainer.innerHTML = '';
+    statusMix.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'status-chip';
+        div.innerHTML = `
+            <strong>${toTitleCase(item.status.replace('_', ' '))}</strong>
+            <span>${item.count} · ${item.percentage}%</span>
+        `;
+        statusMixContainer.appendChild(div);
+    });
+}
+
+function updateProductInsights(items) {
+    if (!items || !items.length) {
+        productInsightsContainer.innerHTML = '<li class="text-sm text-gray-500">No recent product movement.</li>';
+        return;
+    }
+    productInsightsContainer.innerHTML = '';
+    items.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'trend-item';
+        const changeLabel = item.change_pct === null ? 'New' : `${(item.change_pct * 100).toFixed(0)}%`;
+        const badgeClass = item.direction === 'down' ? 'down' : 'up';
+        li.innerHTML = `
+            <span class="badge ${badgeClass}">${changeLabel}</span>
+            <div>
+                <div class="font-semibold text-slate-900">${item.name}</div>
+                <div class="text-sm text-slate-500">${item.orders} units${item.sku ? ' · ' + item.sku : ''}</div>
+            </div>
+        `;
+        productInsightsContainer.appendChild(li);
+    });
+}
+
+async function fetchAnalytics() {
+    try {
+        const response = await fetch(`${ANALYTICS_ENDPOINT}?days=${selectedRange}`);
+        if (!response.ok) throw new Error('Unable to load analytics');
+        const payload = await response.json();
+        updateSummary(payload.summary);
+        updateChart(payload.timeseries);
+        updateHighlights(payload.trend_highlights);
+        updateStatusMix(payload.status_mix);
+        updateProductInsights(payload.product_insights);
+        if (payload.updated_at) {
+            timestampEl.textContent = new Date(payload.updated_at).toLocaleTimeString();
+        }
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function scheduleRefresh() {
+    if (refreshTimer) {
+        clearInterval(refreshTimer);
+    }
+    refreshTimer = setInterval(fetchAnalytics, 30000);
+}
+
+rangeSelector.addEventListener('change', () => {
+    selectedRange = parseInt(rangeSelector.value, 10);
+    fetchAnalytics();
+});
+
+exportBtn.addEventListener('click', () => {
+    window.open(`${ANALYTICS_EXPORT_URL}?days=${selectedRange}`, '_blank');
+});
+
+fetchAnalytics();
+scheduleRefresh();
+</script>
 {% endblock %}

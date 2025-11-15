@@ -31,11 +31,12 @@ SECRET_KEY = "django-insecure-@*#gx&&s2h^h0cg(1nz-3!an7pwsh%=sr@iwwlk=_(q3!rx#mk
 DEBUG = True
 
 ALLOWED_HOSTS = []
-AUTH_USER_MODEL = "accounts.Superuser"  # User is abstract; Superuser is concrete and serves as AUTH_USER_MODEL
+AUTH_USER_MODEL = "accounts.Customer"
 
-# Custom authentication backend to support Customer, Staff, and Superuser
+
 AUTHENTICATION_BACKENDS = [
-    'accounts.backends.MultiUserModelBackend',  # Custom backend for multi-user types
+    'accounts.backends.MultiUserModelBackend',  # Custom backend for Customer login
+    'accounts.backends.StaffModelBackend',  # Custom backend for Staff login
     'django.contrib.auth.backends.ModelBackend',  # Fallback to default
 ]
 
@@ -163,6 +164,39 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 TAX_RATE = 0.10
 SHIPPING_COST = 10.00
 FREE_SHIPPING_THRESHOLD = 100.00
+
+# Rewards System settings
+REWARD_THRESHOLDS = {
+    1000: 100.00,
+    2500: 250.00,
+    5000: 500.00,
+}
+REWARD_VOUCHER_MIN_PURCHASE = 20.00 
+REWARD_BADGES = {
+    1000: {
+        'name': 'Bronze Shopper',
+        'color': '#CD7F32',  # Rich bronze - clearly distinguishable
+        'icon': 'award',
+        'description': 'Earned for a $1,000+ purchase'
+    },
+    2500: {
+        'name': 'Silver Shopper',
+        'color': '#A8A8A8',  # Medium silver - more visible than pure silver
+        'icon': 'award',
+        'description': 'Earned for a $2,500+ purchase'
+    },
+    5000: {
+        'name': 'Gold Shopper',
+        'color': '#FFA500',  # Vibrant gold/orange - clearly distinguishable
+        'icon': 'award',
+        'description': 'Earned for a $5,000+ purchase'
+    },
+}
+
+# Dynamic Pricing settings
+DYNAMIC_PRICING_ENABLED = True
+DYNAMIC_PRICING_LOW_STOCK_THRESHOLD = 10  # Units
+DYNAMIC_PRICING_DISCOUNT_PERCENTAGE = 15  # Percentage discount
 
 # Django Channels configuration
 ASGI_APPLICATION = "auroramartproject.asgi.application"

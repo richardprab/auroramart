@@ -35,6 +35,7 @@ migrations:
 	python manage.py makemigrations orders
 	python manage.py makemigrations notifications
 	python manage.py makemigrations adminpanel
+	python manage.py makemigrations vouchers
 	@echo "Migrations created successfully!"
 
 # Apply migrations
@@ -85,41 +86,34 @@ clean:
 	find . -type f -name ".DS_Store" -delete
 	@echo "Cache cleaned!"
 
-# Reset database (DANGER!)
-# Detects OS and uses appropriate commands (Unix or Windows)
+ifeq ($(OS),Windows_NT)
+resetdb:
+	@powershell -NoProfile -Command "Write-Host 'WARNING: This will delete your database!'; Write-Host 'Press Enter to continue or Ctrl+C to cancel...'; Read-Host | Out-Null; Write-Host 'Deleting database...'; if (Test-Path 'db.sqlite3') { try { Remove-Item -Force 'db.sqlite3' -ErrorAction Stop } catch { Write-Warning 'Could not delete db.sqlite3 (is it open in another program?)' } }; Write-Host 'Deleting migration files...'; Get-ChildItem -Path . -Recurse -Filter '*.py' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.Name -ne '__init__.py' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | ForEach-Object { Remove-Item -Force $$_.FullName }; Get-ChildItem -Path . -Recurse -Filter '*.pyc' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | ForEach-Object { Remove-Item -Force $$_.FullName }; Get-ChildItem -Path . -Recurse -Directory -Filter '__pycache__' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | ForEach-Object { Remove-Item -Recurse -Force $$_.FullName }; Write-Host 'Cleaning cache...'; Get-ChildItem -Path . -Recurse -Directory -Filter '__pycache__' | Where-Object { $$_.FullName -notmatch '\\\\.venv\\\\' } | ForEach-Object { Remove-Item -Recurse -Force $$_.FullName }"
+	@echo "Creating fresh migrations..."
+	@$(MAKE) migrations
+	@echo "Applying migrations..."
+	@$(MAKE) migrate
+	@echo "Database reset complete!"
+	@echo "Don't forget to run: make superuser"
+else
 resetdb:
 	@echo "WARNING: This will delete your database!"
 	@echo "Press Ctrl+C to cancel, or Enter to continue..."
-	@python -c "import sys; import os; os._exit(0 if sys.platform == 'win32' else 1)" 2>nul && \
-		(powershell -Command "Read-Host | Out-Null" && \
-		echo "Deleting database..." && \
-		powershell -Command "if (Test-Path db.sqlite3) { Remove-Item -Force db.sqlite3 }" && \
-		echo "Deleting migration files..." && \
-		powershell -Command "Get-ChildItem -Path . -Recurse -Filter '*.py' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.Name -ne '__init__.py' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | Remove-Item -Force" && \
-		powershell -Command "Get-ChildItem -Path . -Recurse -Filter '*.pyc' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | Remove-Item -Force" && \
-		powershell -Command "Get-ChildItem -Path . -Recurse -Directory -Filter '__pycache__' | Where-Object { $$_.FullName -match '\\\\migrations\\\\' -and $$_.FullName -notmatch '\\\\.venv\\\\' } | Remove-Item -Recurse -Force" && \
-		echo "Cleaning cache..." && \
-		powershell -Command "Get-ChildItem -Path . -Recurse -Directory -Filter '__pycache__' | Where-Object { $$_.FullName -notmatch '\\\\.venv\\\\' } | Remove-Item -Recurse -Force" && \
-		echo "Creating fresh migrations..." && \
-		$(MAKE) migrations && \
-		echo "Applying migrations..." && \
-		$(MAKE) migrate && \
-		echo "Database reset complete!" && \
-		echo "Don't forget to run: make superuser") || \
-		(read -r dummy && \
-		echo "Deleting database..." && \
-		rm -f db.sqlite3 && \
-		echo "Deleting migration files..." && \
-		find . -path "*/migrations/*.py" -not -name "__init__.py" -not -path "./venv/*" -not -path "./.venv/*" -delete 2>/dev/null || true && \
-		find . -path "*/migrations/*.pyc" -not -path "./venv/*" -not -path "./.venv/*" -delete 2>/dev/null || true && \
-		echo "Cleaning cache..." && \
-		$(MAKE) clean && \
-		echo "Creating fresh migrations..." && \
-		$(MAKE) migrations && \
-		echo "Applying migrations..." && \
-		$(MAKE) migrate && \
-		echo "Database reset complete!" && \
-		echo "Don't forget to run: make superuser")
+	@read -r dummy
+	@echo "Deleting database..."
+	@rm -f db.sqlite3
+	@echo "Deleting migration files..."
+	@find . -path "*/migrations/*.py" -not -name "__init__.py" -not -path "./venv/*" -not -path "./.venv/*" -delete 2>/dev/null || true
+	@find . -path "*/migrations/*.pyc" -not -path "./venv/*" -not -path "./.venv/*" -delete 2>/dev/null || true
+	@echo "Cleaning cache..."
+	@$(MAKE) clean
+	@echo "Creating fresh migrations..."
+	@$(MAKE) migrations
+	@echo "Applying migrations..."
+	@$(MAKE) migrate
+	@echo "Database reset complete!"
+	@echo "Don't forget to run: make superuser"
+endif
 
 # Full setup for new developers
 setup: install migrations migrate

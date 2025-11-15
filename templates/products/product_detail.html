@@ -70,10 +70,13 @@
             {% if lowest_variant %}
             <div class="mb-6" id="price-section">
                 <div class="flex items-baseline gap-3">
-                    <span class="text-4xl font-bold text-gray-900" id="current-price">${{ lowest_variant.price }}</span>
+                    <span class="text-4xl font-bold text-gray-900" id="current-price">${{ lowest_variant.effective_price|floatformat:2 }}</span>
                     {% if lowest_variant.compare_price and lowest_variant.compare_price > lowest_variant.price %}
-                    <span class="text-2xl text-gray-500 line-through" id="original-price">${{ lowest_variant.compare_price }}</span>
+                    <span class="text-2xl text-gray-500 line-through" id="original-price">${{ lowest_variant.compare_price|floatformat:2 }}</span>
                     <span class="text-green-600 font-semibold" id="discount-badge">Save {{ lowest_variant.discount_percentage }}%</span>
+                    {% elif lowest_variant.is_dynamically_priced %}
+                    <span class="text-2xl text-gray-500 line-through" id="original-price">${{ lowest_variant.original_price|floatformat:2 }}</span>
+                    <span class="text-green-600 font-semibold" id="discount-badge">Low Stock Sale</span>
                     {% endif %}
                 </div>
             </div>
@@ -368,7 +371,7 @@
          data-id="{{ variant.id }}"
          data-color="{{ variant.color }}"
          data-size="{{ variant.size }}"
-         data-price="{{ variant.price }}"
+         data-price="{{ variant.effective_price }}"
          data-compare-price="{% if variant.compare_price %}{{ variant.compare_price }}{% else %}0{% endif %}"
          data-stock="{{ variant.stock }}"
          data-sku="{{ variant.sku }}"></div>
@@ -730,7 +733,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const reviewSortButtonsContainer = document.getElementById('review-sort-buttons');
             const reviewsList = document.getElementById('reviews-list');
-            const productSku = '{{ product.sku }}';
+            const reviewsBaseUrl = '{% url "products:get_reviews_ajax" sku=product.sku %}';
             
             // Use event delegation for dynamically updated buttons
             if (reviewSortButtonsContainer && reviewsList) {
@@ -745,7 +748,7 @@
                     reviewsList.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>';
                     
                     // Fetch reviews via AJAX
-                    fetch(`/products/${productSku}/reviews/?sort=${sort}&direction=${direction}`)
+                    fetch(`${reviewsBaseUrl}?sort=${sort}&direction=${direction}`)
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {

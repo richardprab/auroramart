@@ -19,10 +19,13 @@ def list_conversations(request):
     for conv in conversations:
         messages_data = []
         for msg in conv.messages.all().select_related('sender', 'staff_sender')[:50]:  # Last 50 messages
+            # Determine if message is from staff
+            is_staff_message = msg.staff_sender is not None
             messages_data.append({
                 'id': msg.id,
                 'content': msg.content,
                 'sender': msg.actual_sender.id if msg.actual_sender else None,
+                'is_staff': is_staff_message,  # Explicitly mark staff messages
                 'created_at': msg.created_at.isoformat(),
             })
         
@@ -134,10 +137,13 @@ def get_conversation(request, conversation_id):
     
     messages_data = []
     for msg in conversation.messages.all().select_related('sender', 'staff_sender'):
+        # Determine if message is from staff
+        is_staff_message = msg.staff_sender is not None
         messages_data.append({
             'id': msg.id,
             'content': msg.content,
             'sender': msg.actual_sender.id if msg.actual_sender else None,
+            'is_staff': is_staff_message,  # Explicitly mark staff messages
             'created_at': msg.created_at.isoformat(),
         })
     
@@ -193,10 +199,13 @@ def send_message(request, conversation_id):
         conversation.admin_has_unread = True
         conversation.save()
         
+        # Determine if message is from staff
+        is_staff_message = message.staff_sender is not None
         return JsonResponse({
             'id': message.id,
             'content': message.content,
             'sender': message.actual_sender.id if message.actual_sender else None,
+            'is_staff': is_staff_message,  # Explicitly mark staff messages
             'created_at': message.created_at.isoformat(),
         }, status=201)
     except Exception as e:
