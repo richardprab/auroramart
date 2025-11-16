@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.core import exceptions
 from django.db import DEFAULT_DB_ALIAS
 from django.contrib.auth import password_validation
-from accounts.models import Superuser
+from accounts.models import Superuser, Customer, Staff
 
 
 class Command(BaseCommand):
@@ -85,12 +85,16 @@ class Command(BaseCommand):
                 user_data['first_name'] = first_name if first_name else ''
                 user_data['last_name'] = last_name if last_name else ''
 
-                # Validate that the username is not already taken.
-                if self.UserModel._default_manager.db_manager(database).filter(username=username).exists():
+                # Validate that the username is not already taken (check all user types)
+                if (Customer.objects.filter(username=username).exists() or
+                    Staff.objects.filter(username=username).exists() or
+                    Superuser.objects.filter(username=username).exists()):
                     raise CommandError("Error: That username is already taken.")
 
-                # Validate that the email is not already taken.
-                if email and self.UserModel._default_manager.db_manager(database).filter(email=email).exists():
+                # Validate that the email is not already taken (check all user types)
+                if email and (Customer.objects.filter(email=email).exists() or
+                             Staff.objects.filter(email=email).exists() or
+                             Superuser.objects.filter(email=email).exists()):
                     raise CommandError("Error: That email is already taken.")
 
             except exceptions.ValidationError as e:
@@ -117,8 +121,10 @@ class Command(BaseCommand):
             else:
                 user_data['email'] = self._get_input_data(self.UserModel, self.UserModel._meta.get_field('email'), None, 'email address')
 
-            # Check if email is already taken
-            if user_data['email'] and self.UserModel._default_manager.db_manager(database).filter(email=user_data['email']).exists():
+            # Check if email is already taken (check all user types)
+            if user_data['email'] and (Customer.objects.filter(email=user_data['email']).exists() or
+                                       Staff.objects.filter(email=user_data['email']).exists() or
+                                       Superuser.objects.filter(email=user_data['email']).exists()):
                 raise CommandError("Error: That email is already taken.")
 
             # Prompt for first_name if not provided
@@ -174,14 +180,32 @@ class Command(BaseCommand):
         user_data['is_staff'] = True
         user_data['is_active'] = True
 
-        # Create Superuser instance directly (not using create_user to avoid Customer creation)
+        # Create Superuser instance directly using Superuser.objects.create()
+        # This ensures we create a Superuser, not a Customer or Staff
         # We don't include password in user_data because we'll set it separately using set_password()
-        superuser = self.UserModel._default_manager.db_manager(database).create(**user_data)
+        try:
+            superuser = Superuser.objects.db_manager(database).create(**user_data)
+        except Exception as e:
+            raise CommandError(f"Error creating superuser: {e}")
         
         # Set password after creation
         if password:
             superuser.set_password(password)
             superuser.save()
+        
+        # Verify that a Superuser was created and not a Customer
+        if not isinstance(superuser, Superuser):
+            raise CommandError("Error: Created user is not a Superuser instance.")
+        
+        # Double-check: ensure no Customer was created with the same username/email
+        if Customer.objects.filter(username=superuser.username).exists():
+            # Delete the incorrectly created Customer if it exists
+            Customer.objects.filter(username=superuser.username).delete()
+            self.stdout.write(
+                self.style.WARNING(
+                    f'Warning: A Customer instance with username "{superuser.username}" was found and removed.'
+                )
+            )
 
         if options['verbosity'] >= 1:
             self.stdout.write(
