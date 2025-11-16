@@ -837,8 +837,8 @@ def seed_from_csv(csv_path, reset=True):
     # Create sample orders and reviews
     create_sample_orders_and_reviews()
     
-    # Assign 5% profile completion voucher to all users
-    assign_profile_completion_vouchers()
+    # Note: Profile completion vouchers are now granted on-demand when users visit their profile page
+    # (similar to milestone vouchers - checked automatically, no need to assign manually)
     
     # Note: Milestone vouchers are now granted on-demand when users view vouchers/milestones
     # No need to assign them manually here
@@ -992,72 +992,19 @@ def create_sample_vouchers():
 
 def assign_profile_completion_vouchers():
     """
-    Create individual 5% vouchers for customers who have completed their profile.
-    Each customer gets their own user-specific voucher.
+    DEPRECATED: Profile completion vouchers are now granted automatically on-demand
+    when users visit their profile page (similar to milestone vouchers).
+    
+    This function is kept for backward compatibility but does nothing.
+    Vouchers are automatically created by check_and_grant_profile_completion_voucher()
+    in vouchers/rewards.py when users visit their profile or vouchers page.
     """
     print("\n" + "=" * 60)
-    print("ASSIGNING PROFILE COMPLETION VOUCHERS (5% OFF)")
+    print("PROFILE COMPLETION VOUCHERS")
     print("=" * 60)
-    
-    Voucher = apps.get_model("vouchers", "Voucher")
-    User = apps.get_model("accounts", "Superuser")
-    
-    # Get or create a superuser for created_by
-    superuser = User.objects.filter(is_superuser=True).first()
-    if not superuser:
-        superuser = None
-    
-    # Get all customers who have completed their profile (100% completion)
-    customers_with_complete_profile = []
-    for customer in Customer.objects.all():
-        if customer.get_profile_completion_percentage() == 100:
-            customers_with_complete_profile.append(customer)
-    
-    if not customers_with_complete_profile:
-        print("  No customers with completed profiles found. Skipping voucher assignment.")
-        print()
-        return
-    
-    now = timezone.now()
-    vouchers_created = 0
-    vouchers_skipped = 0
-    
-    for customer in customers_with_complete_profile:
-        # Create unique promo code for each customer
-        promo_code = f"WELCOME-{customer.id}"
-        
-        # Check if voucher already exists for this customer
-        if Voucher.objects.filter(user=customer, promo_code=promo_code).exists():
-            vouchers_skipped += 1
-            continue
-        
-        try:
-            voucher = Voucher.objects.create(
-                name='Welcome Discount',
-                promo_code=promo_code,
-                description='Congratulations on completing your profile! You\'ve earned a 5% discount voucher as a reward. Use this voucher at checkout to apply the discount to your order.',
-                discount_type='percent',
-                discount_value=Decimal('5.00'),
-                max_discount=Decimal('50.00'),  # Max $50 discount
-                min_purchase=Decimal('10.00'),  # Minimum $10 purchase
-                first_time_only=False,
-                max_uses=1,  # Can only be used once
-                max_uses_per_user=1,
-                start_date=now,
-                end_date=now + timedelta(days=365),  # Valid for 1 year
-                is_active=True,
-                user=customer,  # User-specific voucher
-                created_by=superuser,
-            )
-            vouchers_created += 1
-            if vouchers_created % 10 == 0:
-                print(f"  Created {vouchers_created} vouchers...")
-        except Exception as e:
-            print(f"  ❌ Error creating voucher for {customer.username}: {e}")
-    
-    print(f"  ✅ Created {vouchers_created} profile completion vouchers")
-    if vouchers_skipped > 0:
-        print(f"  ℹ️  Skipped {vouchers_skipped} customers (vouchers already exist)")
+    print("  ℹ️  Profile completion vouchers are now granted automatically!")
+    print("  ℹ️  They are created on-demand when users visit their profile page.")
+    print("  ℹ️  No manual assignment needed.")
     print()
 
 

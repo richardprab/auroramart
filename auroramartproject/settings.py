@@ -49,13 +49,13 @@ AUTHENTICATION_BACKENDS = [
 
 INSTALLED_APPS = [
     "django.contrib.admin",
+    "accounts",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "channels",
-    "accounts",
     "chat",
     "home",
     "products",

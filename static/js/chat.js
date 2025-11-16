@@ -250,6 +250,12 @@ const ChatWidget = {
         document.addEventListener('click', (e) => {
             const chatWindow = document.getElementById('chat-window');
             const chatFab = document.getElementById('chat-fab');
+            const deleteModal = document.getElementById('delete-chat-modal');
+            
+            // Don't close chat if clicking on delete modal or its children
+            if (deleteModal && (deleteModal.contains(e.target) || deleteModal === e.target)) {
+                return;
+            }
             
             if (this.isOpen && chatWindow && !chatWindow.contains(e.target) && !chatFab.contains(e.target)) {
                 this.closeChat();
@@ -298,7 +304,12 @@ const ChatWidget = {
             if (chevron) chevron.style.transform = 'rotate(0deg)';
         }
 
-        this.updateSessionSelector();
+        // Load sessions if not already loaded
+        if (this.sessions.length === 0) {
+            await this.loadSessions();
+        } else {
+            this.updateSessionSelector();
+        }
 
         if (this.currentSession) {
             await this.loadMessages();
@@ -487,8 +498,19 @@ const ChatWidget = {
             }
         }
         // Determine if message is from staff/admin
-        // Check both the explicit is_staff flag and the sender ID comparison
-        const isAdmin = message.is_staff || (message.sender && this.currentUserId && message.sender !== this.currentUserId);
+        // Primary check: use is_staff flag if available (most reliable)
+        // Handle both boolean true and truthy values (in case it comes as string "true" or 1)
+        let isAdmin = false;
+        
+        if (message.is_staff !== undefined && message.is_staff !== null) {
+            // is_staff is explicitly set - trust it
+            isAdmin = message.is_staff === true || message.is_staff === "true" || message.is_staff === 1;
+        } else {
+            // is_staff is not set - use fallback: check if sender ID differs from current user
+            if (message.sender && this.currentUserId) {
+                isAdmin = message.sender !== this.currentUserId;
+            }
+        }
         
         // Get user's first name from chat window data attribute
         const chatWindow = document.getElementById('chat-window');
@@ -542,18 +564,20 @@ const ChatWidget = {
             });
 
             if (response.ok) {
-                const newMessage = await response.json();
+                input.value = '';
                 
-                // Clear welcome message if it exists
                 const container = document.getElementById('chat-messages');
                 const welcomeMsg = container.querySelector('.bg-blue-50');
                 if (welcomeMsg && welcomeMsg.parentElement) {
                     welcomeMsg.parentElement.remove();
                 }
                 
-                this.appendMessage(newMessage);
-                input.value = '';
-                this.scrollToBottom();
+                if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+                    // Fallback: if WebSocket is not available, load messages after a short delay
+                    setTimeout(() => {
+                        this.loadMessages();
+                    }, 500);
+                }
             } else {
                 console.error('Failed to send message:', response.status);
                 if (window.AuroraMart && window.AuroraMart.toast) {

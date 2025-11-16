@@ -37,10 +37,25 @@ def user_login(request):
         username_or_email = request.POST.get('username')
         password = request.POST.get('password')
         
-        # First, check if this username/email belongs to a Staff user
+        # First, check if this username/email belongs to a Staff or Superuser
         # If so, reject immediately with a clear message
-        from .models import Staff
+        from .models import Staff, Superuser
         try:
+            # Check for Superuser first
+            superuser = Superuser.objects.filter(
+                Q(username=username_or_email) | Q(email__iexact=username_or_email)
+            ).first()
+            if superuser and superuser.check_password(password):
+                messages.error(
+                    request, 
+                    'Superuser accounts cannot login here. Please use the staff login page at /adminpanel/login/'
+                )
+                return render(request, 'accounts/login.html', {
+                    'form': form,
+                    'next': request.GET.get('next', '')
+                })
+            
+            # Check for Staff user
             staff_user = Staff.objects.filter(
                 Q(username=username_or_email) | Q(email__iexact=username_or_email)
             ).first()
@@ -123,6 +138,25 @@ def register(request):
 @login_required
 def profile(request):
     """User profile page with edit functionality"""
+    # Check and grant profile completion voucher if eligible (similar to milestone vouchers)
+    try:
+        from vouchers.rewards import check_and_grant_profile_completion_voucher
+        from django.contrib import messages
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        newly_created_voucher = check_and_grant_profile_completion_voucher(request.user)
+        if newly_created_voucher:
+            messages.success(
+                request,
+                'Profile complete! You\'ve earned a 5% discount voucher! Check your vouchers to see your code.'
+            )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error checking profile completion voucher: {str(e)}", exc_info=True)
+    
     # Get user statistics
     total_orders = 0
     wishlist_count = Wishlist.objects.filter(user=request.user).count()
@@ -334,60 +368,15 @@ def update_demographics(request):
             customer.save()
             
             # Check if profile is now complete and wasn't before
+            # Note: Voucher will be granted automatically when user visits profile page
+            # (similar to milestone vouchers - checked on-demand)
             is_now_complete = customer.get_profile_completion_percentage() == 100
             profile_just_completed = is_now_complete and not was_complete
-            
-            # Give profile completion voucher if profile was just completed
-            if profile_just_completed:
-                from vouchers.models import Voucher, VoucherUsage
-                from accounts.models import Superuser
-                from django.utils import timezone
-                from datetime import timedelta
-                
-                # Check if user already has the WELCOME voucher or has used it
-                welcome_voucher = Voucher.objects.filter(promo_code='WELCOME', is_active=True).first()
-                
-                if welcome_voucher:
-                    # Check if user has already used this voucher
-                    usage_count = VoucherUsage.objects.filter(
-                        voucher=welcome_voucher,
-                        user=customer
-                    ).count()
-                    
-                    if usage_count == 0:
-                        # User hasn't used it yet, they can use the existing public voucher
-                        pass  # Voucher already exists and is available
-                    else:
-                        # User already used it, no need to do anything
-                        pass
-                else:
-                    # Create the WELCOME voucher if it doesn't exist (should exist from populate_db, but just in case)
-                    superuser = Superuser.objects.filter(is_superuser=True).first()
-                    try:
-                        Voucher.objects.create(
-                            name='Welcome Discount',
-                            promo_code='WELCOME',
-                            description='Congratulations on completing your profile! You\'ve earned a 5% discount voucher as a reward. Use code WELCOME at checkout to apply this discount to your order.',
-                            discount_type='percent',
-                            discount_value=Decimal('5.00'),
-                            max_discount=Decimal('50.00'),
-                            min_purchase=Decimal('10.00'),
-                            first_time_only=False,
-                            max_uses=None,
-                            max_uses_per_user=1,
-                            start_date=timezone.now(),
-                            end_date=timezone.now() + timedelta(days=365),
-                            is_active=True,
-                            user=None,  # Public voucher
-                            created_by=superuser,
-                        )
-                    except Exception:
-                        pass  # Voucher might already exist, ignore error
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 message = 'Profile updated successfully! Your recommendations will be more personalized.'
                 if profile_just_completed:
-                    message = 'Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!'
+                    message = 'Profile complete! You\'ve earned a 5% discount voucher! Check your vouchers to see your code.'
                 return JsonResponse({
                     'success': True,
                     'message': message,
@@ -395,7 +384,7 @@ def update_demographics(request):
                 })
             else:
                 if profile_just_completed:
-                    messages.success(request, 'Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!')
+                    messages.success(request, 'Profile complete! You\'ve earned a 5% discount voucher! Check your vouchers to see your code.')
                 else:
                     messages.success(request, 'Profile updated successfully!')
                 return redirect('accounts:profile')

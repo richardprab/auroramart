@@ -434,8 +434,10 @@
             <div class="message-sender">
                 {% if msg.staff_sender %}
                     Staff: {{ msg.staff_sender.username|upper }}
-                {% else %}
+                {% elif msg.sender %}
                     {{ msg.sender.get_full_name|default:msg.sender.username }}
+                {% else %}
+                    System
                 {% endif %}
             </div>
             <div class="message-content">
