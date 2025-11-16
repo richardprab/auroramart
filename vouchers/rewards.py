@@ -262,6 +262,64 @@ def check_and_grant_milestone_vouchers(user):
     return newly_created_vouchers
 
 
+def check_and_grant_profile_completion_voucher(user):
+    """
+    Check if user has completed their profile and grant voucher if needed.
+    Returns the newly created voucher or None.
+    This is called on-demand (e.g., when user visits profile page).
+    """
+    from vouchers.models import Voucher
+    from accounts.models import Customer
+    
+    # Only process Customer users
+    if not isinstance(user, Customer):
+        return None
+    
+    # Check if profile is complete
+    if user.get_profile_completion_percentage() != 100:
+        return None
+    
+    # Check if user already has a profile completion voucher
+    promo_code = f'WELCOME-{user.id}'
+    existing_voucher = Voucher.objects.filter(
+        user=user,
+        promo_code=promo_code
+    ).first()
+    
+    if existing_voucher:
+        return None  # Voucher already exists
+    
+    try:
+        voucher = Voucher.objects.create(
+            name='Welcome Discount',
+            promo_code=promo_code,
+            description='Congratulations on completing your profile! You\'ve earned a 5% discount voucher as a reward. Use this voucher at checkout to apply the discount to your order.',
+            discount_type='percent',
+            discount_value=Decimal('5.00'),
+            max_discount=Decimal('50.00'),
+            min_purchase=Decimal('10.00'),
+            first_time_only=False,
+            max_uses=1,
+            max_uses_per_user=1,
+            start_date=timezone.now(),
+            end_date=timezone.now() + timedelta(days=365),
+            is_active=True,
+            user=user,
+            created_by=None,  # System-generated voucher
+        )
+        logger.info(
+            f"Granted profile completion voucher {voucher.promo_code} "
+            f"for user {user.username}"
+        )
+        return voucher
+    except Exception as e:
+        logger.error(
+            f"Error creating profile completion voucher for user {user.username}: {str(e)}",
+            exc_info=True
+        )
+        return None
+
+
 def create_reward_voucher(user, amount, order, badge_info=None):
     from vouchers.models import Voucher
     

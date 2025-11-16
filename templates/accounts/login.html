@@ -104,29 +104,58 @@
         const form = document.querySelector('.auth-form');
         const inputs = form.querySelectorAll('.form-control');
 
-        // Display toast messages (only once per page load)
+        // Display toast messages immediately (before any other operations)
         const toastMessages = document.querySelectorAll('.toast-message');
-        toastMessages.forEach(el => {
-            const message = el.dataset.message;
-            const type = el.dataset.type || 'success';
+        if (toastMessages.length > 0) {
+            // Use setTimeout to ensure toast is shown after DOM is fully ready
+            setTimeout(function() {
+                toastMessages.forEach(el => {
+                    const message = el.dataset.message;
+                    const type = el.dataset.type || 'success';
 
-            // Map Django message tags to toast types
-            const typeMap = {
-                'success': 'success',
-                'error': 'error',
-                'warning': 'warning',
-                'info': 'info'
-            };
+                    // Map Django message tags to toast types
+                    const typeMap = {
+                        'success': 'success',
+                        'error': 'error',
+                        'warning': 'warning',
+                        'info': 'info'
+                    };
 
-            if (message && AuroraMart && AuroraMart.toast) {
-                AuroraMart.toast(message, typeMap[type] || 'info', 5000);
-            }
-        });
+                    if (message) {
+                        // Try multiple toast methods
+                        if (window.AuroraMart && window.AuroraMart.toast) {
+                            window.AuroraMart.toast(message, typeMap[type] || 'info', 5000);
+                        } else if (window.toast) {
+                            const toastType = typeMap[type] || 'info';
+                            if (toastType === 'error' && window.toast.error) {
+                                window.toast.error(message, 5000);
+                            } else if (toastType === 'success' && window.toast.success) {
+                                window.toast.success(message, 5000);
+                            } else if (toastType === 'warning' && window.toast.warning) {
+                                window.toast.warning(message, 5000);
+                            } else if (window.toast.info) {
+                                window.toast.info(message, 5000);
+                            }
+                        }
+                    }
+                });
+            }, 100); // Small delay to ensure everything is ready
+        }
         
         // Remove messages container after displaying to prevent re-triggering
         const messagesContainer = document.getElementById('django-messages');
         if (messagesContainer) {
-            messagesContainer.remove();
+            setTimeout(function() {
+                messagesContainer.remove();
+            }, 200);
+        }
+
+        // Prevent form resubmission on page refresh by updating URL
+        // This ensures the toast stays visible and form won't resubmit on refresh
+        if (toastMessages.length > 0 && window.history && window.history.replaceState) {
+            const currentUrl = window.location.href;
+            const urlWithoutParams = currentUrl.split('?')[0];
+            window.history.replaceState({}, '', urlWithoutParams);
         }
 
         // Real-time validation

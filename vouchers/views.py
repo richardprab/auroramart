@@ -42,11 +42,21 @@ def my_vouchers(request):
     logger = logging.getLogger(__name__)
     
     try:
+        # Check and grant milestone vouchers
         newly_created = check_and_grant_milestone_vouchers(request.user)
         if newly_created:
             messages.success(
                 request, 
                 f"Congratulations! You've earned {len(newly_created)} new milestone voucher(s)!"
+            )
+        
+        # Check and grant profile completion voucher (similar pattern)
+        from vouchers.rewards import check_and_grant_profile_completion_voucher
+        profile_voucher = check_and_grant_profile_completion_voucher(request.user)
+        if profile_voucher:
+            messages.success(
+                request,
+                'Profile complete! You\'ve earned a 5% discount voucher! Check your vouchers to see your code.'
             )
     except Exception as e:
         logger.error(f"Error checking milestone vouchers: {str(e)}", exc_info=True)
@@ -153,7 +163,12 @@ def my_vouchers_json(request):
     logger = logging.getLogger(__name__)
     
     try:
+        # Check and grant milestone vouchers
         check_and_grant_milestone_vouchers(request.user)
+        
+        # Check and grant profile completion voucher (similar pattern)
+        from vouchers.rewards import check_and_grant_profile_completion_voucher
+        check_and_grant_profile_completion_voucher(request.user)
     except Exception as e:
         logger.error(f"Error checking milestone vouchers: {str(e)}", exc_info=True)
     

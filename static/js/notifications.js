@@ -17,12 +17,13 @@ const NotificationSystem = {
     init() {
         this.attachEventListeners();
         
-        // Update badge immediately on init
-        this.checkNotifications();
-        
+        // WebSocket will send initial unread count on connect
+        // Only use API if WebSocket is disabled
         if (this.useWebSocket) {
             this.connectWebSocket();
         } else {
+            // Fallback: use API if WebSocket is disabled
+            this.checkNotifications();
             this.startPolling();
         }
     },

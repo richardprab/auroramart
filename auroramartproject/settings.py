@@ -49,13 +49,13 @@ AUTHENTICATION_BACKENDS = [
 
 INSTALLED_APPS = [
     "django.contrib.admin",
+    "accounts",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "channels",
-    "accounts",
     "chat",
     "home",
     "products",
@@ -96,7 +96,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "auroramartproject.wsgi.application"
+# ASGI application is configured in auroramartproject/asgi.py
+# WSGI_APPLICATION = "auroramartproject.wsgi.application"  # Removed: Using ASGI as default
 
 
 # Database

@@ -2191,9 +2191,9 @@
                 if (justReached100) {
                     // Show success message briefly before hiding
                     if (window.toast) {
-                        window.toast.success('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
+                        window.toast.success('Profile complete! You\'ve earned a 5% discount voucher! Check your vouchers to see your code.');
                     } else if (window.AuroraMart && window.AuroraMart.toast) {
-                        window.AuroraMart.toast('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
+                        window.AuroraMart.toast('Profile complete! You\'ve earned a 5% discount voucher! Check your vouchers to see your code.', 'success');
                     }
                     
                     // Show success message in banner for 2 seconds before hiding
@@ -2514,9 +2514,9 @@
                 if (data.profile_completed) {
                     setTimeout(() => {
                         if (window.toast) {
-                            window.toast.success('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!');
+                            window.toast.success('Profile complete! You\'ve earned a 5% discount voucher! Check your vouchers to see your code.');
                         } else if (window.AuroraMart && window.AuroraMart.toast) {
-                            window.AuroraMart.toast('Profile complete! You\'ve earned a 5% discount voucher (code: WELCOME)!', 'success');
+                            window.AuroraMart.toast('Profile complete! You\'ve earned a 5% discount voucher! Check your vouchers to see your code.', 'success');
                         }
                     }, 500);
                 }

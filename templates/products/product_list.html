@@ -439,7 +439,7 @@
                             </div>
                             {% endif %}
                             
-                        <!-- Bottom section with price and add to cart -->
+                        <!-- Bottom section with price -->
                         {% if lowest_variant %}
                         <div class="mt-auto pt-3 border-t border-gray-100">
                             <!-- Price, Save Badge, and Stock Status - All in one row -->
@@ -491,25 +491,6 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            
-                            <!-- Add to Cart Button -->
-                            <form method="POST" action="{% url 'cart:add_to_cart' product_id=product.id %}" class="ajax-add-to-cart">
-                                {% csrf_token %}
-                                <input type="hidden" name="quantity" value="1">
-                                <input type="hidden" name="variant_id" value="{{ lowest_variant.id }}">
-                                <button type="submit"
-                                    class="btn btn-primary w-full flex items-center justify-center gap-2 {% if not lowest_variant.stock %}opacity-50 cursor-not-allowed{% endif %}"
-                                    {% if not lowest_variant.stock %}disabled{% endif %}
-                                    data-add-to-cart data-product-id="{{ product.id }}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
-                                        stroke="currentColor" stroke-width="2">
-                                        <circle cx="9" cy="21" r="1"></circle>
-                                        <circle cx="20" cy="21" r="1"></circle>
-                                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                                    </svg>
-                                    Add to Cart
-                                </button>
-                            </form>
                         </div>
                         {% else %}
                         <div class="mt-auto pt-3 border-t border-gray-100">

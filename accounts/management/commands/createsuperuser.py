@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.core import exceptions
 from django.db import DEFAULT_DB_ALIAS
 from django.contrib.auth import password_validation
-from accounts.models import Superuser
+from accounts.models import Superuser, Customer, Staff
 
 
 class Command(BaseCommand):
@@ -28,6 +28,16 @@ class Command(BaseCommand):
             help='Specifies the email address for the superuser.',
         )
         parser.add_argument(
+            '--first-name',
+            dest='first_name', default=None,
+            help='Specifies the first name for the superuser.',
+        )
+        parser.add_argument(
+            '--last-name',
+            dest='last_name', default=None,
+            help='Specifies the last name for the superuser.',
+        )
+        parser.add_argument(
             '--noinput', '--no-input',
             action='store_false', dest='interactive',
             help=(
@@ -44,12 +54,16 @@ class Command(BaseCommand):
         )
 
     def execute(self, *args, **options):
-        self.stdin = options.get('stdin', self.stdin)  # Used for testing
+        # Allow stdin to be overridden for testing
+        if 'stdin' in options:
+            self.stdin = options['stdin']
         return super().execute(*args, **options)
 
     def handle(self, *args, **options):
         username = options['username']
         email = options.get('email')
+        first_name = options.get('first_name')
+        last_name = options.get('last_name')
         database = options['database']
         user_data = {}
         verbosity = options['verbosity']
@@ -66,13 +80,21 @@ class Command(BaseCommand):
                     user_data['email'] = email
                 else:
                     user_data['email'] = ''
+                
+                # Set first_name and last_name if provided, otherwise use empty strings
+                user_data['first_name'] = first_name if first_name else ''
+                user_data['last_name'] = last_name if last_name else ''
 
-                # Validate that the username is not already taken.
-                if self.UserModel._default_manager.db_manager(database).filter(username=username).exists():
+                # Validate that the username is not already taken (check all user types)
+                if (Customer.objects.filter(username=username).exists() or
+                    Staff.objects.filter(username=username).exists() or
+                    Superuser.objects.filter(username=username).exists()):
                     raise CommandError("Error: That username is already taken.")
 
-                # Validate that the email is not already taken.
-                if email and self.UserModel._default_manager.db_manager(database).filter(email=email).exists():
+                # Validate that the email is not already taken (check all user types)
+                if email and (Customer.objects.filter(email=email).exists() or
+                             Staff.objects.filter(email=email).exists() or
+                             Superuser.objects.filter(email=email).exists()):
                     raise CommandError("Error: That email is already taken.")
 
             except exceptions.ValidationError as e:
@@ -99,12 +121,42 @@ class Command(BaseCommand):
             else:
                 user_data['email'] = self._get_input_data(self.UserModel, self.UserModel._meta.get_field('email'), None, 'email address')
 
-            # Check if email is already taken
-            if user_data['email'] and self.UserModel._default_manager.db_manager(database).filter(email=user_data['email']).exists():
+            # Check if email is already taken (check all user types)
+            if user_data['email'] and (Customer.objects.filter(email=user_data['email']).exists() or
+                                       Staff.objects.filter(email=user_data['email']).exists() or
+                                       Superuser.objects.filter(email=user_data['email']).exists()):
                 raise CommandError("Error: That email is already taken.")
 
-            # Prompt for required fields.
+            # Prompt for first_name if not provided
+            if first_name:
+                user_data['first_name'] = first_name
+            else:
+                user_data['first_name'] = self._get_input_data(
+                    self.UserModel, 
+                    self.UserModel._meta.get_field('first_name'), 
+                    None, 
+                    'first name'
+                )
+
+            # Prompt for last_name if not provided
+            if last_name:
+                user_data['last_name'] = last_name
+            else:
+                user_data['last_name'] = self._get_input_data(
+                    self.UserModel, 
+                    self.UserModel._meta.get_field('last_name'), 
+                    None, 
+                    'last name'
+                )
+
+            # Prompt for required fields (skip email since we already handled it above).
             for field_name in self.UserModel.REQUIRED_FIELDS:
+                # Skip email if it's already been set
+                if field_name == 'email' and 'email' in user_data:
+                    continue
+                # Skip first_name and last_name since we already handled them
+                if field_name in ('first_name', 'last_name') and field_name in user_data:
+                    continue
                 field = self.UserModel._meta.get_field(field_name)
                 user_data[field_name] = options.get(field_name)
                 while user_data[field_name] is None:
@@ -122,14 +174,38 @@ class Command(BaseCommand):
             # Interactive mode: get password
             password = self._get_password()
 
-        user_data['password'] = password
         # Note: is_superuser and is_staff will be set automatically by Superuser.save()
         # but we set them explicitly here for clarity
         user_data['is_superuser'] = True
         user_data['is_staff'] = True
         user_data['is_active'] = True
 
-        superuser = self.UserModel._default_manager.db_manager(database).create_user(**user_data)
+        # Create Superuser instance directly using Superuser.objects.create()
+        # This ensures we create a Superuser, not a Customer or Staff
+        # We don't include password in user_data because we'll set it separately using set_password()
+        try:
+            superuser = Superuser.objects.db_manager(database).create(**user_data)
+        except Exception as e:
+            raise CommandError(f"Error creating superuser: {e}")
+        
+        # Set password after creation
+        if password:
+            superuser.set_password(password)
+            superuser.save()
+        
+        # Verify that a Superuser was created and not a Customer
+        if not isinstance(superuser, Superuser):
+            raise CommandError("Error: Created user is not a Superuser instance.")
+        
+        # Double-check: ensure no Customer was created with the same username/email
+        if Customer.objects.filter(username=superuser.username).exists():
+            # Delete the incorrectly created Customer if it exists
+            Customer.objects.filter(username=superuser.username).delete()
+            self.stdout.write(
+                self.style.WARNING(
+                    f'Warning: A Customer instance with username "{superuser.username}" was found and removed.'
+                )
+            )
 
         if options['verbosity'] >= 1:
             self.stdout.write(
@@ -152,7 +228,7 @@ class Command(BaseCommand):
 
     def _get_password(self):
         """
-        Prompt for password from the user.
+        Prompt for password from the user with validation and bypass option.
         """
         password = None
         while password is None:
@@ -173,7 +249,11 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR('Password validation errors:'))
                 for error in e.messages:
                     self.stdout.write(self.style.ERROR('  - %s' % error))
-                password = None
+                # Ask if user wants to bypass validation
+                bypass = input('Bypass password validation and create user anyway? [y/N]: ')
+                if bypass.lower() != 'y':
+                    password = None
+                    continue
         return password
 
     def get_pass_input(self, prompt='Password: '):

@@ -383,7 +383,7 @@
 {% endblock %}
 
 {% block admin_content %}
-<div class="conversation-container">
+<div class="conversation-container" data-conversation-id="{{ conversation.id }}">
     <a href="{% url 'adminpanel:customer_support' %}" class="back-button">
         <i data-lucide="arrow-left" class="w-4 h-4"></i>
         Back to Messages
@@ -434,8 +434,10 @@
             <div class="message-sender">
                 {% if msg.staff_sender %}
                     Staff: {{ msg.staff_sender.username|upper }}
-                {% else %}
+                {% elif msg.sender %}
                     {{ msg.sender.get_full_name|default:msg.sender.username }}
+                {% else %}
+                    System
                 {% endif %}
             </div>
             <div class="message-content">
@@ -474,86 +476,184 @@
         lucide.createIcons();
     }
 
-    // Smooth scroll to bottom and highlight new messages after form submission
-    document.addEventListener('DOMContentLoaded', function() {
+    // Admin Chat WebSocket Handler
+    (function() {
+        const conversationContainer = document.querySelector('.conversation-container');
+        const conversationId = conversationContainer ? conversationContainer.getAttribute('data-conversation-id') : null;
         const messagesContainer = document.querySelector('.messages-container');
         const form = document.querySelector('.reply-form form');
         
-        // Check if we just submitted a reply
-        const urlParams = new URLSearchParams(window.location.search);
-        const justReplied = urlParams.get('replied') === '1';
-        
-        // Scroll to bottom on page load
-        if (messagesContainer) {
-            // Small delay to ensure messages are rendered
+        let websocket = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 3000;
+        let reconnectTimeout = null;
+
+        function connectWebSocket() {
+            if (!conversationId) return;
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/ws/admin/chat/${conversationId}/`;
+
+            try {
+                websocket = new WebSocket(wsUrl);
+
+                websocket.onopen = () => {
+                    reconnectAttempts = 0;
+                };
+
+                websocket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'chat_message') {
+                            handleNewMessage(data.message);
+                        }
+                    } catch (error) {
+                        // Silently handle parsing errors
+                    }
+                };
+
+                websocket.onerror = () => {
+                    // Silently handle WebSocket errors
+                };
+
+                websocket.onclose = () => {
+                    websocket = null;
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        reconnectTimeout = setTimeout(() => {
+                            connectWebSocket();
+                        }, reconnectDelay);
+                    }
+                };
+            } catch (error) {
+                // Silently handle connection errors
+            }
+        }
+
+        function handleNewMessage(messageData) {
+            if (!messagesContainer) return;
+
+            const messageEl = document.createElement('div');
+            const isStaff = messageData.is_staff === true || messageData.is_staff === "true" || messageData.is_staff === 1;
+            messageEl.className = `message-bubble ${isStaff ? 'staff' : 'customer'} new-message`;
+
+            const date = new Date(messageData.created_at);
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = months[date.getMonth()];
+            const day = date.getDate();
+            const year = date.getFullYear();
+            let hours = date.getHours();
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const time = `${month} ${day}, ${year} - ${hours}:${minutes} ${ampm}`;
+
+            let senderName = 'System';
+            if (isStaff) {
+                senderName = 'Staff: ' + (messageData.sender_name || 'STAFF').toUpperCase();
+            } else {
+                senderName = messageData.sender_name || 'Customer';
+            }
+
+            messageEl.innerHTML = `
+                <div class="message-sender">${escapeHtml(senderName)}</div>
+                <div class="message-content">${escapeHtml(messageData.content).replace(/\n/g, '<br>')}</div>
+                <div class="message-time">${time}</div>
+            `;
+
+            messagesContainer.appendChild(messageEl);
+            
             setTimeout(() => {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }, 100);
+
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         }
 
-        // Handle form submission
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                // Add loading state
-                const submitBtn = form.querySelector('.btn-submit');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 inline animate-spin"></i> Sending...';
-                    if (typeof lucide !== 'undefined') {
-                        lucide.createIcons();
-                    }
-                }
-            });
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
-        // If we just replied, animate the last staff message smoothly
-        if (justReplied) {
-            // Remove the replied parameter from URL without reload
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, '', newUrl);
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const justReplied = urlParams.get('replied') === '1';
             
-            // Wait for any potential DOM updates, then animate
-            setTimeout(() => {
-                const staffMessages = document.querySelectorAll('.message-bubble.staff');
-                if (staffMessages.length > 0) {
-                    const lastStaffMessage = staffMessages[staffMessages.length - 1];
-                    
-                    // Ensure message is visible
-                    lastStaffMessage.style.opacity = '1';
-                    
-                    // Add new-message class for smooth animation
-                    lastStaffMessage.classList.add('new-message');
-                    
-                    // Smooth scroll to the new message
-                    setTimeout(() => {
-                        if (messagesContainer) {
-                            lastStaffMessage.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'end',
-                                inline: 'nearest'
-                            });
-                            
-                            // Add a subtle highlight effect
-                            const messageContent = lastStaffMessage.querySelector('.message-content');
-                            if (messageContent) {
-                                messageContent.style.transition = 'all 0.3s';
-                                messageContent.style.transform = 'scale(1.02)';
-                                setTimeout(() => {
-                                    messageContent.style.transform = 'scale(1)';
-                                }, 300);
-                            }
+            if (messagesContainer) {
+                setTimeout(() => {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }, 100);
+            }
+
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const submitBtn = form.querySelector('.btn-submit');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 inline animate-spin"></i> Sending...';
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
                         }
-                    }, 200);
-                }
-            }, 300);
-        } else {
-            // Animate existing messages on load with staggered delay
-            const allMessages = document.querySelectorAll('.message-bubble');
-            allMessages.forEach((msg, index) => {
-                msg.classList.add('animate');
-                msg.style.animationDelay = `${index * 0.03}s`;
-            });
-        }
-    });
+                    }
+                });
+            }
+
+            if (justReplied) {
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+                
+                setTimeout(() => {
+                    const staffMessages = document.querySelectorAll('.message-bubble.staff');
+                    if (staffMessages.length > 0) {
+                        const lastStaffMessage = staffMessages[staffMessages.length - 1];
+                        lastStaffMessage.style.opacity = '1';
+                        lastStaffMessage.classList.add('new-message');
+                        
+                        setTimeout(() => {
+                            if (messagesContainer) {
+                                lastStaffMessage.scrollIntoView({ 
+                                    behavior: 'smooth', 
+                                    block: 'end',
+                                    inline: 'nearest'
+                                });
+                                
+                                const messageContent = lastStaffMessage.querySelector('.message-content');
+                                if (messageContent) {
+                                    messageContent.style.transition = 'all 0.3s';
+                                    messageContent.style.transform = 'scale(1.02)';
+                                    setTimeout(() => {
+                                        messageContent.style.transform = 'scale(1)';
+                                    }, 300);
+                                }
+                            }
+                        }, 200);
+                    }
+                }, 300);
+            } else {
+                const allMessages = document.querySelectorAll('.message-bubble');
+                allMessages.forEach((msg, index) => {
+                    msg.classList.add('animate');
+                    msg.style.animationDelay = `${index * 0.03}s`;
+                });
+            }
+
+            connectWebSocket();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (websocket) {
+                websocket.close();
+            }
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+        });
+    })();
 </script>
 {% endblock %}

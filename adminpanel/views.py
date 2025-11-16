@@ -405,21 +405,31 @@ def chat_conversation(request, conversation_id):
         if content:
             # Create new message (staff/superuser sending reply)
             from accounts.models import Staff
+            # Check if user is Staff instance or has staff permissions (superuser)
             if isinstance(request.user, Staff):
+                # Staff user - use them directly as staff_sender
                 ChatMessage.objects.create(
                     conversation=conversation,
                     staff_sender=request.user,
                     content=content
                 )
-            elif request.user.is_superuser:
-                # For superusers, we can't use staff_sender (requires Staff) or sender (requires Customer)
-                # So we'll create the message with both fields as None - the content will still be saved
-                # The message will be attributed to the conversation admin or shown as system message
+            elif request.user.is_staff or request.user.is_superuser:
+                # Superuser or staff user (but not Staff instance) - use conversation admin or first available staff
+                staff_sender = conversation.admin
+                if not staff_sender:
+                    # Try to find a Staff record for this user (in case superuser is also a Staff)
+                    try:
+                        staff_sender = Staff.objects.get(pk=request.user.pk)
+                    except Staff.DoesNotExist:
+                        # Use the first available active staff member
+                        staff_sender = Staff.objects.filter(is_active=True).first()
+                
+                # Create message with staff_sender set (even if None, signal will handle it)
                 ChatMessage.objects.create(
                     conversation=conversation,
                     content=content,
                     sender=None,
-                    staff_sender=None
+                    staff_sender=staff_sender
                 )
             
             # Update conversation status to 'replied'
@@ -2049,9 +2059,6 @@ def run_populate_db(request):
                 
             elif action == 'create_nus_computing_tshirt':
                 populate_db.create_nus_computing_tshirt()
-                
-            elif action == 'assign_profile_completion_vouchers':
-                populate_db.assign_profile_completion_vouchers()
                 
             elif action == 'create_adminpanel_analytics_data':
                 populate_db.create_adminpanel_analytics_data()
