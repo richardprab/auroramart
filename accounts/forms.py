@@ -664,6 +664,85 @@ class AddressForm(forms.ModelForm):
         return address
 
 
+class PasswordResetVerificationForm(forms.Form):
+    """
+    Simple password reset form using username and phone number for verification.
+    """
+    username = forms.CharField(
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your username',
+            'autofocus': True,
+        }),
+        label='Username'
+    )
+    phone = forms.CharField(
+        max_length=20,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your phone number',
+        }),
+        label='Phone Number',
+        help_text='Enter your phone number to verify your identity.'
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        username = cleaned_data.get('username')
+        phone = cleaned_data.get('phone')
+        
+        if username and phone:
+            try:
+                customer = Customer.objects.get(username=username, is_active=True)
+                # Normalize phone numbers for comparison (remove spaces, dashes, etc.)
+                customer_phone = (customer.phone or '').strip().replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                input_phone = phone.strip().replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                if customer_phone.lower() != input_phone.lower():
+                    self.add_error(None, ValidationError('The username and phone number do not match our records.'))
+            except Customer.DoesNotExist:
+                # Don't reveal that username doesn't exist - security best practice
+                self.add_error(None, ValidationError('The username and phone number do not match our records.'))
+        
+        return cleaned_data
+
+
+class SetPasswordForm(forms.Form):
+    """
+    Form to set a new password after verification.
+    """
+    new_password1 = forms.CharField(
+        label='New Password',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter new password',
+        }),
+        min_length=8,
+        help_text='Password must be at least 8 characters long.'
+    )
+    new_password2 = forms.CharField(
+        label='Confirm New Password',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Confirm new password',
+        }),
+        min_length=8,
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get('new_password1')
+        password2 = cleaned_data.get('new_password2')
+        
+        if password1 and password2:
+            if password1 != password2:
+                self.add_error('new_password2', ValidationError('The two password fields did not match.'))
+        
+        return cleaned_data
+
+
 class CustomerPasswordResetForm(PasswordResetForm):
     """
     Custom password reset form that only allows Customer users to reset passwords.

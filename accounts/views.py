@@ -9,7 +9,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from products.models import Product
 from .models import Wishlist, Address, Customer
-from .forms import CustomUserCreationForm, UserProfileForm, AddressForm
+from .forms import CustomUserCreationForm, UserProfileForm, AddressForm, PasswordResetVerificationForm, SetPasswordForm
 from decimal import Decimal, InvalidOperation
 
 User = get_user_model()
@@ -799,4 +799,64 @@ def set_default_address(request, address_id):
         return redirect('accounts:addresses')
     
     return redirect('accounts:addresses')
+
+
+def password_reset(request):
+    """Password reset form using username and date of birth for verification"""
+    if request.user.is_authenticated:
+        return redirect('home:index')
+    
+    if request.method == 'POST':
+        form = PasswordResetVerificationForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            # Store username in session for password reset confirmation
+            request.session['password_reset_username'] = username
+            return redirect('accounts:password_reset_confirm')
+    else:
+        form = PasswordResetVerificationForm()
+    
+    return render(request, 'accounts/password_reset.html', {'form': form})
+
+
+def password_reset_confirm(request):
+    """Set new password after verification"""
+    if request.user.is_authenticated:
+        return redirect('home:index')
+    
+    username = request.session.get('password_reset_username')
+    if not username:
+        messages.error(request, 'Password reset session expired. Please try again.')
+        return redirect('accounts:password_reset')
+    
+    try:
+        customer = Customer.objects.get(username=username, is_active=True)
+    except Customer.DoesNotExist:
+        messages.error(request, 'Invalid reset request. Please try again.')
+        del request.session['password_reset_username']
+        return redirect('accounts:password_reset')
+    
+    if request.method == 'POST':
+        form = SetPasswordForm(request.POST)
+        if form.is_valid():
+            new_password = form.cleaned_data['new_password1']
+            customer.set_password(new_password)
+            customer.save()
+            del request.session['password_reset_username']
+            messages.success(request, 'Your password has been reset successfully. You can now log in with your new password.')
+            return redirect('accounts:password_reset_complete')
+    else:
+        form = SetPasswordForm()
+    
+    return render(request, 'accounts/password_reset_confirm.html', {'form': form})
+
+
+def password_reset_complete(request):
+    """Password reset complete confirmation page"""
+    return render(request, 'accounts/password_reset_complete.html')
+
+
+def password_reset_done(request):
+    """Simple confirmation page after password reset request (deprecated - kept for compatibility)"""
+    return redirect('accounts:password_reset_confirm')
 
