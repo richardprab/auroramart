@@ -7,37 +7,24 @@ User = get_user_model()
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    """
-    WebSocket consumer for real-time chat messages.
-    Handles connection, disconnection, and sending chat messages to users.
-    """
+    """WebSocket consumer for real-time chat messages."""
 
     async def connect(self):
-        """
-        Handle WebSocket connection.
-        Authenticate user and add to their chat group.
-        """
-        # Get user from scope (set by AuthMiddlewareStack)
         self.user = self.scope.get("user")
         
-        # Reject connection if user is not authenticated
         if not self.user or not self.user.is_authenticated:
             await self.close()
             return
         
-        # Create group name for this user's chat messages
         self.group_name = f"chat_{self.user.id}"
         
-        # Add user to their chat group
         await self.channel_layer.group_add(
             self.group_name,
             self.channel_name
         )
         
-        # Accept the WebSocket connection
         await self.accept()
         
-        # Send initial unread count
         unread_count = await self.get_unread_count()
         await self.send(text_data=json.dumps({
             "type": "unread_count",
@@ -45,10 +32,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def disconnect(self, close_code):
-        """
-        Handle WebSocket disconnection.
-        Remove user from their chat group.
-        """
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(
                 self.group_name,
@@ -56,27 +39,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
     async def receive(self, text_data):
-        """
-        Handle messages received from WebSocket.
-        Currently not used, but can be extended for client-to-server messages.
-        """
         try:
             data = json.loads(text_data)
-            message_type = data.get("type")
-            
-            if message_type == "ping":
-                # Respond to ping with pong
-                await self.send(text_data=json.dumps({
-                    "type": "pong"
-                }))
+            if data.get("type") == "ping":
+                await self.send(text_data=json.dumps({"type": "pong"}))
         except json.JSONDecodeError:
             pass
 
     async def chat_message(self, event):
-        """
-        Handle chat message from group.
-        Send message data to WebSocket.
-        """
         await self.send(text_data=json.dumps({
             "type": "chat_message",
             "message": event["message"],
@@ -84,10 +54,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def unread_count_update(self, event):
-        """
-        Handle unread count update from group.
-        Send updated count to WebSocket.
-        """
         await self.send(text_data=json.dumps({
             "type": "unread_count",
             "count": event["count"]
@@ -95,10 +61,96 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_unread_count(self):
-        """Get unread chat conversation count for the user."""
         from .models import ChatConversation
         return ChatConversation.objects.filter(
             user=self.user,
             user_has_unread=True
         ).count()
+
+
+class AdminChatConsumer(AsyncWebsocketConsumer):
+    """WebSocket consumer for admin panel real-time chat messages."""
+
+    async def connect(self):
+        self.user = self.scope.get("user")
+        
+        if not self.user or not self.user.is_authenticated:
+            await self.close()
+            return
+        
+        if not (self.user.is_staff or self.user.is_superuser):
+            await self.close()
+            return
+        
+        url_route = self.scope.get("url_route", {})
+        kwargs = url_route.get("kwargs", {})
+        self.conversation_id = kwargs.get("conversation_id")
+        
+        if not self.conversation_id:
+            path = self.scope.get("path", "")
+            import re
+            match = re.search(r'/ws/admin/chat/(\d+)/', path)
+            if match:
+                self.conversation_id = int(match.group(1))
+        
+        if not self.conversation_id:
+            await self.close()
+            return
+        
+        try:
+            self.conversation_id = int(self.conversation_id)
+        except (ValueError, TypeError):
+            await self.close()
+            return
+        
+        has_access = await self.check_conversation_access()
+        if not has_access:
+            await self.close()
+            return
+        
+        self.group_name = f"admin_chat_{self.conversation_id}"
+        
+        await self.channel_layer.group_add(
+            self.group_name,
+            self.channel_name
+        )
+        
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(
+                self.group_name,
+                self.channel_name
+            )
+
+    async def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+            if data.get("type") == "ping":
+                await self.send(text_data=json.dumps({"type": "pong"}))
+        except json.JSONDecodeError:
+            pass
+
+    async def chat_message(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "chat_message",
+            "message": event["message"],
+            "conversation_id": event["conversation_id"]
+        }))
+
+    @database_sync_to_async
+    def check_conversation_access(self):
+        from .models import ChatConversation
+        from accounts.models import Staff
+        
+        try:
+            conversation = ChatConversation.objects.get(id=self.conversation_id)
+            if self.user.is_superuser:
+                return True
+            if isinstance(self.user, Staff):
+                return conversation.admin == self.user
+            return False
+        except ChatConversation.DoesNotExist:
+            return False
 

@@ -8,47 +8,41 @@ channel_layer = get_channel_layer()
 
 
 def send_chat_message_websocket(message):
-    """
-    Send chat message via WebSocket to the user's chat group.
-    """
+    """Send chat message via WebSocket to customer and admin groups."""
     if channel_layer is None:
         return
     
     conversation = message.conversation
     user = conversation.user
     
-    group_name = f"chat_{user.id}"
-    
-    # Refresh from database to ensure we have the latest data
     message.refresh_from_db()
     
-    # Determine if message is from staff
-    # Primary check: staff_sender field
     is_staff_message = message.staff_sender is not None
     
-    # Fallback: if staff_sender is None but sender exists and has staff permissions
     if not is_staff_message and message.sender:
         is_staff_message = getattr(message.sender, 'is_staff', False) or getattr(message.sender, 'is_superuser', False)
     
-    # Additional fallback: if both staff_sender and sender are None, check conversation admin
-    # This handles cases where superuser sends message but no Staff instance is available
     if not is_staff_message and message.staff_sender is None and message.sender is None:
-        # If conversation has an admin assigned, it's likely a staff message
-        # (messages from admin panel typically have admin assigned)
         is_staff_message = conversation.admin is not None
     
-    # Prepare message data
+    sender_name = None
+    if message.staff_sender:
+        sender_name = message.staff_sender.username.upper()
+    elif message.sender:
+        sender_name = message.sender.get_full_name() or message.sender.username
+    
     message_data = {
         "id": message.id,
         "content": message.content,
         "sender": message.actual_sender.id if message.actual_sender else None,
+        "sender_name": sender_name,
         "is_staff": is_staff_message,
         "created_at": message.created_at.isoformat(),
     }
     
-    # Send chat message
+    customer_group_name = f"chat_{user.id}"
     async_to_sync(channel_layer.group_send)(
-        group_name,
+        customer_group_name,
         {
             "type": "chat_message",
             "message": message_data,
@@ -56,15 +50,23 @@ def send_chat_message_websocket(message):
         }
     )
     
-    # Update unread count
+    admin_group_name = f"admin_chat_{conversation.id}"
+    async_to_sync(channel_layer.group_send)(
+        admin_group_name,
+        {
+            "type": "chat_message",
+            "message": message_data,
+            "conversation_id": conversation.id,
+        }
+    )
+    
     unread_count = ChatConversation.objects.filter(
         user=user,
         user_has_unread=True
     ).count()
     
-    # Send unread count update
     async_to_sync(channel_layer.group_send)(
-        group_name,
+        customer_group_name,
         {
             "type": "unread_count_update",
             "count": unread_count,
@@ -74,21 +76,15 @@ def send_chat_message_websocket(message):
 
 @receiver(post_save, sender=ChatMessage)
 def send_chat_message_on_create(sender, instance, created, **kwargs):
-    """
-    Send chat message via WebSocket when a new message is created.
-    """
+    """Send chat message via WebSocket when a new message is created."""
     if created:
-        # Update conversation unread status first
         conversation = instance.conversation
-        # If message is from staff, mark as unread for user
         if instance.staff_sender:
             conversation.user_has_unread = True
             conversation.save(update_fields=['user_has_unread'])
-        # If message is from user, mark as unread for admin
         elif instance.sender:
             conversation.admin_has_unread = True
             conversation.save(update_fields=['admin_has_unread'])
         
-        # Send via WebSocket
         send_chat_message_websocket(instance)
 
